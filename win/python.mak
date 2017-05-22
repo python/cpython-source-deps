@@ -36,8 +36,8 @@ BUILDDIRTOP =$(BUILDDIRTOP)_VC$(VCVER)
 !endif
 
 TCL_MAJOR=8
-TCL_MINOR=5
-TCL_PATCH=15
+TCL_MINOR=6
+TCL_PATCH=1
 
 # Since MSVC8 we must deal with manifest resources.
 _VC_MANIFEST_EMBED_EXE=

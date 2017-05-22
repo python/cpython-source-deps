@@ -127,6 +127,19 @@ MKDIR		= md
 RM		= del
 
 #
+# Compile flags
+#
+
+cflags = -c -W3 -nologo
+
+!IF "$(UCRT)" == "1"
+cflags	= $(cflags) -MT
+!else
+cflags	= $(cflags) -MD
+!endif
+
+
+#
 # Link flags
 #
 
@@ -146,6 +159,11 @@ lflags	 	= $(lcommon) /MACHINE:$(MACHINE)
 lflags	 	= $(lcommon) /MACHINE:$(MACHINE)
 !ENDIF
 
+!IF "$(UCRT)" == "1"
+lflags	= $(lflags) -nodefaultlib:libucrt.lib
+optlibs	= $(optlibs) ucrt.lib
+!endif
+
 dlllflags 	= $(lflags) -dll
 
 baselibs   	= kernel32.lib $(optlibs) advapi32.lib user32.lib
@@ -163,8 +181,11 @@ optflags 	= -Oti -Gs
 optflags 	= -Od -Zi
 !ENDIF
 
-cvarsdll  	= -DWIN32 -D_WIN32 -D_MT -D_DLL -DSTDC_HEADERS
-cflagsdll 	= $(cvarsdll) -c -W3 -nologo -Fp$(TMPDIR)\ -MD \
+cvarsdll  	= -DWIN32 -D_WIN32 -D_MT -DSTDC_HEADERS
+!IF "$(UCRT)" != "1"
+cvarsdll  	= $(cvarsdll) -D_DLL
+!ENDIF
+cflagsdll 	= $(cvarsdll) $(cflags) -Fp$(TMPDIR)\ \
 	          $(optflags)
 
 ######################################################################
@@ -239,7 +260,7 @@ TCL_LIBDIR      = $(TCL_DIR)\win\$(TCL_TMPDIR)
 TCL_LIB  	= $(TCL_LIBDIR)\tcl$(TCL_MAJOR)$(TCL_MINOR)$(TCL_DBGX).lib
 TCL_DLL  	= $(TCL_LIBDIR)\tcl$(TCL_MAJOR)$(TCL_MINOR)$(TCL_DBGX).dll
 TCL_STUBLIB  	= $(TCL_LIBDIR)\tclstub$(TCL_MAJOR)$(TCL_MINOR).lib
-TCLSH_EXE	= $(TCL_LIBDIR)\tclsh$(TCL_MAJOR)$(TCL_MINOR)$(TCL_DBGX).exe
+TCLSH_EXE	= $(TCL_LIBDIR)\tclsh$(TCL_MAJOR)$(TCL_MINOR)t$(TCL_DBGX).exe
 
 TK_LIBDIR       = $(TK_DIR)\win\$(TK_TMPDIR)
 TK_LIB  	= $(TK_LIBDIR)\tk$(TCL_MAJOR)$(TCL_MINOR)$(TCL_DBGX).lib
@@ -269,7 +290,7 @@ TIX_LIB		= $(TMPDIR)\tix$(TIX_MAJOR)$(TIX_MINOR)$(DBGX).lib
 TIX_DLL		= $(TMPDIR)\tix$(TIX_MAJOR)$(TIX_MINOR)$(DBGX).dll
 TIX_PKGIDX	= $(TMPDIR)\pkgIndex.tcl.src
 
-TIX_DEFINES     = -D__WIN32__ 
+TIX_DEFINES     = -D__WIN32__  -D_CRT_SECURE_NO_WARNINGS
 TIX_INCLUDES 	= $(include32) \
 		  -I$(ROOT)\win -I$(ROOT)\generic \
 		  -I$(TK_DIR)\generic -I$(TK_DIR)\win -I$(TK_DIR)\xlib \
