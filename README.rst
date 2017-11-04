@@ -14,18 +14,18 @@ Updating SQLite Source Dependencies
 
 1. Fork and clone this repository.
 
-2. Checkout a new branch off the `sqlite` branch. Assuming this repo is set
-   as your `upstream`::
+2. Checkout a new branch off the ``sqlite`` branch. Assuming this repo is set
+   as your ``upstream``::
 
       git checkout -b <branch-name>-sqlite upstream/sqlite
 
-3. Download sqlite source from `sqlite.org`.
+3. Download SQLite source from ``sqlite.org``.
 
 4. Unzip it to the checked out branch on step 2.
 
 5. Commit and push the changes.
 
-6. Create the PR, with `sqlite` as the base branch.
+6. Create the PR, with ``sqlite`` as the base branch.
 
-Once the PR has been merged, tag the commit as `sqlite-<full version specified in CPython's PCbuild/get_externals.bat>`.
+Once the PR has been merged, tag the commit as ``sqlite-<full version specified in CPython's PCbuild/get_externals.bat>``.
 
