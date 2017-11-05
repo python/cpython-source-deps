@@ -9,8 +9,12 @@ unless you are updating its contents.
 
 .. contents::
 
-Updating SQLite Source Dependencies
------------------------------------
+Updating Source Dependencies
+----------------------------
+
+The procedure for updating the different source dependencies are similar.  Below
+is an example for updating SQLite::
+
 
 1. Fork and clone this repository.
 
@@ -19,7 +23,7 @@ Updating SQLite Source Dependencies
 
       git checkout -b <branch-name>-sqlite upstream/sqlite
 
-3. Download SQLite source from ``sqlite.org``.
+3. Download SQLite source from `sqlite.org <https://www.sqlite.org>`_.
 
 4. Unzip it to the checked out branch on step 2.
 
@@ -27,5 +31,24 @@ Updating SQLite Source Dependencies
 
 6. Create the PR, with ``sqlite`` as the base branch.
 
-Once the PR has been merged, tag the commit as ``sqlite-<full version specified in CPython's PCbuild/get_externals.bat>``.
+Once the PR has been merged, tag the commit as ``sqlite-<full version to be used in CPython's PCbuild/get_externals.bat>``.
+
+For updating ``sqlite``, ``bzip2``, ``xz``, and ``zlib``, follow the above
+instructions.
+
+For ``tcl`` and ``tk``, after step 5, `cpython-bin-deps
+<https://github.com/python/cpython-bin-deps/>`_
+needs to be updated.
+
+For ``openssl``, step 5 will be more complicated :)
+
+
+Tagging the commit
+------------------
+
+Using the ``sqlite`` branch as an example::
+
+   git checkout -b sqlite-tag upstream/sqlite
+   git tag sqlite-3.21.0.0  # replace 3.21.0.0 with the correct version.
+   git push --tags upstream
 
