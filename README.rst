@@ -25,7 +25,7 @@ is an example for updating SQLite::
 
 3. Download SQLite source from `sqlite.org <https://www.sqlite.org>`_.
 
-4. Unzip it to the checked out branch on step 2.
+4. Unzip it to the branch checked out in step 2.
 
 5. Commit and push the changes.
 
@@ -41,6 +41,17 @@ For ``tcl`` and ``tk``, after step 5, `cpython-bin-deps
 needs to be updated.
 
 For ``openssl``, step 5 will be more complicated :)
+
+
+Download links
+--------------
+
+- ``sqlite``: https://www.sqlite.org/download.html
+- ``bzip2``: http://www.bzip.org/downloads.html
+- ``xz``: https://tukaani.org/xz/
+- ``zlib``: https://zlib.net/
+- ``tcl``/``tk``: https://tcl.tk/software/tcltk/download.html
+- ``openssl``: https://www.openssl.org/source/
 
 
 Tagging the commit
