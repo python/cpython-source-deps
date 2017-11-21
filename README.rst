@@ -38,7 +38,8 @@ instructions.
 
 For ``tcl`` and ``tk``, after step 5, `cpython-bin-deps
 <https://github.com/python/cpython-bin-deps/>`_
-needs to be updated.
+needs to be updated.  Note though that ``tcl85`` and ``tk85`` are specific
+to 2.7 and don't require anything extra.
 
 For ``openssl``, step 5 will be more complicated :)
 
