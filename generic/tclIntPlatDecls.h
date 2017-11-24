@@ -37,6 +37,10 @@
 
 /* !BEGIN!: Do not edit below this line. */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * Exported function declarations:
  */
@@ -533,10 +537,8 @@ typedef struct TclIntPlatStubs {
 #endif /* MACOSX */
 } TclIntPlatStubs;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 extern TclIntPlatStubs *tclIntPlatStubsPtr;
+
 #ifdef __cplusplus
 }
 #endif
@@ -845,9 +847,15 @@ extern TclIntPlatStubs *tclIntPlatStubsPtr;
 #undef TclpLocaltime_unix
 #undef TclpGmtime_unix
 
-#if defined(__WIN32__) || defined(__CYGWIN__)
+#if defined(__WIN32__)
 #   undef TclWinNToHS
+#   undef TclWinGetServByName
+#   undef TclWinGetSockOpt
+#   undef TclWinSetSockOpt
 #   define TclWinNToHS ntohs
+#   define TclWinGetServByName getservbyname
+#   define TclWinGetSockOpt getsockopt
+#   define TclWinSetSockOpt setsockopt
 #else
 #   undef TclpGetPid
 #   define TclpGetPid(pid) ((unsigned long) (pid))

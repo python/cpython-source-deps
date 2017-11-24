@@ -991,7 +991,8 @@ Tcl_SplitObjCmd(
 {
     Tcl_UniChar ch;
     int len;
-    char *splitChars, *stringPtr, *end;
+    const char *splitChars;
+    char *stringPtr, *end;
     int splitCharLen, stringLen;
     Tcl_Obj *listPtr, *objPtr;
 
@@ -1069,7 +1070,8 @@ Tcl_SplitObjCmd(
 	TclNewStringObj(objPtr, stringPtr, end - stringPtr);
 	Tcl_ListObjAppendElement(NULL, listPtr, objPtr);
     } else {
-	char *element, *p, *splitEnd;
+	char *element;
+	const char *p, *splitEnd;
 	int splitLen;
 	Tcl_UniChar splitChar;
 
@@ -1345,7 +1347,7 @@ StringIndexCmd(
      * Unicode string rep to get the index'th char.
      */
 
-    if (objv[1]->typePtr == &tclByteArrayType) {
+    if (TclIsPureByteArray(objv[1])) {
 	const unsigned char *string =
 		Tcl_GetByteArrayFromObj(objv[1], &length);
 
@@ -2086,7 +2088,7 @@ StringRangeCmd(
      * Unicode string rep to get the range.
      */
 
-    if (objv[1]->typePtr == &tclByteArrayType) {
+    if (TclIsPureByteArray(objv[1])) {
 	string = Tcl_GetByteArrayFromObj(objv[1], &length);
 	length--;
     } else {
@@ -2537,8 +2539,8 @@ StringEqualCmd(
 	return TCL_OK;
     }
 
-    if (!nocase && objv[0]->typePtr == &tclByteArrayType &&
-	    objv[1]->typePtr == &tclByteArrayType) {
+    if (!nocase && TclIsPureByteArray(objv[0]) &&
+	    TclIsPureByteArray(objv[1])) {
 	/*
 	 * Use binary versions of comparisons since that won't cause undue
 	 * type conversions and it is much faster. Only do this if we're
@@ -2684,8 +2686,8 @@ StringCmpCmd(
 	return TCL_OK;
     }
 
-    if (!nocase && objv[0]->typePtr == &tclByteArrayType &&
-	    objv[1]->typePtr == &tclByteArrayType) {
+    if (!nocase && TclIsPureByteArray(objv[0]) &&
+	    TclIsPureByteArray(objv[1])) {
 	/*
 	 * Use binary versions of comparisons since that won't cause undue
 	 * type conversions and it is much faster. Only do this if we're

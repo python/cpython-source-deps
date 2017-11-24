@@ -53,7 +53,7 @@ static Pipe testPipes[MAX_PIPES];
  * The stuff below is used by the testalarm and testgotsig ommands.
  */
 
-static char *gotsig = "0";
+static const char *gotsig = "0";
 
 /*
  * Forward declarations of functions defined later in this file:
@@ -574,12 +574,11 @@ TestforkObjCmd(
                 "Cannot fork", NULL);
         return TCL_ERROR;
     }
-#if !defined(HAVE_PTHREAD_ATFORK) || defined(MAC_OSX_TCL)
-    /* Only needed when pthread_atfork is not present or on OSX. */
+    /* Only needed when pthread_atfork is not present,
+     * should not hurt otherwise. */
     if (pid==0) {
 	Tcl_InitNotifier();
     }
-#endif
     Tcl_SetObjResult(interp, Tcl_NewIntObj(pid));
     return TCL_OK;
 }

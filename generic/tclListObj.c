@@ -854,8 +854,13 @@ Tcl_ListObjReplace(
 	count = numElems - first;
     }
 
+    if (objc > LIST_MAX - (numElems - count)) {
+	Tcl_SetObjResult(interp, Tcl_ObjPrintf(
+		"max length of a Tcl list (%d elements) exceeded", LIST_MAX));
+	return TCL_ERROR;
+    }
     isShared = (listRepPtr->refCount > 1);
-    numRequired = numElems - count + objc;
+    numRequired = numElems - count + objc; /* Known <= LIST_MAX */
 
     for (i = 0;  i < objc;  i++) {
 	Tcl_IncrRefCount(objv[i]);
@@ -906,6 +911,8 @@ Tcl_ListObjReplace(
 
 	listRepPtr = AttemptNewList(interp, newMax, NULL);
 	if (listRepPtr == NULL) {
+	listRepPtr = AttemptNewList(interp, numRequired, NULL);
+	if (listRepPtr == NULL) {
 	    for (i = 0;  i < objc;  i++) {
 		/* See bug 3598580 */
 #if TCL_MAJOR_VERSION > 8
@@ -915,6 +922,7 @@ Tcl_ListObjReplace(
 #endif
 	    }
 	    return TCL_ERROR;
+	}
 	}
 
 	listPtr->internalRep.twoPtrValue.ptr1 = (void *) listRepPtr;
@@ -1031,8 +1039,8 @@ TclLindexList(
 {
 
     int index;			/* Index into the list. */
-    Tcl_Obj **indices;		/* Array of list indices. */
-    int indexCount;		/* Size of the array of list indices. */
+    Tcl_Obj **indices = NULL;	/* Array of list indices. */
+    int indexCount = -1;	/* Size of the array of list indices. */
     Tcl_Obj *indexListCopy;
 
     /*
@@ -1117,8 +1125,8 @@ TclLindexFlat(
     Tcl_IncrRefCount(listPtr);
 
     for (i=0 ; i<indexCount && listPtr ; i++) {
-	int index, listLen;
-	Tcl_Obj **elemPtrs, *sublistCopy;
+	int index, listLen = 0;
+	Tcl_Obj **elemPtrs = NULL, *sublistCopy;
 
 	/*
 	 * Here we make a private copy of the current sublist, so we avoid any
@@ -1203,8 +1211,8 @@ TclLsetList(
     Tcl_Obj *indexArgPtr,	/* Index or index-list arg to 'lset'. */
     Tcl_Obj *valuePtr)		/* Value arg to 'lset'. */
 {
-    int indexCount;		/* Number of indices in the index list. */
-    Tcl_Obj **indices;		/* Vector of indices in the index list. */
+    int indexCount = 0;		/* Number of indices in the index list. */
+    Tcl_Obj **indices = NULL;	/* Vector of indices in the index list. */
     Tcl_Obj *retValuePtr;	/* Pointer to the list to be returned. */
     int index;			/* Current index in the list - discarded. */
     Tcl_Obj *indexListCopy;

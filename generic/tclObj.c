@@ -569,7 +569,7 @@ TclContinuationsEnter(Tcl_Obj* objPtr,
     Tcl_HashEntry* hPtr =
 	Tcl_CreateHashEntry (tsdPtr->lineCLPtr, (char*) objPtr, &newEntry);
 
-    ContLineLoc* clLocPtr = 
+    ContLineLoc* clLocPtr =
 	(ContLineLoc*) ckalloc (sizeof(ContLineLoc) + num*sizeof(int));
 
     if (!newEntry) {
@@ -675,7 +675,7 @@ TclContinuationsEnterDerived(Tcl_Obj* objPtr, int start, int* clNext)
     num = wordCLLast - clNext;
     if (num) {
 	int i;
-	ContLineLoc* clLocPtr = 
+	ContLineLoc* clLocPtr =
 	    TclContinuationsEnter(objPtr, num, clNext);
 
 	/*
@@ -1322,6 +1322,39 @@ TclFreeObj(
 
     ObjInitDeletionContext(context);
 
+# ifdef TCL_THREADS
+    /*
+     * Check to make sure that the Tcl_Obj was allocated by the current
+     * thread. Don't do this check when shutting down since thread local
+     * storage can be finalized before the last Tcl_Obj is freed.
+     */
+
+    if (!TclInExit()) {
+	Tcl_HashTable *tablePtr;
+	Tcl_HashEntry *hPtr;
+	ThreadSpecificData *tsdPtr = TCL_TSD_INIT(&dataKey);
+
+	tablePtr = tsdPtr->objThreadMap;
+	if (!tablePtr) {
+	    Tcl_Panic("TclFreeObj: object table not initialized");
+	}
+	hPtr = Tcl_FindHashEntry(tablePtr, (char *) objPtr);
+	if (hPtr) {
+	    /*
+	     * As the Tcl_Obj is going to be deleted we remove the entry.
+	     */
+
+	    ObjData *objData = Tcl_GetHashValue(hPtr);
+
+	    if (objData != NULL) {
+		ckfree((char *) objData);
+	    }
+
+	    Tcl_DeleteHashEntry(hPtr);
+	}
+    }
+# endif
+
     /*
      * Check for a double free of the same value.  This is slightly tricky
      * because it is customary to free a Tcl_Obj when its refcount falls
@@ -1338,10 +1371,10 @@ TclFreeObj(
      */
     objPtr->refCount = -1;
 
-    /* Invalidate the string rep first so we can use the bytes value 
+    /* Invalidate the string rep first so we can use the bytes value
      * for our pointer chain, and signal an obj deletion (as opposed
-     * to shimmering) with 'length == -1' */ 
-    
+     * to shimmering) with 'length == -1' */
+
     TclInvalidateStringRep(objPtr);
     objPtr->length = -1;
 
@@ -1403,13 +1436,13 @@ void
 TclFreeObj(
     register Tcl_Obj *objPtr)	/* The object to be freed. */
 {
-    /* Invalidate the string rep first so we can use the bytes value 
+    /* Invalidate the string rep first so we can use the bytes value
      * for our pointer chain, and signal an obj deletion (as opposed
-     * to shimmering) with 'length == -1' */ 
+     * to shimmering) with 'length == -1' */
 
     TclInvalidateStringRep(objPtr);
     objPtr->length = -1;
-    
+
     if (!objPtr->typePtr || !objPtr->typePtr->freeIntRepProc) {
 	/*
 	 * objPtr can be freed safely, as it will not attempt to free any
@@ -2766,7 +2799,7 @@ Tcl_GetLongFromObj(
 	tooLarge:
 #endif
 	    if (interp != NULL) {
-		char *s = "integer value too large to represent";
+		const char *s = "integer value too large to represent";
 		Tcl_Obj *msg = Tcl_NewStringObj(s, -1);
 
 		Tcl_SetObjResult(interp, msg);
@@ -3065,7 +3098,7 @@ Tcl_GetWideIntFromObj(
 		}
 	    }
 	    if (interp != NULL) {
-		char *s = "integer value too large to represent";
+		const char *s = "integer value too large to represent";
 		Tcl_Obj* msg = Tcl_NewStringObj(s, -1);
 
 		Tcl_SetObjResult(interp, msg);
@@ -3717,20 +3750,6 @@ Tcl_DbDecrRefCount(
 		    "Trying to decr ref count of "
 		    "Tcl_Obj allocated in another thread");
 	}
-
-	/*
-	 * If the Tcl_Obj is going to be deleted, remove the entry.
-	 */
-
-	if ((objPtr->refCount - 1) <= 0) {
-	    ObjData *objData = Tcl_GetHashValue(hPtr);
-
-	    if (objData != NULL) {
-		ckfree((char *) objData);
-	    }
-
-	    Tcl_DeleteHashEntry(hPtr);
-	}
     }
 # endif
 #endif
@@ -4065,7 +4084,7 @@ Tcl_GetCommandFromObj(
      * is not deleted.
      *
      * If any check fails, then force another conversion to the command type,
-     * to discard the old rep and create a new one.      
+     * to discard the old rep and create a new one.
      */
 
     resPtr = (ResolvedCmdName *) objPtr->internalRep.twoPtrValue.ptr1;
@@ -4075,15 +4094,15 @@ Tcl_GetCommandFromObj(
 	    || (cmdPtr->flags & CMD_IS_DELETED)
 	    || (interp != cmdPtr->nsPtr->interp)
 	    || (cmdPtr->nsPtr->flags & 	NS_DYING)
-	    || ((resPtr->refNsPtr != NULL) && 
+	    || ((resPtr->refNsPtr != NULL) &&
 		     (((refNsPtr = (Namespace *) TclGetCurrentNamespace(interp))
 			     != resPtr->refNsPtr)
 		     || (resPtr->refNsId != refNsPtr->nsId)
 		     || (resPtr->refNsCmdEpoch != refNsPtr->cmdRefEpoch)))
 	) {
-	
+
 	result = tclCmdNameType.setFromAnyProc(interp, objPtr);
-	
+
 	resPtr = (ResolvedCmdName *) objPtr->internalRep.twoPtrValue.ptr1;
 	if ((result == TCL_OK) && resPtr) {
 	    cmdPtr = resPtr->cmdPtr;
@@ -4091,7 +4110,7 @@ Tcl_GetCommandFromObj(
 	    cmdPtr = NULL;
 	}
     }
-    
+
     return (Tcl_Command) cmdPtr;
 }
 
@@ -4143,7 +4162,7 @@ TclSetCmdNameObj(
     if ((*name++ == ':') && (*name == ':')) {
 	/*
 	 * The name is fully qualified: set the referring namespace to
-	 * NULL. 
+	 * NULL.
 	 */
 
 	resPtr->refNsPtr = NULL;
@@ -4153,7 +4172,7 @@ TclSetCmdNameObj(
 	 */
 
 	currNsPtr = iPtr->varFramePtr->nsPtr;
-	
+
 	resPtr->refNsPtr = currNsPtr;
 	resPtr->refNsId = currNsPtr->nsId;
 	resPtr->refNsCmdEpoch = currNsPtr->cmdRefEpoch;
@@ -4313,7 +4332,7 @@ SetCmdNameFromAny(
 	    /*
 	     * Reuse the old ResolvedCmdName struct instead of freeing it
 	     */
-	    
+
 	    Command *oldCmdPtr = resPtr->cmdPtr;
 	    if (--oldCmdPtr->refCount == 0) {
 		TclCleanupCommandMacro(oldCmdPtr);
@@ -4330,8 +4349,8 @@ SetCmdNameFromAny(
 	resPtr->cmdEpoch = cmdPtr->cmdEpoch;
 	if ((*name++ == ':') && (*name == ':')) {
 	    /*
-	     * The name is fully qualified: set the referring namespace to 
-	     * NULL. 
+	     * The name is fully qualified: set the referring namespace to
+	     * NULL.
 	     */
 
 	    resPtr->refNsPtr = NULL;
@@ -4341,7 +4360,7 @@ SetCmdNameFromAny(
 	     */
 
 	    currNsPtr = iPtr->varFramePtr->nsPtr;
-	    
+
 	    resPtr->refNsPtr = currNsPtr;
 	    resPtr->refNsId = currNsPtr->nsId;
 	    resPtr->refNsCmdEpoch = currNsPtr->cmdRefEpoch;
