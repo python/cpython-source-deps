@@ -588,9 +588,10 @@ TkIntPlatStubs tkIntPlatStubs = {
     TkGetTransientMaster, /* 49 */
     TkGenerateButtonEvent, /* 50 */
     TkGenWMDestroyEvent, /* 51 */
-    NULL, /* 52 */
+    TkMacOSXSetDrawingEnabled, /* 52 */
     TkpGetMS, /* 53 */
     TkMacOSXDrawable, /* 54 */
+    TkpScanWindowId, /* 55 */
 #endif /* AQUA */
 #if !(defined(__WIN32__) || defined(__CYGWIN__) || defined(MAC_OSX_TK)) /* X11 */
     TkCreateXEventSource, /* 0 */

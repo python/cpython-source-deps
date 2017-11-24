@@ -25,7 +25,7 @@ int TtkXPTheme_Init(Tcl_Interp *interp, HWND hwnd) { return TCL_OK; }
 
 #include <windows.h>
 #include <uxtheme.h>
-#ifdef HAVE_VSSYM32_H
+#if defined(HAVE_VSSYM32_H) || _MSC_VER > 1500
 #   include <vssym32.h>
 #else
 #   include <tmschema.h>
@@ -1256,10 +1256,10 @@ MODULE_SCOPE int TtkXPTheme_Init(Tcl_Interp *interp, HWND hwnd)
     HINSTANCE hlibrary;
     Ttk_Theme themePtr, parentPtr, vistaPtr;
     ElementInfo *infoPtr;
-    OSVERSIONINFO os;
+    OSVERSIONINFOW os;
 
-    os.dwOSVersionInfoSize = sizeof(os);
-    GetVersionEx(&os);
+    os.dwOSVersionInfoSize = sizeof(OSVERSIONINFOW);
+    GetVersionExW(&os);
 
     procs = LoadXPThemeProcs(&hlibrary);
     if (!procs)

@@ -18,4 +18,3 @@ if errorlevel 1 goto end
 echo Deleted directory %1
 
 :end
-

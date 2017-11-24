@@ -956,6 +956,9 @@ declare 50 aqua {
 declare 51 aqua {
     void TkGenWMDestroyEvent(Tk_Window tkwin)
 }
+declare 52 aqua {
+    void TkMacOSXSetDrawingEnabled(TkWindow *winPtr, int flag)
+}
 
 # removed duplicate from tkPlat table (tk.decls)
 #declare 52 aqua {
@@ -970,6 +973,9 @@ declare 53 aqua {
 # For Canvas3d, requested by Sean Woods
 declare 54 aqua {
     void *TkMacOSXDrawable(Drawable drawable)
+}
+declare 55 aqua {
+    int TkpScanWindowId(Tcl_Interp *interp, const char *string, Window *idPtr)
 }
 
 ##############################################################################
