@@ -3083,7 +3083,8 @@ ConfigureSlaves(
     }
 
     /*
-     * If no -row is given, use the first unoccupied row of the master.
+     * If no -row is given, use the next row after the highest occupied row
+     * of the master.
      */
 
     if (defaultRow < 0) {
@@ -3314,6 +3315,9 @@ ConfigureSlaves(
     	}
 
 	if (slavePtr->masterPtr != NULL && slavePtr->masterPtr != masterPtr) {
+            if (slavePtr->masterPtr->tkwin != Tk_Parent(slavePtr->tkwin)) {
+                Tk_UnmaintainGeometry(slavePtr->tkwin, slavePtr->masterPtr->tkwin);
+            }
 	    Unlink(slavePtr);
 	    slavePtr->masterPtr = NULL;
 	}

@@ -1260,6 +1260,16 @@ Tk_BindEvent(
 	}
     }
 
+    /*
+     * Ignore event types which are not in flagArray and all zeroes there.
+     * Most notably, NoExpose events can fill the ring buffer and disturb
+     * (thus masking out) event sequences of interest.
+     */
+
+    if ((eventPtr->type >= TK_LASTEVENT) || !flagArray[eventPtr->type]) {
+	return;
+    }
+
     dispPtr = ((TkWindow *) tkwin)->dispPtr;
     bindInfoPtr = winPtr->mainPtr->bindInfo;
 
@@ -1728,9 +1738,10 @@ MatchPatterns(
 	    }
 	    if (psPtr->flags & PAT_NEARBY) {
 		XEvent *firstPtr = &bindPtr->eventRing[bindPtr->curEvent];
-		int timeDiff;
+		long timeDiff;
 
-		timeDiff = (Time) firstPtr->xkey.time - eventPtr->xkey.time;
+		timeDiff = ((long)firstPtr->xkey.time -
+			    (long)eventPtr->xkey.time);
 		if ((firstPtr->xkey.x_root
 			    < (eventPtr->xkey.x_root - NEARBY_PIXELS))
 			|| (firstPtr->xkey.x_root
@@ -2868,7 +2879,7 @@ GetAllVirtualEvents(
  *	Any other fields in eventPtr which are not specified by the pattern
  *	string or the optional arguments, are set to 0.
  *
- *	The event may be handled sychronously or asynchronously, depending on
+ *	The event may be handled synchronously or asynchronously, depending on
  *	the value specified by the optional "-when" option. The default
  *	setting is synchronous.
  *
@@ -3323,9 +3334,9 @@ HandleEventGenerate(
 		return TCL_ERROR;
 	    }
 	    if (flags & KEY_BUTTON_MOTION_CROSSING) {
-		event.general.xkey.time = (Time) number;
+		event.general.xkey.time = number;
 	    } else if (flags & PROP) {
-		event.general.xproperty.time = (Time) number;
+		event.general.xproperty.time = number;
 	    } else {
 		goto badopt;
 	    }
@@ -3456,12 +3467,23 @@ HandleEventGenerate(
     if ((warp != 0) && Tk_IsMapped(tkwin)) {
 	TkDisplay *dispPtr = TkGetDisplay(event.general.xmotion.display);
 
+Tk_Window warpWindow = Tk_IdToWindow(dispPtr->display,
+		event.general.xmotion.window);
+
 	if (!(dispPtr->flags & TK_DISPLAY_IN_WARP)) {
 	    Tcl_DoWhenIdle(DoWarp, dispPtr);
 	    dispPtr->flags |= TK_DISPLAY_IN_WARP;
 	}
-	dispPtr->warpWindow = Tk_IdToWindow(Tk_Display(mainWin),
-		event.general.xmotion.window);
+
+	if (warpWindow != dispPtr->warpWindow) {
+	    if (warpWindow) {
+		Tcl_Preserve(warpWindow);
+	    }
+	    if (dispPtr->warpWindow) {
+		Tcl_Release(dispPtr->warpWindow);
+	    }
+	    dispPtr->warpWindow = warpWindow;
+	}
 	dispPtr->warpMainwin = mainWin;
 	dispPtr->warpX = event.general.xmotion.x;
 	dispPtr->warpY = event.general.xmotion.y;
@@ -3548,6 +3570,11 @@ DoWarp(
             && (Tk_WindowId(dispPtr->warpWindow) != None))) {
         TkpWarpPointer(dispPtr);
         XForceScreenSaver(dispPtr->display, ScreenSaverReset);
+    }
+
+    if (dispPtr->warpWindow) {
+	Tcl_Release(dispPtr->warpWindow);
+	dispPtr->warpWindow = None;
     }
     dispPtr->flags &= ~TK_DISPLAY_IN_WARP;
 }
@@ -4287,6 +4314,33 @@ TkpGetBindingXEvent(
    BindingTable *bindPtr = winPtr->mainPtr->bindingTable;
 
    return &(bindPtr->eventRing[bindPtr->curEvent]);
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * TkpCancelWarp --
+ *
+ *	This function cancels an outstanding pointer warp and
+ *	is called during tear down of the display.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+TkpCancelWarp(
+    TkDisplay *dispPtr)
+{
+    if (dispPtr->flags & TK_DISPLAY_IN_WARP) {
+	Tcl_CancelIdleCall(DoWarp, dispPtr);
+	dispPtr->flags &= ~TK_DISPLAY_IN_WARP;
+    }
 }
 
 /*

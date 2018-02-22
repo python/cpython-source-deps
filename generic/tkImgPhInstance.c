@@ -418,6 +418,13 @@ TkImgPhotoGet(
 	(UCHAR(r) << red_shift)   | \
 	(UCHAR(g) << green_shift) | \
 	(UCHAR(b) << blue_shift)  ))
+#ifdef MAC_OSX_TK
+#define RGBA(r, g, b, a) ((unsigned)( \
+	(UCHAR(r) << red_shift)   | \
+	(UCHAR(g) << green_shift) | \
+	(UCHAR(b) << blue_shift)  | \
+	(UCHAR(a) << alpha_shift) ))
+#endif
 #define RGB15(r, g, b)	((unsigned)( \
 	(((r) * red_mask / 255)   & red_mask)   | \
 	(((g) * green_mask / 255) & green_mask) | \
@@ -485,6 +492,13 @@ BlendComplexAlpha(
     while ((0x0001 & (blue_mask >> blue_shift)) == 0) {
 	blue_shift++;
     }
+#ifdef MAC_OSX_TK
+    unsigned long alpha_mask = visual->alpha_mask;
+    unsigned long alpha_shift = 0;
+    while ((0x0001 & (alpha_mask >> alpha_shift)) == 0) {
+	alpha_shift++;
+    }
+#endif
 #endif /* !_WIN32 */
 
     /*
@@ -585,7 +599,11 @@ BlendComplexAlpha(
 		    g = ALPHA_BLEND(ga, g, alpha, unalpha);
 		    b = ALPHA_BLEND(ba, b, alpha, unalpha);
 		}
+#ifndef MAC_OSX_TK
 		XPutPixel(bgImg, x, y, RGB(r, g, b));
+#else
+		XPutPixel(bgImg, x, y, RGBA(r, g, b, alpha));
+#endif
 	    }
 	}
     }
@@ -721,8 +739,7 @@ TkImgPhotoFree(
     PhotoInstance *instancePtr = clientData;
     ColorTable *colorPtr;
 
-    instancePtr->refCount -= 1;
-    if (instancePtr->refCount > 0) {
+    if (instancePtr->refCount-- > 1) {
 	return;
     }
 
@@ -1262,7 +1279,7 @@ AllocateColors(
 		}
 	    } else {
 		/*
-		 * Monochrome display - allocate the shades of grey we want.
+		 * Monochrome display - allocate the shades of gray we want.
 		 */
 
 		for (i = 0; i < numColors; ++i) {
