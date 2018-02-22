@@ -897,18 +897,18 @@ Tcl_ListObjReplace(
     }
     if (count < 0) {
 	count = 0;
-    } else if (numElems < first+count || first+count < 0) {
-	/*
-	 * The 'first+count < 0' condition here guards agains integer
-	 * overflow in determining 'first+count'.
-	 */
+    } else if (first > INT_MAX - count /* Handle integer overflow */
+	    || numElems < first+count) {
 
 	count = numElems - first;
     }
 
     if (objc > LIST_MAX - (numElems - count)) {
-	Tcl_SetObjResult(interp, Tcl_ObjPrintf(
-		"max length of a Tcl list (%d elements) exceeded", LIST_MAX));
+	if (interp != NULL) {
+	    Tcl_SetObjResult(interp, Tcl_ObjPrintf(
+		    "max length of a Tcl list (%d elements) exceeded",
+		    LIST_MAX));
+	}
 	return TCL_ERROR;
     }
     isShared = (listRepPtr->refCount > 1);
@@ -1957,8 +1957,8 @@ static void
 UpdateStringOfList(
     Tcl_Obj *listPtr)		/* List object with string rep to update. */
 {
-#   define LOCAL_SIZE 20
-    int localFlags[LOCAL_SIZE], *flagPtr = NULL;
+#   define LOCAL_SIZE 64
+    char localFlags[LOCAL_SIZE], *flagPtr = NULL;
     List *listRepPtr = ListRepPtr(listPtr);
     int numElems = listRepPtr->elemCount;
     int i, length, bytesNeeded = 0;
@@ -1995,7 +1995,7 @@ UpdateStringOfList(
 	 * We know numElems <= LIST_MAX, so this is safe.
 	 */
 
-	flagPtr = ckalloc(numElems * sizeof(int));
+	flagPtr = ckalloc(numElems);
     }
     elemPtrs = &listRepPtr->elements;
     for (i = 0; i < numElems; i++) {

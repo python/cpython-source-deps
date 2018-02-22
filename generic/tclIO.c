@@ -6660,7 +6660,7 @@ Tcl_Flush(
     chanPtr = statePtr->topChanPtr;
 
     if (CheckChannelErrors(statePtr, TCL_WRITABLE) != 0) {
-	return -1;
+	return TCL_ERROR;
     }
 
     result = FlushChannel(NULL, chanPtr, 0);
@@ -7129,7 +7129,7 @@ Tcl_Tell(
  *
  * Tcl_SeekOld, Tcl_TellOld --
  *
- *	Backward-compatability versions of the seek/tell interface that do not
+ *	Backward-compatibility versions of the seek/tell interface that do not
  *	support 64-bit offsets. This interface is not documented or expected
  *	to be supported indefinitely.
  *
@@ -9317,7 +9317,7 @@ MBWrite(
          * then the calculations involving extra must be made wide too.
          *
          * Noted with Win32/MSVC debug build treating the warning (possible of
-         * data in int64 to int conversion) as error.
+         * data in __int64 to int conversion) as error.
          */
 
 	bufPtr = AllocChannelBuffer(extra);
