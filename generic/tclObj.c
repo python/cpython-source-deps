@@ -663,7 +663,7 @@ TclContinuationsEnterDerived(
      * better way which doesn't shimmer?)
      */
 
-    Tcl_GetStringFromObj(objPtr, &length);
+    TclGetStringFromObj(objPtr, &length);
     end = start + length;       /* First char after the word */
 
     /*
@@ -1989,7 +1989,7 @@ TclSetBooleanFromAny(
   badBoolean:
     if (interp != NULL) {
 	int length;
-	const char *str = Tcl_GetStringFromObj(objPtr, &length);
+	const char *str = TclGetStringFromObj(objPtr, &length);
 	Tcl_Obj *msg;
 
 	TclNewLiteralStringObj(msg, "expected boolean value but got \"");
@@ -2785,7 +2785,7 @@ Tcl_GetLongFromObj(
 	    if (interp != NULL) {
                 Tcl_SetObjResult(interp, Tcl_ObjPrintf(
                         "expected integer but got \"%s\"",
-                        Tcl_GetString(objPtr)));
+                        TclGetString(objPtr)));
 		Tcl_SetErrorCode(interp, "TCL", "VALUE", "INTEGER", NULL);
 	    }
 	    return TCL_ERROR;
@@ -3086,7 +3086,7 @@ Tcl_GetWideIntFromObj(
 	    if (interp != NULL) {
                 Tcl_SetObjResult(interp, Tcl_ObjPrintf(
                         "expected integer but got \"%s\"",
-                        Tcl_GetString(objPtr)));
+                        TclGetString(objPtr)));
 		Tcl_SetErrorCode(interp, "TCL", "VALUE", "INTEGER", NULL);
 	    }
 	    return TCL_ERROR;
@@ -3253,13 +3253,11 @@ UpdateStringOfBignum(
     if (status != MP_OKAY) {
 	Tcl_Panic("radix size failure in UpdateStringOfBignum");
     }
-    if (size == 3) {
+    if (size < 2) {
 	/*
-	 * mp_radix_size() returns 3 when more than INT_MAX bytes would be
+	 * mp_radix_size() returns < 2 when more than INT_MAX bytes would be
 	 * needed to hold the string rep (because mp_radix_size ignores
-	 * integer overflow issues). When we know the string rep will be more
-	 * than 3, we can conclude the string rep would overflow our string
-	 * length limits.
+	 * integer overflow issues).
 	 *
 	 * Note that so long as we enforce our bignums to the size that fits
 	 * in a packed bignum, this branch will never be taken.
@@ -3417,7 +3415,7 @@ GetBignumFromObj(
 	    if (interp != NULL) {
                 Tcl_SetObjResult(interp, Tcl_ObjPrintf(
                         "expected integer but got \"%s\"",
-                        Tcl_GetString(objPtr)));
+                        TclGetString(objPtr)));
 		Tcl_SetErrorCode(interp, "TCL", "VALUE", "INTEGER", NULL);
 	    }
 	    return TCL_ERROR;
@@ -3967,7 +3965,7 @@ TclCompareObjKeys(
     Tcl_Obj *objPtr1 = keyPtr;
     Tcl_Obj *objPtr2 = (Tcl_Obj *) hPtr->key.oneWordValue;
     register const char *p1, *p2;
-    register int l1, l2;
+    register size_t l1, l2;
 
     /*
      * If the object pointers are the same then they match.
@@ -4219,7 +4217,10 @@ TclSetCmdNameObj(
     const char *name;
 
     if (objPtr->typePtr == &tclCmdNameType) {
-	return;
+	resPtr = objPtr->internalRep.twoPtrValue.ptr1;
+	if (resPtr != NULL && resPtr->cmdPtr == cmdPtr) {
+	    return;
+	}
     }
 
     cmdPtr->refCount++;
@@ -4487,6 +4488,24 @@ Tcl_RepresentationCmd(
             objv[1]->typePtr ? objv[1]->typePtr->name : "pure string",
 	    objv[1]->refCount, ptrBuffer);
 
+    /*
+     * This is a workaround to silence reports from `make valgrind`
+     * on 64-bit systems.  The problem is that the test suite
+     * includes calling the [represenation] command on values of
+     * &tclDoubleType.  When these values are created, the "doubleValue"
+     * is set, but when the "twoPtrValue" is examined, its "ptr2"
+     * field has never been initialized.  Since [representation]
+     * presents the value of the ptr2 value in its output, valgrind
+     * alerts about the read of uninitialized memory.
+     *
+     * The general problem with [representation], that it can read
+     * and report uninitialized fields, is still present.  This is
+     * just the minimal workaround to silence one particular test.
+     */
+
+    if ((sizeof(void *) > 4) && objv[1]->typePtr == &tclDoubleType) {
+	objv[1]->internalRep.twoPtrValue.ptr2 = NULL;
+    }
     if (objv[1]->typePtr) {
 	sprintf(ptrBuffer, "%p:%p",
 		(void *) objv[1]->internalRep.twoPtrValue.ptr1,
