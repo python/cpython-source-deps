@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -88,74 +88,47 @@ const BIGNUM *BN_value_one(void)
 
 int BN_num_bits_word(BN_ULONG l)
 {
-    static const unsigned char bits[256] = {
-        0, 1, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4,
-        5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
-        6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
-        6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
-        7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
-        7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
-        7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
-        7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
-        8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
-        8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
-        8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
-        8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
-        8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
-        8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
-        8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
-        8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
-    };
+    BN_ULONG x, mask;
+    int bits = (l != 0);
 
-#if defined(SIXTY_FOUR_BIT_LONG)
-    if (l & 0xffffffff00000000L) {
-        if (l & 0xffff000000000000L) {
-            if (l & 0xff00000000000000L) {
-                return (bits[(int)(l >> 56)] + 56);
-            } else
-                return (bits[(int)(l >> 48)] + 48);
-        } else {
-            if (l & 0x0000ff0000000000L) {
-                return (bits[(int)(l >> 40)] + 40);
-            } else
-                return (bits[(int)(l >> 32)] + 32);
-        }
-    } else
-#else
-# ifdef SIXTY_FOUR_BIT
-    if (l & 0xffffffff00000000LL) {
-        if (l & 0xffff000000000000LL) {
-            if (l & 0xff00000000000000LL) {
-                return (bits[(int)(l >> 56)] + 56);
-            } else
-                return (bits[(int)(l >> 48)] + 48);
-        } else {
-            if (l & 0x0000ff0000000000LL) {
-                return (bits[(int)(l >> 40)] + 40);
-            } else
-                return (bits[(int)(l >> 32)] + 32);
-        }
-    } else
-# endif
+#if BN_BITS2 > 32
+    x = l >> 32;
+    mask = (0 - x) & BN_MASK2;
+    mask = (0 - (mask >> (BN_BITS2 - 1)));
+    bits += 32 & mask;
+    l ^= (x ^ l) & mask;
 #endif
-    {
-#if defined(THIRTY_TWO_BIT) || defined(SIXTY_FOUR_BIT) || defined(SIXTY_FOUR_BIT_LONG)
-        if (l & 0xffff0000L) {
-            if (l & 0xff000000L)
-                return (bits[(int)(l >> 24L)] + 24);
-            else
-                return (bits[(int)(l >> 16L)] + 16);
-        } else
-#endif
-        {
-#if defined(THIRTY_TWO_BIT) || defined(SIXTY_FOUR_BIT) || defined(SIXTY_FOUR_BIT_LONG)
-            if (l & 0xff00L)
-                return (bits[(int)(l >> 8)] + 8);
-            else
-#endif
-                return (bits[(int)(l)]);
-        }
-    }
+
+    x = l >> 16;
+    mask = (0 - x) & BN_MASK2;
+    mask = (0 - (mask >> (BN_BITS2 - 1)));
+    bits += 16 & mask;
+    l ^= (x ^ l) & mask;
+
+    x = l >> 8;
+    mask = (0 - x) & BN_MASK2;
+    mask = (0 - (mask >> (BN_BITS2 - 1)));
+    bits += 8 & mask;
+    l ^= (x ^ l) & mask;
+
+    x = l >> 4;
+    mask = (0 - x) & BN_MASK2;
+    mask = (0 - (mask >> (BN_BITS2 - 1)));
+    bits += 4 & mask;
+    l ^= (x ^ l) & mask;
+
+    x = l >> 2;
+    mask = (0 - x) & BN_MASK2;
+    mask = (0 - (mask >> (BN_BITS2 - 1)));
+    bits += 2 & mask;
+    l ^= (x ^ l) & mask;
+
+    x = l >> 1;
+    mask = (0 - x) & BN_MASK2;
+    mask = (0 - (mask >> (BN_BITS2 - 1)));
+    bits += 1 & mask;
+
+    return bits;
 }
 
 int BN_num_bits(const BIGNUM *a)
@@ -295,10 +268,13 @@ static BN_ULONG *bn_expand_internal(const BIGNUM *b, int words)
         switch (b->top & 3) {
         case 3:
             A[2] = B[2];
+            /* fall thru */
         case 2:
             A[1] = B[1];
+            /* fall thru */
         case 1:
             A[0] = B[0];
+            /* fall thru */
         case 0:
             /* Without the "case 0" some old optimizers got this wrong. */
             ;
@@ -390,10 +366,13 @@ BIGNUM *BN_copy(BIGNUM *a, const BIGNUM *b)
     switch (b->top & 3) {
     case 3:
         A[2] = B[2];
+        /* fall thru */
     case 2:
         A[1] = B[1];
+        /* fall thru */
     case 1:
         A[0] = B[0];
+        /* fall thru */
     case 0:;
     }
 #else
@@ -888,7 +867,7 @@ int BN_security_bits(int L, int N)
     int secbits, bits;
     if (L >= 15360)
         secbits = 256;
-    else if (L >= 7690)
+    else if (L >= 7680)
         secbits = 192;
     else if (L >= 3072)
         secbits = 128;

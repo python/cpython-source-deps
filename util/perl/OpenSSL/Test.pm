@@ -1,4 +1,4 @@
-# Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -667,12 +667,13 @@ I<This must never ever be done on VMS.>
 sub quotify {
     # Unix setup (default if nothing else is mentioned)
     my $arg_formatter =
-	sub { $_ = shift; /\s|[\{\}\\\$\[\]\*\?\|\&:;<>]/ ? "'$_'" : $_ };
+	sub { $_ = shift;
+	      ($_ eq '' || /\s|[\{\}\\\$\[\]\*\?\|\&:;<>]/) ? "'$_'" : $_ };
 
     if ( $^O eq "VMS") {	# VMS setup
 	$arg_formatter = sub {
 	    $_ = shift;
-	    if (/\s|["[:upper:]]/) {
+	    if ($_ eq '' || /\s|["[:upper:]]/) {
 		s/"/""/g;
 		'"'.$_.'"';
 	    } else {
@@ -682,7 +683,7 @@ sub quotify {
     } elsif ( $^O eq "MSWin32") { # MSWin setup
 	$arg_formatter = sub {
 	    $_ = shift;
-	    if (/\s|["\|\&\*\;<>]/) {
+	    if ($_ eq '' || /\s|["\|\&\*\;<>]/) {
 		s/(["\\])/\\$1/g;
 		'"'.$_.'"';
 	    } else {
@@ -793,45 +794,45 @@ sub __test_file {
     BAIL_OUT("Must run setup() first") if (! $test_name);
 
     my $f = pop;
-    $f = catfile($directories{BLDTEST},@_,$f . __exeext());
-    $f = catfile($directories{SRCTEST},@_,$f) unless -x $f;
-    return $f;
+    my $out = catfile($directories{BLDTEST},@_,$f . __exeext());
+    $out = catfile($directories{SRCTEST},@_,$f) unless -x $out;
+    return $out;
 }
 
 sub __perltest_file {
     BAIL_OUT("Must run setup() first") if (! $test_name);
 
     my $f = pop;
-    $f = catfile($directories{BLDTEST},@_,$f);
-    $f = catfile($directories{SRCTEST},@_,$f) unless -f $f;
-    return ($^X, $f);
+    my $out = catfile($directories{BLDTEST},@_,$f);
+    $out = catfile($directories{SRCTEST},@_,$f) unless -f $out;
+    return ($^X, $out);
 }
 
 sub __apps_file {
     BAIL_OUT("Must run setup() first") if (! $test_name);
 
     my $f = pop;
-    $f = catfile($directories{BLDAPPS},@_,$f . __exeext());
-    $f = catfile($directories{SRCAPPS},@_,$f) unless -x $f;
-    return $f;
+    my $out = catfile($directories{BLDAPPS},@_,$f . __exeext());
+    $out = catfile($directories{SRCAPPS},@_,$f) unless -x $out;
+    return $out;
 }
 
 sub __fuzz_file {
     BAIL_OUT("Must run setup() first") if (! $test_name);
 
     my $f = pop;
-    $f = catfile($directories{BLDFUZZ},@_,$f . __exeext());
-    $f = catfile($directories{SRCFUZZ},@_,$f) unless -x $f;
-    return $f;
+    my $out = catfile($directories{BLDFUZZ},@_,$f . __exeext());
+    $out = catfile($directories{SRCFUZZ},@_,$f) unless -x $out;
+    return $out;
 }
 
 sub __perlapps_file {
     BAIL_OUT("Must run setup() first") if (! $test_name);
 
     my $f = pop;
-    $f = catfile($directories{BLDAPPS},@_,$f);
-    $f = catfile($directories{SRCAPPS},@_,$f) unless -f $f;
-    return ($^X, $f);
+    my $out = catfile($directories{BLDAPPS},@_,$f);
+    $out = catfile($directories{SRCAPPS},@_,$f) unless -f $out;
+    return ($^X, $out);
 }
 
 sub __data_file {

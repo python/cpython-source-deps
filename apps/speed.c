@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -293,7 +293,8 @@ static SIGRETTYPE sig_done(int sig)
 # if !defined(SIGALRM)
 #  define SIGALRM
 # endif
-static unsigned int lapse, schlock;
+static unsigned int lapse;
+static volatile unsigned int schlock;
 static void alarm_win32(unsigned int secs)
 {
     lapse = secs * 1000;
@@ -1240,6 +1241,7 @@ int speed_main(int argc, char **argv)
     || !defined(OPENSSL_NO_EC)
     long rsa_count = 1;
 #endif
+    size_t loop;
 
     /* What follows are the buffers and key material. */
 #ifndef OPENSSL_NO_RC5
@@ -1378,6 +1380,7 @@ int speed_main(int argc, char **argv)
             usertime = 0;
             break;
         case OPT_EVP:
+            evp_md = NULL;
             evp_cipher = EVP_get_cipherbyname(opt_arg());
             if (evp_cipher == NULL)
                 evp_md = EVP_get_digestbyname(opt_arg());
@@ -1465,12 +1468,8 @@ int speed_main(int argc, char **argv)
             continue;
         }
 #ifndef OPENSSL_NO_RSA
-# ifndef RSA_NULL
-        if (strcmp(*argv, "openssl") == 0) {
-            RSA_set_default_method(RSA_PKCS1_OpenSSL());
+        if (strcmp(*argv, "openssl") == 0)
             continue;
-        }
-# endif
         if (strcmp(*argv, "rsa") == 0) {
             rsa_doit[R_RSA_512] = rsa_doit[R_RSA_1024] =
                 rsa_doit[R_RSA_2048] = rsa_doit[R_RSA_3072] =
@@ -1508,8 +1507,8 @@ int speed_main(int argc, char **argv)
 #endif
 #ifndef OPENSSL_NO_EC
         if (strcmp(*argv, "ecdsa") == 0) {
-            for (i = 0; i < EC_NUM; i++)
-                ecdsa_doit[i] = 1;
+            for (loop = 0; loop < OSSL_NELEM(ecdsa_choices); loop++)
+                ecdsa_doit[ecdsa_choices[loop].retval] = 1;
             continue;
         }
         if (found(*argv, ecdsa_choices, &i)) {
@@ -1517,8 +1516,8 @@ int speed_main(int argc, char **argv)
             continue;
         }
         if (strcmp(*argv, "ecdh") == 0) {
-            for (i = 0; i < EC_NUM; i++)
-                ecdh_doit[i] = 1;
+            for (loop = 0; loop < OSSL_NELEM(ecdh_choices); loop++)
+                ecdh_doit[ecdh_choices[loop].retval] = 1;
             continue;
         }
         if (found(*argv, ecdh_choices, &i)) {
@@ -1585,10 +1584,10 @@ int speed_main(int argc, char **argv)
             dsa_doit[i] = 1;
 #endif
 #ifndef OPENSSL_NO_EC
-        for (i = 0; i < EC_NUM; i++)
-            ecdsa_doit[i] = 1;
-        for (i = 0; i < EC_NUM; i++)
-            ecdh_doit[i] = 1;
+        for (loop = 0; loop < OSSL_NELEM(ecdsa_choices); loop++)
+            ecdsa_doit[ecdsa_choices[loop].retval] = 1;
+        for (loop = 0; loop < OSSL_NELEM(ecdh_choices); loop++)
+            ecdh_doit[ecdh_choices[loop].retval] = 1;
 #endif
     }
     for (i = 0; i < ALGOR_NUM; i++)
@@ -2403,7 +2402,7 @@ int speed_main(int argc, char **argv)
 
 #ifndef OPENSSL_NO_DSA
     if (RAND_status() != 1) {
-        RAND_seed(rnd_seed, sizeof rnd_seed);
+        RAND_seed(rnd_seed, sizeof(rnd_seed));
     }
     for (testnum = 0; testnum < DSA_NUM; testnum++) {
         int st = 0;
@@ -2471,7 +2470,7 @@ int speed_main(int argc, char **argv)
 
 #ifndef OPENSSL_NO_EC
     if (RAND_status() != 1) {
-        RAND_seed(rnd_seed, sizeof rnd_seed);
+        RAND_seed(rnd_seed, sizeof(rnd_seed));
     }
     for (testnum = 0; testnum < EC_NUM; testnum++) {
         int st = 1;
@@ -2555,7 +2554,7 @@ int speed_main(int argc, char **argv)
     }
 
     if (RAND_status() != 1) {
-        RAND_seed(rnd_seed, sizeof rnd_seed);
+        RAND_seed(rnd_seed, sizeof(rnd_seed));
     }
     for (testnum = 0; testnum < EC_NUM; testnum++) {
         int ecdh_checks = 1;
@@ -2878,7 +2877,7 @@ static char *sstrsep(char **string, const char *delim)
     if (**string == 0)
         return NULL;
 
-    memset(isdelim, 0, sizeof isdelim);
+    memset(isdelim, 0, sizeof(isdelim));
     isdelim[0] = 1;
 
     while (*delim) {
@@ -2939,7 +2938,7 @@ static int do_multi(int multi)
         char *p;
 
         f = fdopen(fds[n], "r");
-        while (fgets(buf, sizeof buf, f)) {
+        while (fgets(buf, sizeof(buf), f)) {
             p = strchr(buf, '\n');
             if (p)
                 *p = '\0';
