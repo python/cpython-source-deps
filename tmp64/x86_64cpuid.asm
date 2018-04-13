@@ -119,14 +119,6 @@ $L$intel:
 	shr	r10d,14
 	and	r10d,0xfff
 
-	cmp	r11d,7
-	jb	NEAR $L$nocacheinfo
-
-	mov	eax,7
-	xor	ecx,ecx
-	cpuid
-	mov	DWORD[8+rdi],ebx
-
 $L$nocacheinfo:
 	mov	eax,1
 	cpuid
@@ -136,8 +128,19 @@ $L$nocacheinfo:
 	or	edx,0x40000000
 	and	ah,15
 	cmp	ah,15
-	jne	NEAR $L$notintel
+	jne	NEAR $L$notP4
 	or	edx,0x00100000
+$L$notP4:
+	cmp	ah,6
+	jne	NEAR $L$notintel
+	and	eax,0x0fff0ff0
+	cmp	eax,0x00050670
+	je	NEAR $L$knights
+	cmp	eax,0x00080650
+	jne	NEAR $L$notintel
+$L$knights:
+	and	ecx,0xfbffffff
+
 $L$notintel:
 	bt	edx,28
 	jnc	NEAR $L$generic
@@ -156,6 +159,19 @@ $L$generic:
 	or	r9d,ecx
 
 	mov	r10d,edx
+
+	cmp	r11d,7
+	jb	NEAR $L$no_extended_info
+	mov	eax,7
+	xor	ecx,ecx
+	cpuid
+	bt	r9d,26
+	jc	NEAR $L$notknights
+	and	ebx,0xfff7ffff
+$L$notknights:
+	mov	DWORD[8+rdi],ebx
+$L$no_extended_info:
+
 	bt	r9d,27
 	jnc	NEAR $L$clear_avx
 	xor	ecx,ecx

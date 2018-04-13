@@ -25,10 +25,10 @@ L$_OPENSSL_ia32_cpuid_begin:
 	pop	eax
 	xor	ecx,eax
 	xor	eax,eax
-	bt	ecx,21
-	jnc	NEAR L$000nocpuid
 	mov	esi,DWORD [20+esp]
 	mov	DWORD [8+esi],eax
+	bt	ecx,21
+	jnc	NEAR L$000nocpuid
 	cpuid
 	mov	edi,eax
 	xor	eax,eax
@@ -79,40 +79,32 @@ L$_OPENSSL_ia32_cpuid_begin:
 	and	edx,4026531839
 	jmp	NEAR L$002generic
 L$001intel:
-	cmp	edi,7
-	jb	NEAR L$003cacheinfo
-	mov	esi,DWORD [20+esp]
-	mov	eax,7
-	xor	ecx,ecx
-	cpuid
-	mov	DWORD [8+esi],ebx
-L$003cacheinfo:
 	cmp	edi,4
-	mov	edi,-1
-	jb	NEAR L$004nocacheinfo
+	mov	esi,-1
+	jb	NEAR L$003nocacheinfo
 	mov	eax,4
 	mov	ecx,0
 	cpuid
-	mov	edi,eax
-	shr	edi,14
-	and	edi,4095
-L$004nocacheinfo:
+	mov	esi,eax
+	shr	esi,14
+	and	esi,4095
+L$003nocacheinfo:
 	mov	eax,1
 	xor	ecx,ecx
 	cpuid
 	and	edx,3220176895
 	cmp	ebp,0
-	jne	NEAR L$005notintel
+	jne	NEAR L$004notintel
 	or	edx,1073741824
 	and	ah,15
 	cmp	ah,15
-	jne	NEAR L$005notintel
+	jne	NEAR L$004notintel
 	or	edx,1048576
-L$005notintel:
+L$004notintel:
 	bt	edx,28
 	jnc	NEAR L$002generic
 	and	edx,4026531839
-	cmp	edi,0
+	cmp	esi,0
 	je	NEAR L$002generic
 	or	edx,268435456
 	shr	ebx,16
@@ -124,7 +116,15 @@ L$002generic:
 	and	ecx,4294965247
 	mov	esi,edx
 	or	ebp,ecx
-	bt	ecx,27
+	cmp	edi,7
+	mov	edi,DWORD [20+esp]
+	jb	NEAR L$005no_extended_info
+	mov	eax,7
+	xor	ecx,ecx
+	cpuid
+	mov	DWORD [8+edi],ebx
+L$005no_extended_info:
+	bt	ebp,27
 	jnc	NEAR L$006clear_avx
 	xor	ecx,ecx
 db	15,1,208
@@ -138,7 +138,6 @@ L$008clear_xmm:
 	and	esi,4278190079
 L$006clear_avx:
 	and	ebp,4026525695
-	mov	edi,DWORD [20+esp]
 	and	DWORD [8+edi],4294967263
 L$007done:
 	mov	eax,esi

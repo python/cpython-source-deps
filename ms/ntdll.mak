@@ -18,7 +18,7 @@ OPENSSLDIR=\usr\local\ssl
 # Set your compiler options
 PLATFORM=VC-WIN32
 CC=cl
-CFLAG= /MD /Ox /O2 /Ob2 -DOPENSSL_THREADS  -DDSO_WIN32 -W3 -Gs0 -GF -Gy -nologo -DOPENSSL_SYSNAME_WIN32 -DWIN32_LEAN_AND_MEAN -DL_ENDIAN -D_CRT_SECURE_NO_DEPRECATE -DOPENSSL_BN_ASM_PART_WORDS -DOPENSSL_IA32_SSE2 -DOPENSSL_BN_ASM_MONT -DOPENSSL_BN_ASM_GF2m -DRC4_ASM -DSHA1_ASM -DSHA256_ASM -DSHA512_ASM -DMD5_ASM -DRMD160_ASM -DAES_ASM -DVPAES_ASM -DWHIRLPOOL_ASM -DGHASH_ASM -DOPENSSL_USE_APPLINK -I. -DOPENSSL_NO_IDEA -DOPENSSL_NO_RC5 -DOPENSSL_NO_MD2 -DOPENSSL_NO_MDC2 -DOPENSSL_NO_SSL2 -DOPENSSL_NO_KRB5 -DOPENSSL_NO_JPAKE -DOPENSSL_NO_WEAK_SSL_CIPHERS -DOPENSSL_NO_STATIC_ENGINE    
+CFLAG= /MD /Ox /O2 /Ob2 -DOPENSSL_THREADS  -DDSO_WIN32 -W3 -WX -Gs0 -GF -Gy -nologo -DOPENSSL_SYSNAME_WIN32 -DWIN32_LEAN_AND_MEAN -DL_ENDIAN -D_CRT_SECURE_NO_DEPRECATE -D_WINSOCK_DEPRECATED_NO_WARNINGS -DOPENSSL_BN_ASM_PART_WORDS -DOPENSSL_IA32_SSE2 -DOPENSSL_BN_ASM_MONT -DOPENSSL_BN_ASM_GF2m -DRC4_ASM -DSHA1_ASM -DSHA256_ASM -DSHA512_ASM -DMD5_ASM -DRMD160_ASM -DAES_ASM -DVPAES_ASM -DWHIRLPOOL_ASM -DGHASH_ASM -DOPENSSL_USE_APPLINK -I. -DOPENSSL_NO_IDEA -DOPENSSL_NO_RC5 -DOPENSSL_NO_MD2 -DOPENSSL_NO_MDC2 -DOPENSSL_NO_SSL2 -DOPENSSL_NO_KRB5 -DOPENSSL_NO_JPAKE -DOPENSSL_NO_WEAK_SSL_CIPHERS -DOPENSSL_NO_STATIC_ENGINE    
 APP_CFLAG= /Zi /Fd$(TMP_D)/app
 LIB_CFLAG= /Zi /Fd$(TMP_D)/lib -D_WINDLL
 SHLIB_CFLAG=
@@ -174,8 +174,8 @@ T_OBJ=$(OBJ_D)\constant_time_test.obj \
 	$(OBJ_D)\verify_extra_test.obj $(OBJ_D)\v3nametest.obj $(OBJ_D)\enginetest.obj \
 	$(OBJ_D)\wp_test.obj $(OBJ_D)\srptest.obj $(OBJ_D)\ssltest.obj \
 	$(OBJ_D)\heartbeat_test.obj $(OBJ_D)\clienthellotest.obj $(OBJ_D)\sslv2conftest.obj \
-	$(OBJ_D)\dtlstest.obj $(OBJ_D)\bad_dtls_test.obj $(OBJ_D)\igetest.obj \
-	$(OBJ_D)\.obj $(OBJ_D)\ssltestlib.obj 
+	$(OBJ_D)\dtlstest.obj $(OBJ_D)\bad_dtls_test.obj $(OBJ_D)\fatalerrtest.obj \
+	$(OBJ_D)\igetest.obj $(OBJ_D)\.obj $(OBJ_D)\ssltestlib.obj 
 
 E_OBJ=$(OBJ_D)\verify.obj \
 	$(OBJ_D)\asn1pars.obj $(OBJ_D)\req.obj $(OBJ_D)\dgst.obj \
@@ -196,6 +196,13 @@ E_OBJ=$(OBJ_D)\verify.obj \
 	$(OBJ_D)\ocsp.obj $(OBJ_D)\prime.obj $(OBJ_D)\ts.obj \
 	$(OBJ_D)\srp.obj $(OBJ_D)\openssl.obj 
 
+GOSTOBJ=$(OBJ_D)\e_gost_err.obj \
+	$(OBJ_D)\gost2001_keyx.obj $(OBJ_D)\gost2001.obj $(OBJ_D)\gost89.obj \
+	$(OBJ_D)\gost94_keyx.obj $(OBJ_D)\gost_ameth.obj $(OBJ_D)\gost_asn1.obj \
+	$(OBJ_D)\gost_crypt.obj $(OBJ_D)\gost_ctl.obj $(OBJ_D)\gost_eng.obj \
+	$(OBJ_D)\gosthash.obj $(OBJ_D)\gost_keywrap.obj $(OBJ_D)\gost_md.obj \
+	$(OBJ_D)\gost_params.obj $(OBJ_D)\gost_pmeth.obj $(OBJ_D)\gost_sign.obj 
+
 SSLOBJ=$(OBJ_D)\s2_meth.obj \
 	$(OBJ_D)\s2_srvr.obj $(OBJ_D)\s2_clnt.obj $(OBJ_D)\s2_lib.obj \
 	$(OBJ_D)\s2_enc.obj $(OBJ_D)\s2_pkt.obj $(OBJ_D)\s3_meth.obj \
@@ -214,13 +221,6 @@ SSLOBJ=$(OBJ_D)\s2_meth.obj \
 	$(OBJ_D)\bio_ssl.obj $(OBJ_D)\ssl_err.obj $(OBJ_D)\kssl.obj \
 	$(OBJ_D)\t1_reneg.obj $(OBJ_D)\tls_srp.obj $(OBJ_D)\t1_trce.obj \
 	$(OBJ_D)\ssl_utst.obj $(OBJ_D)\$(SSL).res 
-
-GOSTOBJ=$(OBJ_D)\e_gost_err.obj \
-	$(OBJ_D)\gost2001_keyx.obj $(OBJ_D)\gost2001.obj $(OBJ_D)\gost89.obj \
-	$(OBJ_D)\gost94_keyx.obj $(OBJ_D)\gost_ameth.obj $(OBJ_D)\gost_asn1.obj \
-	$(OBJ_D)\gost_crypt.obj $(OBJ_D)\gost_ctl.obj $(OBJ_D)\gost_eng.obj \
-	$(OBJ_D)\gosthash.obj $(OBJ_D)\gost_keywrap.obj $(OBJ_D)\gost_md.obj \
-	$(OBJ_D)\gost_params.obj $(OBJ_D)\gost_pmeth.obj $(OBJ_D)\gost_sign.obj 
 
 CRYPTOOBJ=$(OBJ_D)\cryptlib.obj \
 	$(OBJ_D)\mem.obj $(OBJ_D)\mem_dbg.obj $(OBJ_D)\cversion.obj \
@@ -432,7 +432,8 @@ T_EXE=$(TEST_D)\constant_time_test.exe \
 	$(TEST_D)\verify_extra_test.exe $(TEST_D)\v3nametest.exe $(TEST_D)\enginetest.exe \
 	$(TEST_D)\wp_test.exe $(TEST_D)\srptest.exe $(TEST_D)\ssltest.exe \
 	$(TEST_D)\heartbeat_test.exe $(TEST_D)\clienthellotest.exe $(TEST_D)\sslv2conftest.exe \
-	$(TEST_D)\dtlstest.exe $(TEST_D)\bad_dtls_test.exe $(TEST_D)\igetest.exe 
+	$(TEST_D)\dtlstest.exe $(TEST_D)\bad_dtls_test.exe $(TEST_D)\fatalerrtest.exe \
+	$(TEST_D)\igetest.exe 
 
 E_SHLIB=$(ENG_D)\4758cca.dll \
 	$(ENG_D)\aep.dll $(ENG_D)\atalla.dll $(ENG_D)\cswift.dll \
@@ -495,7 +496,7 @@ install: all
 	$(MKDIR) "$(INSTALLTOP)\include\openssl"
 	$(MKDIR) "$(INSTALLTOP)\lib"
 	$(CP) "$(INCO_D)\*.[ch]" "$(INSTALLTOP)\include\openssl"
-	$(CP) "$(BIN_D)\$(E_EXE).exe $(INSTALLTOP)\bin"
+	$(CP) "$(BIN_D)\$(E_EXE).exe" "$(INSTALLTOP)\bin"
 	$(MKDIR) "$(OPENSSLDIR)"
 	$(CP) apps\openssl.cnf "$(OPENSSLDIR)"
 	$(CP) "$(O_SSL)" "$(INSTALLTOP)\bin"
@@ -503,7 +504,7 @@ install: all
 	$(CP) "$(L_SSL)" "$(INSTALLTOP)\lib"
 	$(CP) "$(L_CRYPTO)" "$(INSTALLTOP)\lib"
 	$(MKDIR) "$(INSTALLTOP)\lib\engines"
-	$(CP) "$(E_SHLIB)" "$(INSTALLTOP)\lib\engines"
+	$(CP) $(E_SHLIB) "$(INSTALLTOP)\lib\engines"
 
 
 clean:
@@ -1070,6 +1071,9 @@ $(OBJ_D)\dtlstest.obj: $(SRC_D)\ssl\dtlstest.c
 $(OBJ_D)\bad_dtls_test.obj: $(SRC_D)\ssl\bad_dtls_test.c
 	$(CC) /Fo$(OBJ_D)\bad_dtls_test.obj $(APP_CFLAGS) -c $(SRC_D)\ssl\bad_dtls_test.c
 
+$(OBJ_D)\fatalerrtest.obj: $(SRC_D)\ssl\fatalerrtest.c
+	$(CC) /Fo$(OBJ_D)\fatalerrtest.obj $(APP_CFLAGS) -c $(SRC_D)\ssl\fatalerrtest.c
+
 $(OBJ_D)\igetest.obj: $(SRC_D)\test\igetest.c
 	$(CC) /Fo$(OBJ_D)\igetest.obj $(APP_CFLAGS) -c $(SRC_D)\test\igetest.c
 
@@ -1229,6 +1233,54 @@ $(OBJ_D)\srp.obj: $(SRC_D)\apps\srp.c
 $(OBJ_D)\openssl.obj: $(SRC_D)\apps\openssl.c
 	$(CC) /Fo$(OBJ_D)\openssl.obj -DMONOLITH $(APP_CFLAGS) -c $(SRC_D)\apps\openssl.c
 
+$(OBJ_D)\e_gost_err.obj: $(SRC_D)\engines\ccgost\e_gost_err.c
+	$(CC) /Fo$(OBJ_D)\e_gost_err.obj  $(SHLIB_CFLAGS) -c $(SRC_D)\engines\ccgost\e_gost_err.c
+
+$(OBJ_D)\gost2001_keyx.obj: $(SRC_D)\engines\ccgost\gost2001_keyx.c
+	$(CC) /Fo$(OBJ_D)\gost2001_keyx.obj  $(SHLIB_CFLAGS) -c $(SRC_D)\engines\ccgost\gost2001_keyx.c
+
+$(OBJ_D)\gost2001.obj: $(SRC_D)\engines\ccgost\gost2001.c
+	$(CC) /Fo$(OBJ_D)\gost2001.obj  $(SHLIB_CFLAGS) -c $(SRC_D)\engines\ccgost\gost2001.c
+
+$(OBJ_D)\gost89.obj: $(SRC_D)\engines\ccgost\gost89.c
+	$(CC) /Fo$(OBJ_D)\gost89.obj  $(SHLIB_CFLAGS) -c $(SRC_D)\engines\ccgost\gost89.c
+
+$(OBJ_D)\gost94_keyx.obj: $(SRC_D)\engines\ccgost\gost94_keyx.c
+	$(CC) /Fo$(OBJ_D)\gost94_keyx.obj  $(SHLIB_CFLAGS) -c $(SRC_D)\engines\ccgost\gost94_keyx.c
+
+$(OBJ_D)\gost_ameth.obj: $(SRC_D)\engines\ccgost\gost_ameth.c
+	$(CC) /Fo$(OBJ_D)\gost_ameth.obj  $(SHLIB_CFLAGS) -c $(SRC_D)\engines\ccgost\gost_ameth.c
+
+$(OBJ_D)\gost_asn1.obj: $(SRC_D)\engines\ccgost\gost_asn1.c
+	$(CC) /Fo$(OBJ_D)\gost_asn1.obj  $(SHLIB_CFLAGS) -c $(SRC_D)\engines\ccgost\gost_asn1.c
+
+$(OBJ_D)\gost_crypt.obj: $(SRC_D)\engines\ccgost\gost_crypt.c
+	$(CC) /Fo$(OBJ_D)\gost_crypt.obj  $(SHLIB_CFLAGS) -c $(SRC_D)\engines\ccgost\gost_crypt.c
+
+$(OBJ_D)\gost_ctl.obj: $(SRC_D)\engines\ccgost\gost_ctl.c
+	$(CC) /Fo$(OBJ_D)\gost_ctl.obj  $(SHLIB_CFLAGS) -c $(SRC_D)\engines\ccgost\gost_ctl.c
+
+$(OBJ_D)\gost_eng.obj: $(SRC_D)\engines\ccgost\gost_eng.c
+	$(CC) /Fo$(OBJ_D)\gost_eng.obj  $(SHLIB_CFLAGS) -c $(SRC_D)\engines\ccgost\gost_eng.c
+
+$(OBJ_D)\gosthash.obj: $(SRC_D)\engines\ccgost\gosthash.c
+	$(CC) /Fo$(OBJ_D)\gosthash.obj  $(SHLIB_CFLAGS) -c $(SRC_D)\engines\ccgost\gosthash.c
+
+$(OBJ_D)\gost_keywrap.obj: $(SRC_D)\engines\ccgost\gost_keywrap.c
+	$(CC) /Fo$(OBJ_D)\gost_keywrap.obj  $(SHLIB_CFLAGS) -c $(SRC_D)\engines\ccgost\gost_keywrap.c
+
+$(OBJ_D)\gost_md.obj: $(SRC_D)\engines\ccgost\gost_md.c
+	$(CC) /Fo$(OBJ_D)\gost_md.obj  $(SHLIB_CFLAGS) -c $(SRC_D)\engines\ccgost\gost_md.c
+
+$(OBJ_D)\gost_params.obj: $(SRC_D)\engines\ccgost\gost_params.c
+	$(CC) /Fo$(OBJ_D)\gost_params.obj  $(SHLIB_CFLAGS) -c $(SRC_D)\engines\ccgost\gost_params.c
+
+$(OBJ_D)\gost_pmeth.obj: $(SRC_D)\engines\ccgost\gost_pmeth.c
+	$(CC) /Fo$(OBJ_D)\gost_pmeth.obj  $(SHLIB_CFLAGS) -c $(SRC_D)\engines\ccgost\gost_pmeth.c
+
+$(OBJ_D)\gost_sign.obj: $(SRC_D)\engines\ccgost\gost_sign.c
+	$(CC) /Fo$(OBJ_D)\gost_sign.obj  $(SHLIB_CFLAGS) -c $(SRC_D)\engines\ccgost\gost_sign.c
+
 $(OBJ_D)\s2_meth.obj: $(SRC_D)\ssl\s2_meth.c
 	$(CC) /Fo$(OBJ_D)\s2_meth.obj  $(SHLIB_CFLAGS) -DOPENSSL_BUILD_SHLIBSSL -c $(SRC_D)\ssl\s2_meth.c
 
@@ -1378,54 +1430,6 @@ $(OBJ_D)\t1_trce.obj: $(SRC_D)\ssl\t1_trce.c
 
 $(OBJ_D)\ssl_utst.obj: $(SRC_D)\ssl\ssl_utst.c
 	$(CC) /Fo$(OBJ_D)\ssl_utst.obj  $(SHLIB_CFLAGS) -DOPENSSL_BUILD_SHLIBSSL -c $(SRC_D)\ssl\ssl_utst.c
-
-$(OBJ_D)\e_gost_err.obj: $(SRC_D)\engines\ccgost\e_gost_err.c
-	$(CC) /Fo$(OBJ_D)\e_gost_err.obj  $(SHLIB_CFLAGS) -c $(SRC_D)\engines\ccgost\e_gost_err.c
-
-$(OBJ_D)\gost2001_keyx.obj: $(SRC_D)\engines\ccgost\gost2001_keyx.c
-	$(CC) /Fo$(OBJ_D)\gost2001_keyx.obj  $(SHLIB_CFLAGS) -c $(SRC_D)\engines\ccgost\gost2001_keyx.c
-
-$(OBJ_D)\gost2001.obj: $(SRC_D)\engines\ccgost\gost2001.c
-	$(CC) /Fo$(OBJ_D)\gost2001.obj  $(SHLIB_CFLAGS) -c $(SRC_D)\engines\ccgost\gost2001.c
-
-$(OBJ_D)\gost89.obj: $(SRC_D)\engines\ccgost\gost89.c
-	$(CC) /Fo$(OBJ_D)\gost89.obj  $(SHLIB_CFLAGS) -c $(SRC_D)\engines\ccgost\gost89.c
-
-$(OBJ_D)\gost94_keyx.obj: $(SRC_D)\engines\ccgost\gost94_keyx.c
-	$(CC) /Fo$(OBJ_D)\gost94_keyx.obj  $(SHLIB_CFLAGS) -c $(SRC_D)\engines\ccgost\gost94_keyx.c
-
-$(OBJ_D)\gost_ameth.obj: $(SRC_D)\engines\ccgost\gost_ameth.c
-	$(CC) /Fo$(OBJ_D)\gost_ameth.obj  $(SHLIB_CFLAGS) -c $(SRC_D)\engines\ccgost\gost_ameth.c
-
-$(OBJ_D)\gost_asn1.obj: $(SRC_D)\engines\ccgost\gost_asn1.c
-	$(CC) /Fo$(OBJ_D)\gost_asn1.obj  $(SHLIB_CFLAGS) -c $(SRC_D)\engines\ccgost\gost_asn1.c
-
-$(OBJ_D)\gost_crypt.obj: $(SRC_D)\engines\ccgost\gost_crypt.c
-	$(CC) /Fo$(OBJ_D)\gost_crypt.obj  $(SHLIB_CFLAGS) -c $(SRC_D)\engines\ccgost\gost_crypt.c
-
-$(OBJ_D)\gost_ctl.obj: $(SRC_D)\engines\ccgost\gost_ctl.c
-	$(CC) /Fo$(OBJ_D)\gost_ctl.obj  $(SHLIB_CFLAGS) -c $(SRC_D)\engines\ccgost\gost_ctl.c
-
-$(OBJ_D)\gost_eng.obj: $(SRC_D)\engines\ccgost\gost_eng.c
-	$(CC) /Fo$(OBJ_D)\gost_eng.obj  $(SHLIB_CFLAGS) -c $(SRC_D)\engines\ccgost\gost_eng.c
-
-$(OBJ_D)\gosthash.obj: $(SRC_D)\engines\ccgost\gosthash.c
-	$(CC) /Fo$(OBJ_D)\gosthash.obj  $(SHLIB_CFLAGS) -c $(SRC_D)\engines\ccgost\gosthash.c
-
-$(OBJ_D)\gost_keywrap.obj: $(SRC_D)\engines\ccgost\gost_keywrap.c
-	$(CC) /Fo$(OBJ_D)\gost_keywrap.obj  $(SHLIB_CFLAGS) -c $(SRC_D)\engines\ccgost\gost_keywrap.c
-
-$(OBJ_D)\gost_md.obj: $(SRC_D)\engines\ccgost\gost_md.c
-	$(CC) /Fo$(OBJ_D)\gost_md.obj  $(SHLIB_CFLAGS) -c $(SRC_D)\engines\ccgost\gost_md.c
-
-$(OBJ_D)\gost_params.obj: $(SRC_D)\engines\ccgost\gost_params.c
-	$(CC) /Fo$(OBJ_D)\gost_params.obj  $(SHLIB_CFLAGS) -c $(SRC_D)\engines\ccgost\gost_params.c
-
-$(OBJ_D)\gost_pmeth.obj: $(SRC_D)\engines\ccgost\gost_pmeth.c
-	$(CC) /Fo$(OBJ_D)\gost_pmeth.obj  $(SHLIB_CFLAGS) -c $(SRC_D)\engines\ccgost\gost_pmeth.c
-
-$(OBJ_D)\gost_sign.obj: $(SRC_D)\engines\ccgost\gost_sign.c
-	$(CC) /Fo$(OBJ_D)\gost_sign.obj  $(SHLIB_CFLAGS) -c $(SRC_D)\engines\ccgost\gost_sign.c
 
 $(OBJ_D)\cryptlib.obj: $(SRC_D)\crypto\cryptlib.c
 	$(CC) /Fo$(OBJ_D)\cryptlib.obj  $(SHLIB_CFLAGS) -DOPENSSL_BUILD_SHLIBCRYPTO -c $(SRC_D)\crypto\cryptlib.c
@@ -3470,6 +3474,12 @@ $(TEST_D)\dtlstest.exe: $(OBJ_D)\dtlstest.obj $(OBJ_D)\ssltestlib.obj $(LIBS_DEP
 $(TEST_D)\bad_dtls_test.exe: $(OBJ_D)\bad_dtls_test.obj $(LIBS_DEP)
 	$(LINK_CMD) $(LFLAGS) /out:$(TEST_D)\bad_dtls_test.exe @<<
 	$(APP_EX_OBJ) $(OBJ_D)\bad_dtls_test.obj $(L_LIBS) $(EX_LIBS)
+<<
+	IF EXIST $@.manifest mt -nologo -manifest $@.manifest -outputresource:$@;1
+
+$(TEST_D)\fatalerrtest.exe: $(OBJ_D)\fatalerrtest.obj $(OBJ_D)\ssltestlib.obj $(LIBS_DEP)
+	$(LINK_CMD) $(LFLAGS) /out:$(TEST_D)\fatalerrtest.exe @<<
+	$(APP_EX_OBJ) $(OBJ_D)\fatalerrtest.obj $(OBJ_D)\ssltestlib.obj $(L_LIBS) $(EX_LIBS)
 <<
 	IF EXIST $@.manifest mt -nologo -manifest $@.manifest -outputresource:$@;1
 

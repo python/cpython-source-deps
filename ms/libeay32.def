@@ -1466,6 +1466,20 @@ EXPORTS
     EVP_PKEY_meth_find                      @4469
     EVP_PKEY_meth_free                      @4460
     EVP_PKEY_meth_get0_info                 @4587
+    EVP_PKEY_meth_get_cleanup               @4786
+    EVP_PKEY_meth_get_copy                  @4788
+    EVP_PKEY_meth_get_ctrl                  @4784
+    EVP_PKEY_meth_get_decrypt               @4785
+    EVP_PKEY_meth_get_derive                @4778
+    EVP_PKEY_meth_get_encrypt               @4787
+    EVP_PKEY_meth_get_init                  @4775
+    EVP_PKEY_meth_get_keygen                @4777
+    EVP_PKEY_meth_get_paramgen              @4780
+    EVP_PKEY_meth_get_sign                  @4782
+    EVP_PKEY_meth_get_signctx               @4783
+    EVP_PKEY_meth_get_verify                @4781
+    EVP_PKEY_meth_get_verify_recover        @4776
+    EVP_PKEY_meth_get_verifyctx             @4779
     EVP_PKEY_meth_new                       @4448
     EVP_PKEY_meth_set_cleanup               @4502
     EVP_PKEY_meth_set_copy                  @4527

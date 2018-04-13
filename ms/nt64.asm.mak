@@ -174,8 +174,8 @@ T_OBJ=$(OBJ_D)\constant_time_test.obj \
 	$(OBJ_D)\verify_extra_test.obj $(OBJ_D)\v3nametest.obj $(OBJ_D)\enginetest.obj \
 	$(OBJ_D)\wp_test.obj $(OBJ_D)\srptest.obj $(OBJ_D)\ssltest.obj \
 	$(OBJ_D)\heartbeat_test.obj $(OBJ_D)\clienthellotest.obj $(OBJ_D)\sslv2conftest.obj \
-	$(OBJ_D)\dtlstest.obj $(OBJ_D)\bad_dtls_test.obj $(OBJ_D)\igetest.obj \
-	$(OBJ_D)\.obj $(OBJ_D)\ssltestlib.obj 
+	$(OBJ_D)\dtlstest.obj $(OBJ_D)\bad_dtls_test.obj $(OBJ_D)\fatalerrtest.obj \
+	$(OBJ_D)\igetest.obj $(OBJ_D)\.obj $(OBJ_D)\ssltestlib.obj 
 
 E_OBJ=$(OBJ_D)\verify.obj \
 	$(OBJ_D)\asn1pars.obj $(OBJ_D)\req.obj $(OBJ_D)\dgst.obj \
@@ -195,6 +195,25 @@ E_OBJ=$(OBJ_D)\verify.obj \
 	$(OBJ_D)\cms.obj $(OBJ_D)\rand.obj $(OBJ_D)\engine.obj \
 	$(OBJ_D)\ocsp.obj $(OBJ_D)\prime.obj $(OBJ_D)\ts.obj \
 	$(OBJ_D)\srp.obj $(OBJ_D)\openssl.obj 
+
+SSLOBJ=$(OBJ_D)\s2_meth.obj \
+	$(OBJ_D)\s2_srvr.obj $(OBJ_D)\s2_clnt.obj $(OBJ_D)\s2_lib.obj \
+	$(OBJ_D)\s2_enc.obj $(OBJ_D)\s2_pkt.obj $(OBJ_D)\s3_meth.obj \
+	$(OBJ_D)\s3_srvr.obj $(OBJ_D)\s3_clnt.obj $(OBJ_D)\s3_lib.obj \
+	$(OBJ_D)\s3_enc.obj $(OBJ_D)\s3_pkt.obj $(OBJ_D)\s3_both.obj \
+	$(OBJ_D)\s3_cbc.obj $(OBJ_D)\s23_meth.obj $(OBJ_D)\s23_srvr.obj \
+	$(OBJ_D)\s23_clnt.obj $(OBJ_D)\s23_lib.obj $(OBJ_D)\s23_pkt.obj \
+	$(OBJ_D)\t1_meth.obj $(OBJ_D)\t1_srvr.obj $(OBJ_D)\t1_clnt.obj \
+	$(OBJ_D)\t1_lib.obj $(OBJ_D)\t1_enc.obj $(OBJ_D)\t1_ext.obj \
+	$(OBJ_D)\d1_meth.obj $(OBJ_D)\d1_srvr.obj $(OBJ_D)\d1_clnt.obj \
+	$(OBJ_D)\d1_lib.obj $(OBJ_D)\d1_pkt.obj $(OBJ_D)\d1_both.obj \
+	$(OBJ_D)\d1_srtp.obj $(OBJ_D)\ssl_lib.obj $(OBJ_D)\ssl_err2.obj \
+	$(OBJ_D)\ssl_cert.obj $(OBJ_D)\ssl_sess.obj $(OBJ_D)\ssl_ciph.obj \
+	$(OBJ_D)\ssl_stat.obj $(OBJ_D)\ssl_rsa.obj $(OBJ_D)\ssl_asn1.obj \
+	$(OBJ_D)\ssl_txt.obj $(OBJ_D)\ssl_algs.obj $(OBJ_D)\ssl_conf.obj \
+	$(OBJ_D)\bio_ssl.obj $(OBJ_D)\ssl_err.obj $(OBJ_D)\kssl.obj \
+	$(OBJ_D)\t1_reneg.obj $(OBJ_D)\tls_srp.obj $(OBJ_D)\t1_trce.obj \
+	$(OBJ_D)\ssl_utst.obj 
 
 CRYPTOOBJ=$(OBJ_D)\cryptlib.obj \
 	$(OBJ_D)\mem.obj $(OBJ_D)\mem_dbg.obj $(OBJ_D)\cversion.obj \
@@ -407,25 +426,6 @@ CRYPTOOBJ=$(OBJ_D)\cryptlib.obj \
 	$(OBJ_D)\gost_md.obj $(OBJ_D)\gost_params.obj $(OBJ_D)\gost_pmeth.obj \
 	$(OBJ_D)\gost_sign.obj 
 
-SSLOBJ=$(OBJ_D)\s2_meth.obj \
-	$(OBJ_D)\s2_srvr.obj $(OBJ_D)\s2_clnt.obj $(OBJ_D)\s2_lib.obj \
-	$(OBJ_D)\s2_enc.obj $(OBJ_D)\s2_pkt.obj $(OBJ_D)\s3_meth.obj \
-	$(OBJ_D)\s3_srvr.obj $(OBJ_D)\s3_clnt.obj $(OBJ_D)\s3_lib.obj \
-	$(OBJ_D)\s3_enc.obj $(OBJ_D)\s3_pkt.obj $(OBJ_D)\s3_both.obj \
-	$(OBJ_D)\s3_cbc.obj $(OBJ_D)\s23_meth.obj $(OBJ_D)\s23_srvr.obj \
-	$(OBJ_D)\s23_clnt.obj $(OBJ_D)\s23_lib.obj $(OBJ_D)\s23_pkt.obj \
-	$(OBJ_D)\t1_meth.obj $(OBJ_D)\t1_srvr.obj $(OBJ_D)\t1_clnt.obj \
-	$(OBJ_D)\t1_lib.obj $(OBJ_D)\t1_enc.obj $(OBJ_D)\t1_ext.obj \
-	$(OBJ_D)\d1_meth.obj $(OBJ_D)\d1_srvr.obj $(OBJ_D)\d1_clnt.obj \
-	$(OBJ_D)\d1_lib.obj $(OBJ_D)\d1_pkt.obj $(OBJ_D)\d1_both.obj \
-	$(OBJ_D)\d1_srtp.obj $(OBJ_D)\ssl_lib.obj $(OBJ_D)\ssl_err2.obj \
-	$(OBJ_D)\ssl_cert.obj $(OBJ_D)\ssl_sess.obj $(OBJ_D)\ssl_ciph.obj \
-	$(OBJ_D)\ssl_stat.obj $(OBJ_D)\ssl_rsa.obj $(OBJ_D)\ssl_asn1.obj \
-	$(OBJ_D)\ssl_txt.obj $(OBJ_D)\ssl_algs.obj $(OBJ_D)\ssl_conf.obj \
-	$(OBJ_D)\bio_ssl.obj $(OBJ_D)\ssl_err.obj $(OBJ_D)\kssl.obj \
-	$(OBJ_D)\t1_reneg.obj $(OBJ_D)\tls_srp.obj $(OBJ_D)\t1_trce.obj \
-	$(OBJ_D)\ssl_utst.obj 
-
 T_EXE=$(TEST_D)\constant_time_test.exe \
 	$(TEST_D)\md4test.exe $(TEST_D)\md5test.exe $(TEST_D)\shatest.exe \
 	$(TEST_D)\sha1test.exe $(TEST_D)\sha256t.exe $(TEST_D)\sha512t.exe \
@@ -438,7 +438,8 @@ T_EXE=$(TEST_D)\constant_time_test.exe \
 	$(TEST_D)\verify_extra_test.exe $(TEST_D)\v3nametest.exe $(TEST_D)\enginetest.exe \
 	$(TEST_D)\wp_test.exe $(TEST_D)\srptest.exe $(TEST_D)\ssltest.exe \
 	$(TEST_D)\heartbeat_test.exe $(TEST_D)\clienthellotest.exe $(TEST_D)\sslv2conftest.exe \
-	$(TEST_D)\dtlstest.exe $(TEST_D)\bad_dtls_test.exe $(TEST_D)\igetest.exe 
+	$(TEST_D)\dtlstest.exe $(TEST_D)\bad_dtls_test.exe $(TEST_D)\fatalerrtest.exe \
+	$(TEST_D)\igetest.exe 
 
 E_SHLIB=
 

@@ -4147,6 +4147,7 @@ $L$prologue_shaext:
 	mov	r11d,DWORD[240+rcx]
 	sub	rsi,rdi
 	movups	xmm15,XMMWORD[rcx]
+	movups	xmm6,XMMWORD[r8]
 	movups	xmm4,XMMWORD[16+rcx]
 	lea	rcx,[112+rcx]
 
