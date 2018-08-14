@@ -113,28 +113,29 @@ LIBS_DEP=$(O_CRYPTO) $(O_SSL)
 HEADER=$(INCL_D)\e_os.h \
 	$(INCL_D)\cryptlib.h $(INCL_D)\buildinf.h $(INCL_D)\md32_common.h \
 	$(INCL_D)\o_time.h $(INCL_D)\o_str.h $(INCL_D)\o_dir.h \
-	$(INCL_D)\constant_time_locl.h $(INCL_D)\md4_locl.h $(INCL_D)\md5_locl.h \
-	$(INCL_D)\sha_locl.h $(INCL_D)\rmd_locl.h $(INCL_D)\rmdconst.h \
-	$(INCL_D)\des_locl.h $(INCL_D)\rpc_des.h $(INCL_D)\spr.h \
-	$(INCL_D)\des_ver.h $(INCL_D)\rc2_locl.h $(INCL_D)\rc4_locl.h \
-	$(INCL_D)\bf_pi.h $(INCL_D)\bf_locl.h $(INCL_D)\cast_s.h \
-	$(INCL_D)\cast_lcl.h $(INCL_D)\aes_locl.h $(INCL_D)\cmll_locl.h \
-	$(INCL_D)\seed_locl.h $(INCL_D)\modes_lcl.h $(INCL_D)\bn_lcl.h \
-	$(INCL_D)\bn_prime.h $(INCL_D)\dsa_locl.h $(INCL_D)\ec_lcl.h \
-	$(INCL_D)\ech_locl.h $(INCL_D)\ecs_locl.h $(INCL_D)\bio_lcl.h \
-	$(INCL_D)\obj_dat.h $(INCL_D)\obj_xref.h $(INCL_D)\evp_locl.h \
-	$(INCL_D)\asn1_locl.h $(INCL_D)\vpm_int.h $(INCL_D)\pcy_int.h \
-	$(INCL_D)\cms_lcl.h $(INCL_D)\conf_def.h $(INCL_D)\ui_locl.h \
-	$(INCL_D)\wp_locl.h $(INCL_D)\ssl_locl.h $(INCL_D)\kssl_lcl.h \
-	$(INCL_D)\apps.h $(INCL_D)\progs.h $(INCL_D)\s_apps.h \
-	$(INCL_D)\testdsa.h $(INCL_D)\testrsa.h $(INCL_D)\e_4758cca_err.c \
-	$(INCL_D)\e_4758cca_err.h $(INCL_D)\e_aep_err.c $(INCL_D)\e_aep_err.h \
-	$(INCL_D)\e_atalla_err.c $(INCL_D)\e_atalla_err.h $(INCL_D)\e_cswift_err.c \
-	$(INCL_D)\e_cswift_err.h $(INCL_D)\e_gmp_err.c $(INCL_D)\e_gmp_err.h \
-	$(INCL_D)\e_chil_err.c $(INCL_D)\e_chil_err.h $(INCL_D)\e_nuron_err.c \
-	$(INCL_D)\e_nuron_err.h $(INCL_D)\e_sureware_err.c $(INCL_D)\e_sureware_err.h \
-	$(INCL_D)\e_ubsec_err.c $(INCL_D)\e_ubsec_err.h $(INCL_D)\e_capi_err.c \
-	$(INCL_D)\e_capi_err.h $(INCL_D)\testutil.h $(INCL_D)\ssltestlib.h 
+	$(INCL_D)\constant_time_locl.h $(INCL_D)\bn_int.h $(INCL_D)\md4_locl.h \
+	$(INCL_D)\md5_locl.h $(INCL_D)\sha_locl.h $(INCL_D)\rmd_locl.h \
+	$(INCL_D)\rmdconst.h $(INCL_D)\des_locl.h $(INCL_D)\rpc_des.h \
+	$(INCL_D)\spr.h $(INCL_D)\des_ver.h $(INCL_D)\rc2_locl.h \
+	$(INCL_D)\rc4_locl.h $(INCL_D)\bf_pi.h $(INCL_D)\bf_locl.h \
+	$(INCL_D)\cast_s.h $(INCL_D)\cast_lcl.h $(INCL_D)\aes_locl.h \
+	$(INCL_D)\cmll_locl.h $(INCL_D)\seed_locl.h $(INCL_D)\modes_lcl.h \
+	$(INCL_D)\bn_lcl.h $(INCL_D)\bn_prime.h $(INCL_D)\dsa_locl.h \
+	$(INCL_D)\ec_lcl.h $(INCL_D)\ech_locl.h $(INCL_D)\ecs_locl.h \
+	$(INCL_D)\bio_lcl.h $(INCL_D)\obj_dat.h $(INCL_D)\obj_xref.h \
+	$(INCL_D)\evp_locl.h $(INCL_D)\asn1_locl.h $(INCL_D)\vpm_int.h \
+	$(INCL_D)\pcy_int.h $(INCL_D)\cms_lcl.h $(INCL_D)\conf_def.h \
+	$(INCL_D)\ui_locl.h $(INCL_D)\wp_locl.h $(INCL_D)\ssl_locl.h \
+	$(INCL_D)\kssl_lcl.h $(INCL_D)\apps.h $(INCL_D)\progs.h \
+	$(INCL_D)\s_apps.h $(INCL_D)\testdsa.h $(INCL_D)\testrsa.h \
+	$(INCL_D)\e_4758cca_err.c $(INCL_D)\e_4758cca_err.h $(INCL_D)\e_aep_err.c \
+	$(INCL_D)\e_aep_err.h $(INCL_D)\e_atalla_err.c $(INCL_D)\e_atalla_err.h \
+	$(INCL_D)\e_cswift_err.c $(INCL_D)\e_cswift_err.h $(INCL_D)\e_gmp_err.c \
+	$(INCL_D)\e_gmp_err.h $(INCL_D)\e_chil_err.c $(INCL_D)\e_chil_err.h \
+	$(INCL_D)\e_nuron_err.c $(INCL_D)\e_nuron_err.h $(INCL_D)\e_sureware_err.c \
+	$(INCL_D)\e_sureware_err.h $(INCL_D)\e_ubsec_err.c $(INCL_D)\e_ubsec_err.h \
+	$(INCL_D)\e_capi_err.c $(INCL_D)\e_capi_err.h $(INCL_D)\testutil.h \
+	$(INCL_D)\ssltestlib.h 
 
 EXHEADER=$(INCO_D)\e_os2.h \
 	$(INCO_D)\crypto.h $(INCO_D)\opensslv.h $(INCO_D)\opensslconf.h \
