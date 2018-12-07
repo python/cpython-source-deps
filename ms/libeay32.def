@@ -3639,6 +3639,7 @@ EXPORTS
     lh_strhash                              @900
     name_cmp                                @1239
     o2i_ECPublicKey                         @3368
+    ossl_safe_getenv                        @4789
     pitem_free                              @3767
     pitem_new                               @3365
     pqueue_find                             @3454

@@ -197,6 +197,217 @@ E_OBJ=$(OBJ_D)\verify.obj \
 	$(OBJ_D)\ocsp.obj $(OBJ_D)\prime.obj $(OBJ_D)\ts.obj \
 	$(OBJ_D)\srp.obj $(OBJ_D)\openssl.obj 
 
+CRYPTOOBJ=$(OBJ_D)\cryptlib.obj \
+	$(OBJ_D)\mem.obj $(OBJ_D)\mem_dbg.obj $(OBJ_D)\cversion.obj \
+	$(OBJ_D)\ex_data.obj $(OBJ_D)\cpt_err.obj $(OBJ_D)\ebcdic.obj \
+	$(OBJ_D)\uid.obj $(OBJ_D)\o_time.obj $(OBJ_D)\o_str.obj \
+	$(OBJ_D)\o_dir.obj $(OBJ_D)\o_fips.obj $(OBJ_D)\o_init.obj \
+	$(OBJ_D)\fips_ers.obj $(OBJ_D)\getenv.obj $(OBJ_D)\x86_64cpuid.obj \
+	$(OBJ_D)\md4_dgst.obj $(OBJ_D)\md4_one.obj $(OBJ_D)\md5_dgst.obj \
+	$(OBJ_D)\md5_one.obj $(OBJ_D)\md5-x86_64.obj $(OBJ_D)\sha_dgst.obj \
+	$(OBJ_D)\sha1dgst.obj $(OBJ_D)\sha_one.obj $(OBJ_D)\sha1_one.obj \
+	$(OBJ_D)\sha256.obj $(OBJ_D)\sha512.obj $(OBJ_D)\sha1-x86_64.obj \
+	$(OBJ_D)\sha256-x86_64.obj $(OBJ_D)\sha512-x86_64.obj $(OBJ_D)\sha1-mb-x86_64.obj \
+	$(OBJ_D)\sha256-mb-x86_64.obj $(OBJ_D)\hmac.obj $(OBJ_D)\hm_ameth.obj \
+	$(OBJ_D)\hm_pmeth.obj $(OBJ_D)\cmac.obj $(OBJ_D)\cm_ameth.obj \
+	$(OBJ_D)\cm_pmeth.obj $(OBJ_D)\rmd_dgst.obj $(OBJ_D)\rmd_one.obj \
+	$(OBJ_D)\set_key.obj $(OBJ_D)\ecb_enc.obj $(OBJ_D)\cbc_enc.obj \
+	$(OBJ_D)\ecb3_enc.obj $(OBJ_D)\cfb64enc.obj $(OBJ_D)\cfb64ede.obj \
+	$(OBJ_D)\cfb_enc.obj $(OBJ_D)\ofb64ede.obj $(OBJ_D)\enc_read.obj \
+	$(OBJ_D)\enc_writ.obj $(OBJ_D)\ofb64enc.obj $(OBJ_D)\ofb_enc.obj \
+	$(OBJ_D)\str2key.obj $(OBJ_D)\pcbc_enc.obj $(OBJ_D)\qud_cksm.obj \
+	$(OBJ_D)\rand_key.obj $(OBJ_D)\des_enc.obj $(OBJ_D)\fcrypt_b.obj \
+	$(OBJ_D)\fcrypt.obj $(OBJ_D)\xcbc_enc.obj $(OBJ_D)\rpc_enc.obj \
+	$(OBJ_D)\cbc_cksm.obj $(OBJ_D)\ede_cbcm_enc.obj $(OBJ_D)\des_old.obj \
+	$(OBJ_D)\des_old2.obj $(OBJ_D)\read2pwd.obj $(OBJ_D)\rc2_ecb.obj \
+	$(OBJ_D)\rc2_skey.obj $(OBJ_D)\rc2_cbc.obj $(OBJ_D)\rc2cfb64.obj \
+	$(OBJ_D)\rc2ofb64.obj $(OBJ_D)\rc4-x86_64.obj $(OBJ_D)\rc4-md5-x86_64.obj \
+	$(OBJ_D)\rc4_utl.obj $(OBJ_D)\bf_skey.obj $(OBJ_D)\bf_ecb.obj \
+	$(OBJ_D)\bf_enc.obj $(OBJ_D)\bf_cfb64.obj $(OBJ_D)\bf_ofb64.obj \
+	$(OBJ_D)\c_skey.obj $(OBJ_D)\c_ecb.obj $(OBJ_D)\c_enc.obj \
+	$(OBJ_D)\c_cfb64.obj $(OBJ_D)\c_ofb64.obj $(OBJ_D)\aes_misc.obj \
+	$(OBJ_D)\aes_ecb.obj $(OBJ_D)\aes_cfb.obj $(OBJ_D)\aes_ofb.obj \
+	$(OBJ_D)\aes_ctr.obj $(OBJ_D)\aes_ige.obj $(OBJ_D)\aes_wrap.obj \
+	$(OBJ_D)\aes-x86_64.obj $(OBJ_D)\vpaes-x86_64.obj $(OBJ_D)\bsaes-x86_64.obj \
+	$(OBJ_D)\aesni-x86_64.obj $(OBJ_D)\aesni-sha1-x86_64.obj $(OBJ_D)\aesni-sha256-x86_64.obj \
+	$(OBJ_D)\aesni-mb-x86_64.obj $(OBJ_D)\cmll_ecb.obj $(OBJ_D)\cmll_ofb.obj \
+	$(OBJ_D)\cmll_cfb.obj $(OBJ_D)\cmll_ctr.obj $(OBJ_D)\cmll_utl.obj \
+	$(OBJ_D)\cmll-x86_64.obj $(OBJ_D)\cmll_misc.obj $(OBJ_D)\seed.obj \
+	$(OBJ_D)\seed_ecb.obj $(OBJ_D)\seed_cbc.obj $(OBJ_D)\seed_cfb.obj \
+	$(OBJ_D)\seed_ofb.obj $(OBJ_D)\cbc128.obj $(OBJ_D)\ctr128.obj \
+	$(OBJ_D)\cts128.obj $(OBJ_D)\cfb128.obj $(OBJ_D)\ofb128.obj \
+	$(OBJ_D)\gcm128.obj $(OBJ_D)\ccm128.obj $(OBJ_D)\xts128.obj \
+	$(OBJ_D)\wrap128.obj $(OBJ_D)\ghash-x86_64.obj $(OBJ_D)\aesni-gcm-x86_64.obj \
+	$(OBJ_D)\bn_add.obj $(OBJ_D)\bn_div.obj $(OBJ_D)\bn_exp.obj \
+	$(OBJ_D)\bn_lib.obj $(OBJ_D)\bn_ctx.obj $(OBJ_D)\bn_mul.obj \
+	$(OBJ_D)\bn_mod.obj $(OBJ_D)\bn_print.obj $(OBJ_D)\bn_rand.obj \
+	$(OBJ_D)\bn_shift.obj $(OBJ_D)\bn_word.obj $(OBJ_D)\bn_blind.obj \
+	$(OBJ_D)\bn_kron.obj $(OBJ_D)\bn_sqrt.obj $(OBJ_D)\bn_gcd.obj \
+	$(OBJ_D)\bn_prime.obj $(OBJ_D)\bn_err.obj $(OBJ_D)\bn_sqr.obj \
+	$(OBJ_D)\bn_asm.obj $(OBJ_D)\x86_64-mont.obj $(OBJ_D)\x86_64-mont5.obj \
+	$(OBJ_D)\x86_64-gf2m.obj $(OBJ_D)\rsaz_exp.obj $(OBJ_D)\rsaz-x86_64.obj \
+	$(OBJ_D)\rsaz-avx2.obj $(OBJ_D)\bn_recp.obj $(OBJ_D)\bn_mont.obj \
+	$(OBJ_D)\bn_mpi.obj $(OBJ_D)\bn_exp2.obj $(OBJ_D)\bn_gf2m.obj \
+	$(OBJ_D)\bn_nist.obj $(OBJ_D)\bn_depr.obj $(OBJ_D)\bn_const.obj \
+	$(OBJ_D)\bn_x931p.obj $(OBJ_D)\rsa_eay.obj $(OBJ_D)\rsa_gen.obj \
+	$(OBJ_D)\rsa_lib.obj $(OBJ_D)\rsa_sign.obj $(OBJ_D)\rsa_saos.obj \
+	$(OBJ_D)\rsa_err.obj $(OBJ_D)\rsa_pk1.obj $(OBJ_D)\rsa_ssl.obj \
+	$(OBJ_D)\rsa_none.obj $(OBJ_D)\rsa_oaep.obj $(OBJ_D)\rsa_chk.obj \
+	$(OBJ_D)\rsa_null.obj $(OBJ_D)\rsa_pss.obj $(OBJ_D)\rsa_x931.obj \
+	$(OBJ_D)\rsa_asn1.obj $(OBJ_D)\rsa_depr.obj $(OBJ_D)\rsa_ameth.obj \
+	$(OBJ_D)\rsa_prn.obj $(OBJ_D)\rsa_pmeth.obj $(OBJ_D)\rsa_crpt.obj \
+	$(OBJ_D)\dsa_gen.obj $(OBJ_D)\dsa_key.obj $(OBJ_D)\dsa_lib.obj \
+	$(OBJ_D)\dsa_asn1.obj $(OBJ_D)\dsa_vrf.obj $(OBJ_D)\dsa_sign.obj \
+	$(OBJ_D)\dsa_err.obj $(OBJ_D)\dsa_ossl.obj $(OBJ_D)\dsa_depr.obj \
+	$(OBJ_D)\dsa_ameth.obj $(OBJ_D)\dsa_pmeth.obj $(OBJ_D)\dsa_prn.obj \
+	$(OBJ_D)\dso_dl.obj $(OBJ_D)\dso_dlfcn.obj $(OBJ_D)\dso_err.obj \
+	$(OBJ_D)\dso_lib.obj $(OBJ_D)\dso_null.obj $(OBJ_D)\dso_openssl.obj \
+	$(OBJ_D)\dso_win32.obj $(OBJ_D)\dso_vms.obj $(OBJ_D)\dso_beos.obj \
+	$(OBJ_D)\dh_asn1.obj $(OBJ_D)\dh_gen.obj $(OBJ_D)\dh_key.obj \
+	$(OBJ_D)\dh_lib.obj $(OBJ_D)\dh_check.obj $(OBJ_D)\dh_err.obj \
+	$(OBJ_D)\dh_depr.obj $(OBJ_D)\dh_ameth.obj $(OBJ_D)\dh_pmeth.obj \
+	$(OBJ_D)\dh_prn.obj $(OBJ_D)\dh_rfc5114.obj $(OBJ_D)\dh_kdf.obj \
+	$(OBJ_D)\ec_lib.obj $(OBJ_D)\ecp_smpl.obj $(OBJ_D)\ecp_mont.obj \
+	$(OBJ_D)\ecp_nist.obj $(OBJ_D)\ec_cvt.obj $(OBJ_D)\ec_mult.obj \
+	$(OBJ_D)\ec_err.obj $(OBJ_D)\ec_curve.obj $(OBJ_D)\ec_check.obj \
+	$(OBJ_D)\ec_print.obj $(OBJ_D)\ec_asn1.obj $(OBJ_D)\ec_key.obj \
+	$(OBJ_D)\ec2_smpl.obj $(OBJ_D)\ec2_mult.obj $(OBJ_D)\ec_ameth.obj \
+	$(OBJ_D)\ec_pmeth.obj $(OBJ_D)\eck_prn.obj $(OBJ_D)\ecp_nistp224.obj \
+	$(OBJ_D)\ecp_nistp256.obj $(OBJ_D)\ecp_nistp521.obj $(OBJ_D)\ecp_nistputil.obj \
+	$(OBJ_D)\ecp_oct.obj $(OBJ_D)\ec2_oct.obj $(OBJ_D)\ec_oct.obj \
+	$(OBJ_D)\ecp_nistz256.obj $(OBJ_D)\ecp_nistz256-x86_64.obj $(OBJ_D)\ech_lib.obj \
+	$(OBJ_D)\ech_ossl.obj $(OBJ_D)\ech_key.obj $(OBJ_D)\ech_err.obj \
+	$(OBJ_D)\ech_kdf.obj $(OBJ_D)\ecs_lib.obj $(OBJ_D)\ecs_asn1.obj \
+	$(OBJ_D)\ecs_ossl.obj $(OBJ_D)\ecs_sign.obj $(OBJ_D)\ecs_vrf.obj \
+	$(OBJ_D)\ecs_err.obj $(OBJ_D)\buffer.obj $(OBJ_D)\buf_str.obj \
+	$(OBJ_D)\buf_err.obj $(OBJ_D)\bio_lib.obj $(OBJ_D)\bio_cb.obj \
+	$(OBJ_D)\bio_err.obj $(OBJ_D)\bss_mem.obj $(OBJ_D)\bss_null.obj \
+	$(OBJ_D)\bss_fd.obj $(OBJ_D)\bss_file.obj $(OBJ_D)\bss_sock.obj \
+	$(OBJ_D)\bss_conn.obj $(OBJ_D)\bf_null.obj $(OBJ_D)\bf_buff.obj \
+	$(OBJ_D)\b_print.obj $(OBJ_D)\b_dump.obj $(OBJ_D)\b_sock.obj \
+	$(OBJ_D)\bss_acpt.obj $(OBJ_D)\bf_nbio.obj $(OBJ_D)\bss_log.obj \
+	$(OBJ_D)\bss_bio.obj $(OBJ_D)\bss_dgram.obj $(OBJ_D)\stack.obj \
+	$(OBJ_D)\lhash.obj $(OBJ_D)\lh_stats.obj $(OBJ_D)\md_rand.obj \
+	$(OBJ_D)\randfile.obj $(OBJ_D)\rand_lib.obj $(OBJ_D)\rand_err.obj \
+	$(OBJ_D)\rand_egd.obj $(OBJ_D)\rand_win.obj $(OBJ_D)\rand_unix.obj \
+	$(OBJ_D)\rand_os2.obj $(OBJ_D)\rand_nw.obj $(OBJ_D)\err.obj \
+	$(OBJ_D)\err_all.obj $(OBJ_D)\err_prn.obj $(OBJ_D)\o_names.obj \
+	$(OBJ_D)\obj_dat.obj $(OBJ_D)\obj_lib.obj $(OBJ_D)\obj_err.obj \
+	$(OBJ_D)\obj_xref.obj $(OBJ_D)\encode.obj $(OBJ_D)\digest.obj \
+	$(OBJ_D)\evp_enc.obj $(OBJ_D)\evp_key.obj $(OBJ_D)\evp_acnf.obj \
+	$(OBJ_D)\evp_cnf.obj $(OBJ_D)\e_des.obj $(OBJ_D)\e_bf.obj \
+	$(OBJ_D)\e_idea.obj $(OBJ_D)\e_des3.obj $(OBJ_D)\e_camellia.obj \
+	$(OBJ_D)\e_rc4.obj $(OBJ_D)\e_aes.obj $(OBJ_D)\names.obj \
+	$(OBJ_D)\e_seed.obj $(OBJ_D)\e_xcbc_d.obj $(OBJ_D)\e_rc2.obj \
+	$(OBJ_D)\e_cast.obj $(OBJ_D)\e_rc5.obj $(OBJ_D)\m_null.obj \
+	$(OBJ_D)\m_md4.obj $(OBJ_D)\m_md5.obj $(OBJ_D)\m_sha.obj \
+	$(OBJ_D)\m_sha1.obj $(OBJ_D)\m_wp.obj $(OBJ_D)\m_dss.obj \
+	$(OBJ_D)\m_dss1.obj $(OBJ_D)\m_ripemd.obj $(OBJ_D)\m_ecdsa.obj \
+	$(OBJ_D)\p_open.obj $(OBJ_D)\p_seal.obj $(OBJ_D)\p_sign.obj \
+	$(OBJ_D)\p_verify.obj $(OBJ_D)\p_lib.obj $(OBJ_D)\p_enc.obj \
+	$(OBJ_D)\p_dec.obj $(OBJ_D)\bio_md.obj $(OBJ_D)\bio_b64.obj \
+	$(OBJ_D)\bio_enc.obj $(OBJ_D)\evp_err.obj $(OBJ_D)\e_null.obj \
+	$(OBJ_D)\c_all.obj $(OBJ_D)\c_allc.obj $(OBJ_D)\c_alld.obj \
+	$(OBJ_D)\evp_lib.obj $(OBJ_D)\bio_ok.obj $(OBJ_D)\evp_pkey.obj \
+	$(OBJ_D)\evp_pbe.obj $(OBJ_D)\p5_crpt.obj $(OBJ_D)\p5_crpt2.obj \
+	$(OBJ_D)\e_old.obj $(OBJ_D)\pmeth_lib.obj $(OBJ_D)\pmeth_fn.obj \
+	$(OBJ_D)\pmeth_gn.obj $(OBJ_D)\m_sigver.obj $(OBJ_D)\e_aes_cbc_hmac_sha1.obj \
+	$(OBJ_D)\e_aes_cbc_hmac_sha256.obj $(OBJ_D)\e_rc4_hmac_md5.obj $(OBJ_D)\a_object.obj \
+	$(OBJ_D)\a_bitstr.obj $(OBJ_D)\a_utctm.obj $(OBJ_D)\a_gentm.obj \
+	$(OBJ_D)\a_time.obj $(OBJ_D)\a_int.obj $(OBJ_D)\a_octet.obj \
+	$(OBJ_D)\a_print.obj $(OBJ_D)\a_type.obj $(OBJ_D)\a_set.obj \
+	$(OBJ_D)\a_dup.obj $(OBJ_D)\a_d2i_fp.obj $(OBJ_D)\a_i2d_fp.obj \
+	$(OBJ_D)\a_enum.obj $(OBJ_D)\a_utf8.obj $(OBJ_D)\a_sign.obj \
+	$(OBJ_D)\a_digest.obj $(OBJ_D)\a_verify.obj $(OBJ_D)\a_mbstr.obj \
+	$(OBJ_D)\a_strex.obj $(OBJ_D)\x_algor.obj $(OBJ_D)\x_val.obj \
+	$(OBJ_D)\x_pubkey.obj $(OBJ_D)\x_sig.obj $(OBJ_D)\x_req.obj \
+	$(OBJ_D)\x_attrib.obj $(OBJ_D)\x_bignum.obj $(OBJ_D)\x_long.obj \
+	$(OBJ_D)\x_name.obj $(OBJ_D)\x_x509.obj $(OBJ_D)\x_x509a.obj \
+	$(OBJ_D)\x_crl.obj $(OBJ_D)\x_info.obj $(OBJ_D)\x_spki.obj \
+	$(OBJ_D)\nsseq.obj $(OBJ_D)\x_nx509.obj $(OBJ_D)\d2i_pu.obj \
+	$(OBJ_D)\d2i_pr.obj $(OBJ_D)\i2d_pu.obj $(OBJ_D)\i2d_pr.obj \
+	$(OBJ_D)\t_req.obj $(OBJ_D)\t_x509.obj $(OBJ_D)\t_x509a.obj \
+	$(OBJ_D)\t_crl.obj $(OBJ_D)\t_pkey.obj $(OBJ_D)\t_spki.obj \
+	$(OBJ_D)\t_bitst.obj $(OBJ_D)\tasn_new.obj $(OBJ_D)\tasn_fre.obj \
+	$(OBJ_D)\tasn_enc.obj $(OBJ_D)\tasn_dec.obj $(OBJ_D)\tasn_utl.obj \
+	$(OBJ_D)\tasn_typ.obj $(OBJ_D)\tasn_prn.obj $(OBJ_D)\ameth_lib.obj \
+	$(OBJ_D)\f_int.obj $(OBJ_D)\f_string.obj $(OBJ_D)\n_pkey.obj \
+	$(OBJ_D)\f_enum.obj $(OBJ_D)\x_pkey.obj $(OBJ_D)\a_bool.obj \
+	$(OBJ_D)\x_exten.obj $(OBJ_D)\bio_asn1.obj $(OBJ_D)\bio_ndef.obj \
+	$(OBJ_D)\asn_mime.obj $(OBJ_D)\asn1_gen.obj $(OBJ_D)\asn1_par.obj \
+	$(OBJ_D)\asn1_lib.obj $(OBJ_D)\asn1_err.obj $(OBJ_D)\a_bytes.obj \
+	$(OBJ_D)\a_strnid.obj $(OBJ_D)\evp_asn1.obj $(OBJ_D)\asn_pack.obj \
+	$(OBJ_D)\p5_pbe.obj $(OBJ_D)\p5_pbev2.obj $(OBJ_D)\p8_pkey.obj \
+	$(OBJ_D)\asn_moid.obj $(OBJ_D)\pem_sign.obj $(OBJ_D)\pem_seal.obj \
+	$(OBJ_D)\pem_info.obj $(OBJ_D)\pem_lib.obj $(OBJ_D)\pem_all.obj \
+	$(OBJ_D)\pem_err.obj $(OBJ_D)\pem_x509.obj $(OBJ_D)\pem_xaux.obj \
+	$(OBJ_D)\pem_oth.obj $(OBJ_D)\pem_pk8.obj $(OBJ_D)\pem_pkey.obj \
+	$(OBJ_D)\pvkfmt.obj $(OBJ_D)\x509_def.obj $(OBJ_D)\x509_d2.obj \
+	$(OBJ_D)\x509_r2x.obj $(OBJ_D)\x509_cmp.obj $(OBJ_D)\x509_obj.obj \
+	$(OBJ_D)\x509_req.obj $(OBJ_D)\x509spki.obj $(OBJ_D)\x509_vfy.obj \
+	$(OBJ_D)\x509_set.obj $(OBJ_D)\x509cset.obj $(OBJ_D)\x509rset.obj \
+	$(OBJ_D)\x509_err.obj $(OBJ_D)\x509name.obj $(OBJ_D)\x509_v3.obj \
+	$(OBJ_D)\x509_ext.obj $(OBJ_D)\x509_att.obj $(OBJ_D)\x509type.obj \
+	$(OBJ_D)\x509_lu.obj $(OBJ_D)\x_all.obj $(OBJ_D)\x509_txt.obj \
+	$(OBJ_D)\x509_trs.obj $(OBJ_D)\by_file.obj $(OBJ_D)\by_dir.obj \
+	$(OBJ_D)\x509_vpm.obj $(OBJ_D)\v3_bcons.obj $(OBJ_D)\v3_bitst.obj \
+	$(OBJ_D)\v3_conf.obj $(OBJ_D)\v3_extku.obj $(OBJ_D)\v3_ia5.obj \
+	$(OBJ_D)\v3_lib.obj $(OBJ_D)\v3_prn.obj $(OBJ_D)\v3_utl.obj \
+	$(OBJ_D)\v3err.obj $(OBJ_D)\v3_genn.obj $(OBJ_D)\v3_alt.obj \
+	$(OBJ_D)\v3_skey.obj $(OBJ_D)\v3_akey.obj $(OBJ_D)\v3_pku.obj \
+	$(OBJ_D)\v3_int.obj $(OBJ_D)\v3_enum.obj $(OBJ_D)\v3_sxnet.obj \
+	$(OBJ_D)\v3_cpols.obj $(OBJ_D)\v3_crld.obj $(OBJ_D)\v3_purp.obj \
+	$(OBJ_D)\v3_info.obj $(OBJ_D)\v3_ocsp.obj $(OBJ_D)\v3_akeya.obj \
+	$(OBJ_D)\v3_pmaps.obj $(OBJ_D)\v3_pcons.obj $(OBJ_D)\v3_ncons.obj \
+	$(OBJ_D)\v3_pcia.obj $(OBJ_D)\v3_pci.obj $(OBJ_D)\pcy_cache.obj \
+	$(OBJ_D)\pcy_node.obj $(OBJ_D)\pcy_data.obj $(OBJ_D)\pcy_map.obj \
+	$(OBJ_D)\pcy_tree.obj $(OBJ_D)\pcy_lib.obj $(OBJ_D)\v3_asid.obj \
+	$(OBJ_D)\v3_addr.obj $(OBJ_D)\v3_scts.obj $(OBJ_D)\cms_lib.obj \
+	$(OBJ_D)\cms_asn1.obj $(OBJ_D)\cms_att.obj $(OBJ_D)\cms_io.obj \
+	$(OBJ_D)\cms_smime.obj $(OBJ_D)\cms_err.obj $(OBJ_D)\cms_sd.obj \
+	$(OBJ_D)\cms_dd.obj $(OBJ_D)\cms_cd.obj $(OBJ_D)\cms_env.obj \
+	$(OBJ_D)\cms_enc.obj $(OBJ_D)\cms_ess.obj $(OBJ_D)\cms_pwri.obj \
+	$(OBJ_D)\cms_kari.obj $(OBJ_D)\conf_err.obj $(OBJ_D)\conf_lib.obj \
+	$(OBJ_D)\conf_api.obj $(OBJ_D)\conf_def.obj $(OBJ_D)\conf_mod.obj \
+	$(OBJ_D)\conf_mall.obj $(OBJ_D)\conf_sap.obj $(OBJ_D)\txt_db.obj \
+	$(OBJ_D)\pk7_asn1.obj $(OBJ_D)\pk7_lib.obj $(OBJ_D)\pkcs7err.obj \
+	$(OBJ_D)\pk7_doit.obj $(OBJ_D)\pk7_smime.obj $(OBJ_D)\pk7_attr.obj \
+	$(OBJ_D)\pk7_mime.obj $(OBJ_D)\bio_pk7.obj $(OBJ_D)\p12_add.obj \
+	$(OBJ_D)\p12_asn.obj $(OBJ_D)\p12_attr.obj $(OBJ_D)\p12_crpt.obj \
+	$(OBJ_D)\p12_crt.obj $(OBJ_D)\p12_decr.obj $(OBJ_D)\p12_init.obj \
+	$(OBJ_D)\p12_key.obj $(OBJ_D)\p12_kiss.obj $(OBJ_D)\p12_mutl.obj \
+	$(OBJ_D)\p12_utl.obj $(OBJ_D)\p12_npas.obj $(OBJ_D)\pk12err.obj \
+	$(OBJ_D)\p12_p8d.obj $(OBJ_D)\p12_p8e.obj $(OBJ_D)\comp_lib.obj \
+	$(OBJ_D)\comp_err.obj $(OBJ_D)\c_rle.obj $(OBJ_D)\c_zlib.obj \
+	$(OBJ_D)\eng_err.obj $(OBJ_D)\eng_lib.obj $(OBJ_D)\eng_list.obj \
+	$(OBJ_D)\eng_init.obj $(OBJ_D)\eng_ctrl.obj $(OBJ_D)\eng_table.obj \
+	$(OBJ_D)\eng_pkey.obj $(OBJ_D)\eng_fat.obj $(OBJ_D)\eng_all.obj \
+	$(OBJ_D)\tb_rsa.obj $(OBJ_D)\tb_dsa.obj $(OBJ_D)\tb_ecdsa.obj \
+	$(OBJ_D)\tb_dh.obj $(OBJ_D)\tb_ecdh.obj $(OBJ_D)\tb_rand.obj \
+	$(OBJ_D)\tb_store.obj $(OBJ_D)\tb_cipher.obj $(OBJ_D)\tb_digest.obj \
+	$(OBJ_D)\tb_pkmeth.obj $(OBJ_D)\tb_asnmth.obj $(OBJ_D)\eng_openssl.obj \
+	$(OBJ_D)\eng_cnf.obj $(OBJ_D)\eng_dyn.obj $(OBJ_D)\eng_cryptodev.obj \
+	$(OBJ_D)\eng_rdrand.obj $(OBJ_D)\ocsp_asn.obj $(OBJ_D)\ocsp_ext.obj \
+	$(OBJ_D)\ocsp_ht.obj $(OBJ_D)\ocsp_lib.obj $(OBJ_D)\ocsp_cl.obj \
+	$(OBJ_D)\ocsp_srv.obj $(OBJ_D)\ocsp_prn.obj $(OBJ_D)\ocsp_vfy.obj \
+	$(OBJ_D)\ocsp_err.obj $(OBJ_D)\ui_err.obj $(OBJ_D)\ui_lib.obj \
+	$(OBJ_D)\ui_openssl.obj $(OBJ_D)\ui_util.obj $(OBJ_D)\ui_compat.obj \
+	$(OBJ_D)\krb5_asn.obj $(OBJ_D)\pqueue.obj $(OBJ_D)\wp_dgst.obj \
+	$(OBJ_D)\wp-x86_64.obj $(OBJ_D)\ts_err.obj $(OBJ_D)\ts_req_utils.obj \
+	$(OBJ_D)\ts_req_print.obj $(OBJ_D)\ts_rsp_utils.obj $(OBJ_D)\ts_rsp_print.obj \
+	$(OBJ_D)\ts_rsp_sign.obj $(OBJ_D)\ts_rsp_verify.obj $(OBJ_D)\ts_verify_ctx.obj \
+	$(OBJ_D)\ts_lib.obj $(OBJ_D)\ts_conf.obj $(OBJ_D)\ts_asn1.obj \
+	$(OBJ_D)\srp_lib.obj $(OBJ_D)\srp_vfy.obj $(OBJ_D)\e_4758cca.obj \
+	$(OBJ_D)\e_aep.obj $(OBJ_D)\e_atalla.obj $(OBJ_D)\e_cswift.obj \
+	$(OBJ_D)\e_gmp.obj $(OBJ_D)\e_chil.obj $(OBJ_D)\e_nuron.obj \
+	$(OBJ_D)\e_sureware.obj $(OBJ_D)\e_ubsec.obj $(OBJ_D)\e_padlock.obj \
+	$(OBJ_D)\e_capi.obj $(OBJ_D)\e_gost_err.obj $(OBJ_D)\gost2001_keyx.obj \
+	$(OBJ_D)\gost2001.obj $(OBJ_D)\gost89.obj $(OBJ_D)\gost94_keyx.obj \
+	$(OBJ_D)\gost_ameth.obj $(OBJ_D)\gost_asn1.obj $(OBJ_D)\gost_crypt.obj \
+	$(OBJ_D)\gost_ctl.obj $(OBJ_D)\gost_eng.obj $(OBJ_D)\gosthash.obj \
+	$(OBJ_D)\gost_keywrap.obj $(OBJ_D)\gost_md.obj $(OBJ_D)\gost_params.obj \
+	$(OBJ_D)\gost_pmeth.obj $(OBJ_D)\gost_sign.obj 
+
 SSLOBJ=$(OBJ_D)\s2_meth.obj \
 	$(OBJ_D)\s2_srvr.obj $(OBJ_D)\s2_clnt.obj $(OBJ_D)\s2_lib.obj \
 	$(OBJ_D)\s2_enc.obj $(OBJ_D)\s2_pkt.obj $(OBJ_D)\s3_meth.obj \
@@ -215,217 +426,6 @@ SSLOBJ=$(OBJ_D)\s2_meth.obj \
 	$(OBJ_D)\bio_ssl.obj $(OBJ_D)\ssl_err.obj $(OBJ_D)\kssl.obj \
 	$(OBJ_D)\t1_reneg.obj $(OBJ_D)\tls_srp.obj $(OBJ_D)\t1_trce.obj \
 	$(OBJ_D)\ssl_utst.obj 
-
-CRYPTOOBJ=$(OBJ_D)\cryptlib.obj \
-	$(OBJ_D)\mem.obj $(OBJ_D)\mem_dbg.obj $(OBJ_D)\cversion.obj \
-	$(OBJ_D)\ex_data.obj $(OBJ_D)\cpt_err.obj $(OBJ_D)\ebcdic.obj \
-	$(OBJ_D)\uid.obj $(OBJ_D)\o_time.obj $(OBJ_D)\o_str.obj \
-	$(OBJ_D)\o_dir.obj $(OBJ_D)\o_fips.obj $(OBJ_D)\o_init.obj \
-	$(OBJ_D)\fips_ers.obj $(OBJ_D)\x86_64cpuid.obj $(OBJ_D)\md4_dgst.obj \
-	$(OBJ_D)\md4_one.obj $(OBJ_D)\md5_dgst.obj $(OBJ_D)\md5_one.obj \
-	$(OBJ_D)\md5-x86_64.obj $(OBJ_D)\sha_dgst.obj $(OBJ_D)\sha1dgst.obj \
-	$(OBJ_D)\sha_one.obj $(OBJ_D)\sha1_one.obj $(OBJ_D)\sha256.obj \
-	$(OBJ_D)\sha512.obj $(OBJ_D)\sha1-x86_64.obj $(OBJ_D)\sha256-x86_64.obj \
-	$(OBJ_D)\sha512-x86_64.obj $(OBJ_D)\sha1-mb-x86_64.obj $(OBJ_D)\sha256-mb-x86_64.obj \
-	$(OBJ_D)\hmac.obj $(OBJ_D)\hm_ameth.obj $(OBJ_D)\hm_pmeth.obj \
-	$(OBJ_D)\cmac.obj $(OBJ_D)\cm_ameth.obj $(OBJ_D)\cm_pmeth.obj \
-	$(OBJ_D)\rmd_dgst.obj $(OBJ_D)\rmd_one.obj $(OBJ_D)\set_key.obj \
-	$(OBJ_D)\ecb_enc.obj $(OBJ_D)\cbc_enc.obj $(OBJ_D)\ecb3_enc.obj \
-	$(OBJ_D)\cfb64enc.obj $(OBJ_D)\cfb64ede.obj $(OBJ_D)\cfb_enc.obj \
-	$(OBJ_D)\ofb64ede.obj $(OBJ_D)\enc_read.obj $(OBJ_D)\enc_writ.obj \
-	$(OBJ_D)\ofb64enc.obj $(OBJ_D)\ofb_enc.obj $(OBJ_D)\str2key.obj \
-	$(OBJ_D)\pcbc_enc.obj $(OBJ_D)\qud_cksm.obj $(OBJ_D)\rand_key.obj \
-	$(OBJ_D)\des_enc.obj $(OBJ_D)\fcrypt_b.obj $(OBJ_D)\fcrypt.obj \
-	$(OBJ_D)\xcbc_enc.obj $(OBJ_D)\rpc_enc.obj $(OBJ_D)\cbc_cksm.obj \
-	$(OBJ_D)\ede_cbcm_enc.obj $(OBJ_D)\des_old.obj $(OBJ_D)\des_old2.obj \
-	$(OBJ_D)\read2pwd.obj $(OBJ_D)\rc2_ecb.obj $(OBJ_D)\rc2_skey.obj \
-	$(OBJ_D)\rc2_cbc.obj $(OBJ_D)\rc2cfb64.obj $(OBJ_D)\rc2ofb64.obj \
-	$(OBJ_D)\rc4-x86_64.obj $(OBJ_D)\rc4-md5-x86_64.obj $(OBJ_D)\rc4_utl.obj \
-	$(OBJ_D)\bf_skey.obj $(OBJ_D)\bf_ecb.obj $(OBJ_D)\bf_enc.obj \
-	$(OBJ_D)\bf_cfb64.obj $(OBJ_D)\bf_ofb64.obj $(OBJ_D)\c_skey.obj \
-	$(OBJ_D)\c_ecb.obj $(OBJ_D)\c_enc.obj $(OBJ_D)\c_cfb64.obj \
-	$(OBJ_D)\c_ofb64.obj $(OBJ_D)\aes_misc.obj $(OBJ_D)\aes_ecb.obj \
-	$(OBJ_D)\aes_cfb.obj $(OBJ_D)\aes_ofb.obj $(OBJ_D)\aes_ctr.obj \
-	$(OBJ_D)\aes_ige.obj $(OBJ_D)\aes_wrap.obj $(OBJ_D)\aes-x86_64.obj \
-	$(OBJ_D)\vpaes-x86_64.obj $(OBJ_D)\bsaes-x86_64.obj $(OBJ_D)\aesni-x86_64.obj \
-	$(OBJ_D)\aesni-sha1-x86_64.obj $(OBJ_D)\aesni-sha256-x86_64.obj $(OBJ_D)\aesni-mb-x86_64.obj \
-	$(OBJ_D)\cmll_ecb.obj $(OBJ_D)\cmll_ofb.obj $(OBJ_D)\cmll_cfb.obj \
-	$(OBJ_D)\cmll_ctr.obj $(OBJ_D)\cmll_utl.obj $(OBJ_D)\cmll-x86_64.obj \
-	$(OBJ_D)\cmll_misc.obj $(OBJ_D)\seed.obj $(OBJ_D)\seed_ecb.obj \
-	$(OBJ_D)\seed_cbc.obj $(OBJ_D)\seed_cfb.obj $(OBJ_D)\seed_ofb.obj \
-	$(OBJ_D)\cbc128.obj $(OBJ_D)\ctr128.obj $(OBJ_D)\cts128.obj \
-	$(OBJ_D)\cfb128.obj $(OBJ_D)\ofb128.obj $(OBJ_D)\gcm128.obj \
-	$(OBJ_D)\ccm128.obj $(OBJ_D)\xts128.obj $(OBJ_D)\wrap128.obj \
-	$(OBJ_D)\ghash-x86_64.obj $(OBJ_D)\aesni-gcm-x86_64.obj $(OBJ_D)\bn_add.obj \
-	$(OBJ_D)\bn_div.obj $(OBJ_D)\bn_exp.obj $(OBJ_D)\bn_lib.obj \
-	$(OBJ_D)\bn_ctx.obj $(OBJ_D)\bn_mul.obj $(OBJ_D)\bn_mod.obj \
-	$(OBJ_D)\bn_print.obj $(OBJ_D)\bn_rand.obj $(OBJ_D)\bn_shift.obj \
-	$(OBJ_D)\bn_word.obj $(OBJ_D)\bn_blind.obj $(OBJ_D)\bn_kron.obj \
-	$(OBJ_D)\bn_sqrt.obj $(OBJ_D)\bn_gcd.obj $(OBJ_D)\bn_prime.obj \
-	$(OBJ_D)\bn_err.obj $(OBJ_D)\bn_sqr.obj $(OBJ_D)\bn_asm.obj \
-	$(OBJ_D)\x86_64-mont.obj $(OBJ_D)\x86_64-mont5.obj $(OBJ_D)\x86_64-gf2m.obj \
-	$(OBJ_D)\rsaz_exp.obj $(OBJ_D)\rsaz-x86_64.obj $(OBJ_D)\rsaz-avx2.obj \
-	$(OBJ_D)\bn_recp.obj $(OBJ_D)\bn_mont.obj $(OBJ_D)\bn_mpi.obj \
-	$(OBJ_D)\bn_exp2.obj $(OBJ_D)\bn_gf2m.obj $(OBJ_D)\bn_nist.obj \
-	$(OBJ_D)\bn_depr.obj $(OBJ_D)\bn_const.obj $(OBJ_D)\bn_x931p.obj \
-	$(OBJ_D)\rsa_eay.obj $(OBJ_D)\rsa_gen.obj $(OBJ_D)\rsa_lib.obj \
-	$(OBJ_D)\rsa_sign.obj $(OBJ_D)\rsa_saos.obj $(OBJ_D)\rsa_err.obj \
-	$(OBJ_D)\rsa_pk1.obj $(OBJ_D)\rsa_ssl.obj $(OBJ_D)\rsa_none.obj \
-	$(OBJ_D)\rsa_oaep.obj $(OBJ_D)\rsa_chk.obj $(OBJ_D)\rsa_null.obj \
-	$(OBJ_D)\rsa_pss.obj $(OBJ_D)\rsa_x931.obj $(OBJ_D)\rsa_asn1.obj \
-	$(OBJ_D)\rsa_depr.obj $(OBJ_D)\rsa_ameth.obj $(OBJ_D)\rsa_prn.obj \
-	$(OBJ_D)\rsa_pmeth.obj $(OBJ_D)\rsa_crpt.obj $(OBJ_D)\dsa_gen.obj \
-	$(OBJ_D)\dsa_key.obj $(OBJ_D)\dsa_lib.obj $(OBJ_D)\dsa_asn1.obj \
-	$(OBJ_D)\dsa_vrf.obj $(OBJ_D)\dsa_sign.obj $(OBJ_D)\dsa_err.obj \
-	$(OBJ_D)\dsa_ossl.obj $(OBJ_D)\dsa_depr.obj $(OBJ_D)\dsa_ameth.obj \
-	$(OBJ_D)\dsa_pmeth.obj $(OBJ_D)\dsa_prn.obj $(OBJ_D)\dso_dl.obj \
-	$(OBJ_D)\dso_dlfcn.obj $(OBJ_D)\dso_err.obj $(OBJ_D)\dso_lib.obj \
-	$(OBJ_D)\dso_null.obj $(OBJ_D)\dso_openssl.obj $(OBJ_D)\dso_win32.obj \
-	$(OBJ_D)\dso_vms.obj $(OBJ_D)\dso_beos.obj $(OBJ_D)\dh_asn1.obj \
-	$(OBJ_D)\dh_gen.obj $(OBJ_D)\dh_key.obj $(OBJ_D)\dh_lib.obj \
-	$(OBJ_D)\dh_check.obj $(OBJ_D)\dh_err.obj $(OBJ_D)\dh_depr.obj \
-	$(OBJ_D)\dh_ameth.obj $(OBJ_D)\dh_pmeth.obj $(OBJ_D)\dh_prn.obj \
-	$(OBJ_D)\dh_rfc5114.obj $(OBJ_D)\dh_kdf.obj $(OBJ_D)\ec_lib.obj \
-	$(OBJ_D)\ecp_smpl.obj $(OBJ_D)\ecp_mont.obj $(OBJ_D)\ecp_nist.obj \
-	$(OBJ_D)\ec_cvt.obj $(OBJ_D)\ec_mult.obj $(OBJ_D)\ec_err.obj \
-	$(OBJ_D)\ec_curve.obj $(OBJ_D)\ec_check.obj $(OBJ_D)\ec_print.obj \
-	$(OBJ_D)\ec_asn1.obj $(OBJ_D)\ec_key.obj $(OBJ_D)\ec2_smpl.obj \
-	$(OBJ_D)\ec2_mult.obj $(OBJ_D)\ec_ameth.obj $(OBJ_D)\ec_pmeth.obj \
-	$(OBJ_D)\eck_prn.obj $(OBJ_D)\ecp_nistp224.obj $(OBJ_D)\ecp_nistp256.obj \
-	$(OBJ_D)\ecp_nistp521.obj $(OBJ_D)\ecp_nistputil.obj $(OBJ_D)\ecp_oct.obj \
-	$(OBJ_D)\ec2_oct.obj $(OBJ_D)\ec_oct.obj $(OBJ_D)\ecp_nistz256.obj \
-	$(OBJ_D)\ecp_nistz256-x86_64.obj $(OBJ_D)\ech_lib.obj $(OBJ_D)\ech_ossl.obj \
-	$(OBJ_D)\ech_key.obj $(OBJ_D)\ech_err.obj $(OBJ_D)\ech_kdf.obj \
-	$(OBJ_D)\ecs_lib.obj $(OBJ_D)\ecs_asn1.obj $(OBJ_D)\ecs_ossl.obj \
-	$(OBJ_D)\ecs_sign.obj $(OBJ_D)\ecs_vrf.obj $(OBJ_D)\ecs_err.obj \
-	$(OBJ_D)\buffer.obj $(OBJ_D)\buf_str.obj $(OBJ_D)\buf_err.obj \
-	$(OBJ_D)\bio_lib.obj $(OBJ_D)\bio_cb.obj $(OBJ_D)\bio_err.obj \
-	$(OBJ_D)\bss_mem.obj $(OBJ_D)\bss_null.obj $(OBJ_D)\bss_fd.obj \
-	$(OBJ_D)\bss_file.obj $(OBJ_D)\bss_sock.obj $(OBJ_D)\bss_conn.obj \
-	$(OBJ_D)\bf_null.obj $(OBJ_D)\bf_buff.obj $(OBJ_D)\b_print.obj \
-	$(OBJ_D)\b_dump.obj $(OBJ_D)\b_sock.obj $(OBJ_D)\bss_acpt.obj \
-	$(OBJ_D)\bf_nbio.obj $(OBJ_D)\bss_log.obj $(OBJ_D)\bss_bio.obj \
-	$(OBJ_D)\bss_dgram.obj $(OBJ_D)\stack.obj $(OBJ_D)\lhash.obj \
-	$(OBJ_D)\lh_stats.obj $(OBJ_D)\md_rand.obj $(OBJ_D)\randfile.obj \
-	$(OBJ_D)\rand_lib.obj $(OBJ_D)\rand_err.obj $(OBJ_D)\rand_egd.obj \
-	$(OBJ_D)\rand_win.obj $(OBJ_D)\rand_unix.obj $(OBJ_D)\rand_os2.obj \
-	$(OBJ_D)\rand_nw.obj $(OBJ_D)\err.obj $(OBJ_D)\err_all.obj \
-	$(OBJ_D)\err_prn.obj $(OBJ_D)\o_names.obj $(OBJ_D)\obj_dat.obj \
-	$(OBJ_D)\obj_lib.obj $(OBJ_D)\obj_err.obj $(OBJ_D)\obj_xref.obj \
-	$(OBJ_D)\encode.obj $(OBJ_D)\digest.obj $(OBJ_D)\evp_enc.obj \
-	$(OBJ_D)\evp_key.obj $(OBJ_D)\evp_acnf.obj $(OBJ_D)\evp_cnf.obj \
-	$(OBJ_D)\e_des.obj $(OBJ_D)\e_bf.obj $(OBJ_D)\e_idea.obj \
-	$(OBJ_D)\e_des3.obj $(OBJ_D)\e_camellia.obj $(OBJ_D)\e_rc4.obj \
-	$(OBJ_D)\e_aes.obj $(OBJ_D)\names.obj $(OBJ_D)\e_seed.obj \
-	$(OBJ_D)\e_xcbc_d.obj $(OBJ_D)\e_rc2.obj $(OBJ_D)\e_cast.obj \
-	$(OBJ_D)\e_rc5.obj $(OBJ_D)\m_null.obj $(OBJ_D)\m_md4.obj \
-	$(OBJ_D)\m_md5.obj $(OBJ_D)\m_sha.obj $(OBJ_D)\m_sha1.obj \
-	$(OBJ_D)\m_wp.obj $(OBJ_D)\m_dss.obj $(OBJ_D)\m_dss1.obj \
-	$(OBJ_D)\m_ripemd.obj $(OBJ_D)\m_ecdsa.obj $(OBJ_D)\p_open.obj \
-	$(OBJ_D)\p_seal.obj $(OBJ_D)\p_sign.obj $(OBJ_D)\p_verify.obj \
-	$(OBJ_D)\p_lib.obj $(OBJ_D)\p_enc.obj $(OBJ_D)\p_dec.obj \
-	$(OBJ_D)\bio_md.obj $(OBJ_D)\bio_b64.obj $(OBJ_D)\bio_enc.obj \
-	$(OBJ_D)\evp_err.obj $(OBJ_D)\e_null.obj $(OBJ_D)\c_all.obj \
-	$(OBJ_D)\c_allc.obj $(OBJ_D)\c_alld.obj $(OBJ_D)\evp_lib.obj \
-	$(OBJ_D)\bio_ok.obj $(OBJ_D)\evp_pkey.obj $(OBJ_D)\evp_pbe.obj \
-	$(OBJ_D)\p5_crpt.obj $(OBJ_D)\p5_crpt2.obj $(OBJ_D)\e_old.obj \
-	$(OBJ_D)\pmeth_lib.obj $(OBJ_D)\pmeth_fn.obj $(OBJ_D)\pmeth_gn.obj \
-	$(OBJ_D)\m_sigver.obj $(OBJ_D)\e_aes_cbc_hmac_sha1.obj $(OBJ_D)\e_aes_cbc_hmac_sha256.obj \
-	$(OBJ_D)\e_rc4_hmac_md5.obj $(OBJ_D)\a_object.obj $(OBJ_D)\a_bitstr.obj \
-	$(OBJ_D)\a_utctm.obj $(OBJ_D)\a_gentm.obj $(OBJ_D)\a_time.obj \
-	$(OBJ_D)\a_int.obj $(OBJ_D)\a_octet.obj $(OBJ_D)\a_print.obj \
-	$(OBJ_D)\a_type.obj $(OBJ_D)\a_set.obj $(OBJ_D)\a_dup.obj \
-	$(OBJ_D)\a_d2i_fp.obj $(OBJ_D)\a_i2d_fp.obj $(OBJ_D)\a_enum.obj \
-	$(OBJ_D)\a_utf8.obj $(OBJ_D)\a_sign.obj $(OBJ_D)\a_digest.obj \
-	$(OBJ_D)\a_verify.obj $(OBJ_D)\a_mbstr.obj $(OBJ_D)\a_strex.obj \
-	$(OBJ_D)\x_algor.obj $(OBJ_D)\x_val.obj $(OBJ_D)\x_pubkey.obj \
-	$(OBJ_D)\x_sig.obj $(OBJ_D)\x_req.obj $(OBJ_D)\x_attrib.obj \
-	$(OBJ_D)\x_bignum.obj $(OBJ_D)\x_long.obj $(OBJ_D)\x_name.obj \
-	$(OBJ_D)\x_x509.obj $(OBJ_D)\x_x509a.obj $(OBJ_D)\x_crl.obj \
-	$(OBJ_D)\x_info.obj $(OBJ_D)\x_spki.obj $(OBJ_D)\nsseq.obj \
-	$(OBJ_D)\x_nx509.obj $(OBJ_D)\d2i_pu.obj $(OBJ_D)\d2i_pr.obj \
-	$(OBJ_D)\i2d_pu.obj $(OBJ_D)\i2d_pr.obj $(OBJ_D)\t_req.obj \
-	$(OBJ_D)\t_x509.obj $(OBJ_D)\t_x509a.obj $(OBJ_D)\t_crl.obj \
-	$(OBJ_D)\t_pkey.obj $(OBJ_D)\t_spki.obj $(OBJ_D)\t_bitst.obj \
-	$(OBJ_D)\tasn_new.obj $(OBJ_D)\tasn_fre.obj $(OBJ_D)\tasn_enc.obj \
-	$(OBJ_D)\tasn_dec.obj $(OBJ_D)\tasn_utl.obj $(OBJ_D)\tasn_typ.obj \
-	$(OBJ_D)\tasn_prn.obj $(OBJ_D)\ameth_lib.obj $(OBJ_D)\f_int.obj \
-	$(OBJ_D)\f_string.obj $(OBJ_D)\n_pkey.obj $(OBJ_D)\f_enum.obj \
-	$(OBJ_D)\x_pkey.obj $(OBJ_D)\a_bool.obj $(OBJ_D)\x_exten.obj \
-	$(OBJ_D)\bio_asn1.obj $(OBJ_D)\bio_ndef.obj $(OBJ_D)\asn_mime.obj \
-	$(OBJ_D)\asn1_gen.obj $(OBJ_D)\asn1_par.obj $(OBJ_D)\asn1_lib.obj \
-	$(OBJ_D)\asn1_err.obj $(OBJ_D)\a_bytes.obj $(OBJ_D)\a_strnid.obj \
-	$(OBJ_D)\evp_asn1.obj $(OBJ_D)\asn_pack.obj $(OBJ_D)\p5_pbe.obj \
-	$(OBJ_D)\p5_pbev2.obj $(OBJ_D)\p8_pkey.obj $(OBJ_D)\asn_moid.obj \
-	$(OBJ_D)\pem_sign.obj $(OBJ_D)\pem_seal.obj $(OBJ_D)\pem_info.obj \
-	$(OBJ_D)\pem_lib.obj $(OBJ_D)\pem_all.obj $(OBJ_D)\pem_err.obj \
-	$(OBJ_D)\pem_x509.obj $(OBJ_D)\pem_xaux.obj $(OBJ_D)\pem_oth.obj \
-	$(OBJ_D)\pem_pk8.obj $(OBJ_D)\pem_pkey.obj $(OBJ_D)\pvkfmt.obj \
-	$(OBJ_D)\x509_def.obj $(OBJ_D)\x509_d2.obj $(OBJ_D)\x509_r2x.obj \
-	$(OBJ_D)\x509_cmp.obj $(OBJ_D)\x509_obj.obj $(OBJ_D)\x509_req.obj \
-	$(OBJ_D)\x509spki.obj $(OBJ_D)\x509_vfy.obj $(OBJ_D)\x509_set.obj \
-	$(OBJ_D)\x509cset.obj $(OBJ_D)\x509rset.obj $(OBJ_D)\x509_err.obj \
-	$(OBJ_D)\x509name.obj $(OBJ_D)\x509_v3.obj $(OBJ_D)\x509_ext.obj \
-	$(OBJ_D)\x509_att.obj $(OBJ_D)\x509type.obj $(OBJ_D)\x509_lu.obj \
-	$(OBJ_D)\x_all.obj $(OBJ_D)\x509_txt.obj $(OBJ_D)\x509_trs.obj \
-	$(OBJ_D)\by_file.obj $(OBJ_D)\by_dir.obj $(OBJ_D)\x509_vpm.obj \
-	$(OBJ_D)\v3_bcons.obj $(OBJ_D)\v3_bitst.obj $(OBJ_D)\v3_conf.obj \
-	$(OBJ_D)\v3_extku.obj $(OBJ_D)\v3_ia5.obj $(OBJ_D)\v3_lib.obj \
-	$(OBJ_D)\v3_prn.obj $(OBJ_D)\v3_utl.obj $(OBJ_D)\v3err.obj \
-	$(OBJ_D)\v3_genn.obj $(OBJ_D)\v3_alt.obj $(OBJ_D)\v3_skey.obj \
-	$(OBJ_D)\v3_akey.obj $(OBJ_D)\v3_pku.obj $(OBJ_D)\v3_int.obj \
-	$(OBJ_D)\v3_enum.obj $(OBJ_D)\v3_sxnet.obj $(OBJ_D)\v3_cpols.obj \
-	$(OBJ_D)\v3_crld.obj $(OBJ_D)\v3_purp.obj $(OBJ_D)\v3_info.obj \
-	$(OBJ_D)\v3_ocsp.obj $(OBJ_D)\v3_akeya.obj $(OBJ_D)\v3_pmaps.obj \
-	$(OBJ_D)\v3_pcons.obj $(OBJ_D)\v3_ncons.obj $(OBJ_D)\v3_pcia.obj \
-	$(OBJ_D)\v3_pci.obj $(OBJ_D)\pcy_cache.obj $(OBJ_D)\pcy_node.obj \
-	$(OBJ_D)\pcy_data.obj $(OBJ_D)\pcy_map.obj $(OBJ_D)\pcy_tree.obj \
-	$(OBJ_D)\pcy_lib.obj $(OBJ_D)\v3_asid.obj $(OBJ_D)\v3_addr.obj \
-	$(OBJ_D)\v3_scts.obj $(OBJ_D)\cms_lib.obj $(OBJ_D)\cms_asn1.obj \
-	$(OBJ_D)\cms_att.obj $(OBJ_D)\cms_io.obj $(OBJ_D)\cms_smime.obj \
-	$(OBJ_D)\cms_err.obj $(OBJ_D)\cms_sd.obj $(OBJ_D)\cms_dd.obj \
-	$(OBJ_D)\cms_cd.obj $(OBJ_D)\cms_env.obj $(OBJ_D)\cms_enc.obj \
-	$(OBJ_D)\cms_ess.obj $(OBJ_D)\cms_pwri.obj $(OBJ_D)\cms_kari.obj \
-	$(OBJ_D)\conf_err.obj $(OBJ_D)\conf_lib.obj $(OBJ_D)\conf_api.obj \
-	$(OBJ_D)\conf_def.obj $(OBJ_D)\conf_mod.obj $(OBJ_D)\conf_mall.obj \
-	$(OBJ_D)\conf_sap.obj $(OBJ_D)\txt_db.obj $(OBJ_D)\pk7_asn1.obj \
-	$(OBJ_D)\pk7_lib.obj $(OBJ_D)\pkcs7err.obj $(OBJ_D)\pk7_doit.obj \
-	$(OBJ_D)\pk7_smime.obj $(OBJ_D)\pk7_attr.obj $(OBJ_D)\pk7_mime.obj \
-	$(OBJ_D)\bio_pk7.obj $(OBJ_D)\p12_add.obj $(OBJ_D)\p12_asn.obj \
-	$(OBJ_D)\p12_attr.obj $(OBJ_D)\p12_crpt.obj $(OBJ_D)\p12_crt.obj \
-	$(OBJ_D)\p12_decr.obj $(OBJ_D)\p12_init.obj $(OBJ_D)\p12_key.obj \
-	$(OBJ_D)\p12_kiss.obj $(OBJ_D)\p12_mutl.obj $(OBJ_D)\p12_utl.obj \
-	$(OBJ_D)\p12_npas.obj $(OBJ_D)\pk12err.obj $(OBJ_D)\p12_p8d.obj \
-	$(OBJ_D)\p12_p8e.obj $(OBJ_D)\comp_lib.obj $(OBJ_D)\comp_err.obj \
-	$(OBJ_D)\c_rle.obj $(OBJ_D)\c_zlib.obj $(OBJ_D)\eng_err.obj \
-	$(OBJ_D)\eng_lib.obj $(OBJ_D)\eng_list.obj $(OBJ_D)\eng_init.obj \
-	$(OBJ_D)\eng_ctrl.obj $(OBJ_D)\eng_table.obj $(OBJ_D)\eng_pkey.obj \
-	$(OBJ_D)\eng_fat.obj $(OBJ_D)\eng_all.obj $(OBJ_D)\tb_rsa.obj \
-	$(OBJ_D)\tb_dsa.obj $(OBJ_D)\tb_ecdsa.obj $(OBJ_D)\tb_dh.obj \
-	$(OBJ_D)\tb_ecdh.obj $(OBJ_D)\tb_rand.obj $(OBJ_D)\tb_store.obj \
-	$(OBJ_D)\tb_cipher.obj $(OBJ_D)\tb_digest.obj $(OBJ_D)\tb_pkmeth.obj \
-	$(OBJ_D)\tb_asnmth.obj $(OBJ_D)\eng_openssl.obj $(OBJ_D)\eng_cnf.obj \
-	$(OBJ_D)\eng_dyn.obj $(OBJ_D)\eng_cryptodev.obj $(OBJ_D)\eng_rdrand.obj \
-	$(OBJ_D)\ocsp_asn.obj $(OBJ_D)\ocsp_ext.obj $(OBJ_D)\ocsp_ht.obj \
-	$(OBJ_D)\ocsp_lib.obj $(OBJ_D)\ocsp_cl.obj $(OBJ_D)\ocsp_srv.obj \
-	$(OBJ_D)\ocsp_prn.obj $(OBJ_D)\ocsp_vfy.obj $(OBJ_D)\ocsp_err.obj \
-	$(OBJ_D)\ui_err.obj $(OBJ_D)\ui_lib.obj $(OBJ_D)\ui_openssl.obj \
-	$(OBJ_D)\ui_util.obj $(OBJ_D)\ui_compat.obj $(OBJ_D)\krb5_asn.obj \
-	$(OBJ_D)\pqueue.obj $(OBJ_D)\wp_dgst.obj $(OBJ_D)\wp-x86_64.obj \
-	$(OBJ_D)\ts_err.obj $(OBJ_D)\ts_req_utils.obj $(OBJ_D)\ts_req_print.obj \
-	$(OBJ_D)\ts_rsp_utils.obj $(OBJ_D)\ts_rsp_print.obj $(OBJ_D)\ts_rsp_sign.obj \
-	$(OBJ_D)\ts_rsp_verify.obj $(OBJ_D)\ts_verify_ctx.obj $(OBJ_D)\ts_lib.obj \
-	$(OBJ_D)\ts_conf.obj $(OBJ_D)\ts_asn1.obj $(OBJ_D)\srp_lib.obj \
-	$(OBJ_D)\srp_vfy.obj $(OBJ_D)\e_4758cca.obj $(OBJ_D)\e_aep.obj \
-	$(OBJ_D)\e_atalla.obj $(OBJ_D)\e_cswift.obj $(OBJ_D)\e_gmp.obj \
-	$(OBJ_D)\e_chil.obj $(OBJ_D)\e_nuron.obj $(OBJ_D)\e_sureware.obj \
-	$(OBJ_D)\e_ubsec.obj $(OBJ_D)\e_padlock.obj $(OBJ_D)\e_capi.obj \
-	$(OBJ_D)\e_gost_err.obj $(OBJ_D)\gost2001_keyx.obj $(OBJ_D)\gost2001.obj \
-	$(OBJ_D)\gost89.obj $(OBJ_D)\gost94_keyx.obj $(OBJ_D)\gost_ameth.obj \
-	$(OBJ_D)\gost_asn1.obj $(OBJ_D)\gost_crypt.obj $(OBJ_D)\gost_ctl.obj \
-	$(OBJ_D)\gost_eng.obj $(OBJ_D)\gosthash.obj $(OBJ_D)\gost_keywrap.obj \
-	$(OBJ_D)\gost_md.obj $(OBJ_D)\gost_params.obj $(OBJ_D)\gost_pmeth.obj \
-	$(OBJ_D)\gost_sign.obj 
 
 T_EXE=$(TEST_D)\constant_time_test.exe \
 	$(TEST_D)\md4test.exe $(TEST_D)\md5test.exe $(TEST_D)\shatest.exe \
@@ -1222,156 +1222,6 @@ $(OBJ_D)\srp.obj: $(SRC_D)\apps\srp.c
 $(OBJ_D)\openssl.obj: $(SRC_D)\apps\openssl.c
 	$(CC) /Fo$(OBJ_D)\openssl.obj -DMONOLITH $(APP_CFLAGS) -c $(SRC_D)\apps\openssl.c
 
-$(OBJ_D)\s2_meth.obj: $(SRC_D)\ssl\s2_meth.c
-	$(CC) /Fo$(OBJ_D)\s2_meth.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\s2_meth.c
-
-$(OBJ_D)\s2_srvr.obj: $(SRC_D)\ssl\s2_srvr.c
-	$(CC) /Fo$(OBJ_D)\s2_srvr.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\s2_srvr.c
-
-$(OBJ_D)\s2_clnt.obj: $(SRC_D)\ssl\s2_clnt.c
-	$(CC) /Fo$(OBJ_D)\s2_clnt.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\s2_clnt.c
-
-$(OBJ_D)\s2_lib.obj: $(SRC_D)\ssl\s2_lib.c
-	$(CC) /Fo$(OBJ_D)\s2_lib.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\s2_lib.c
-
-$(OBJ_D)\s2_enc.obj: $(SRC_D)\ssl\s2_enc.c
-	$(CC) /Fo$(OBJ_D)\s2_enc.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\s2_enc.c
-
-$(OBJ_D)\s2_pkt.obj: $(SRC_D)\ssl\s2_pkt.c
-	$(CC) /Fo$(OBJ_D)\s2_pkt.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\s2_pkt.c
-
-$(OBJ_D)\s3_meth.obj: $(SRC_D)\ssl\s3_meth.c
-	$(CC) /Fo$(OBJ_D)\s3_meth.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\s3_meth.c
-
-$(OBJ_D)\s3_srvr.obj: $(SRC_D)\ssl\s3_srvr.c
-	$(CC) /Fo$(OBJ_D)\s3_srvr.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\s3_srvr.c
-
-$(OBJ_D)\s3_clnt.obj: $(SRC_D)\ssl\s3_clnt.c
-	$(CC) /Fo$(OBJ_D)\s3_clnt.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\s3_clnt.c
-
-$(OBJ_D)\s3_lib.obj: $(SRC_D)\ssl\s3_lib.c
-	$(CC) /Fo$(OBJ_D)\s3_lib.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\s3_lib.c
-
-$(OBJ_D)\s3_enc.obj: $(SRC_D)\ssl\s3_enc.c
-	$(CC) /Fo$(OBJ_D)\s3_enc.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\s3_enc.c
-
-$(OBJ_D)\s3_pkt.obj: $(SRC_D)\ssl\s3_pkt.c
-	$(CC) /Fo$(OBJ_D)\s3_pkt.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\s3_pkt.c
-
-$(OBJ_D)\s3_both.obj: $(SRC_D)\ssl\s3_both.c
-	$(CC) /Fo$(OBJ_D)\s3_both.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\s3_both.c
-
-$(OBJ_D)\s3_cbc.obj: $(SRC_D)\ssl\s3_cbc.c
-	$(CC) /Fo$(OBJ_D)\s3_cbc.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\s3_cbc.c
-
-$(OBJ_D)\s23_meth.obj: $(SRC_D)\ssl\s23_meth.c
-	$(CC) /Fo$(OBJ_D)\s23_meth.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\s23_meth.c
-
-$(OBJ_D)\s23_srvr.obj: $(SRC_D)\ssl\s23_srvr.c
-	$(CC) /Fo$(OBJ_D)\s23_srvr.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\s23_srvr.c
-
-$(OBJ_D)\s23_clnt.obj: $(SRC_D)\ssl\s23_clnt.c
-	$(CC) /Fo$(OBJ_D)\s23_clnt.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\s23_clnt.c
-
-$(OBJ_D)\s23_lib.obj: $(SRC_D)\ssl\s23_lib.c
-	$(CC) /Fo$(OBJ_D)\s23_lib.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\s23_lib.c
-
-$(OBJ_D)\s23_pkt.obj: $(SRC_D)\ssl\s23_pkt.c
-	$(CC) /Fo$(OBJ_D)\s23_pkt.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\s23_pkt.c
-
-$(OBJ_D)\t1_meth.obj: $(SRC_D)\ssl\t1_meth.c
-	$(CC) /Fo$(OBJ_D)\t1_meth.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\t1_meth.c
-
-$(OBJ_D)\t1_srvr.obj: $(SRC_D)\ssl\t1_srvr.c
-	$(CC) /Fo$(OBJ_D)\t1_srvr.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\t1_srvr.c
-
-$(OBJ_D)\t1_clnt.obj: $(SRC_D)\ssl\t1_clnt.c
-	$(CC) /Fo$(OBJ_D)\t1_clnt.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\t1_clnt.c
-
-$(OBJ_D)\t1_lib.obj: $(SRC_D)\ssl\t1_lib.c
-	$(CC) /Fo$(OBJ_D)\t1_lib.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\t1_lib.c
-
-$(OBJ_D)\t1_enc.obj: $(SRC_D)\ssl\t1_enc.c
-	$(CC) /Fo$(OBJ_D)\t1_enc.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\t1_enc.c
-
-$(OBJ_D)\t1_ext.obj: $(SRC_D)\ssl\t1_ext.c
-	$(CC) /Fo$(OBJ_D)\t1_ext.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\t1_ext.c
-
-$(OBJ_D)\d1_meth.obj: $(SRC_D)\ssl\d1_meth.c
-	$(CC) /Fo$(OBJ_D)\d1_meth.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\d1_meth.c
-
-$(OBJ_D)\d1_srvr.obj: $(SRC_D)\ssl\d1_srvr.c
-	$(CC) /Fo$(OBJ_D)\d1_srvr.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\d1_srvr.c
-
-$(OBJ_D)\d1_clnt.obj: $(SRC_D)\ssl\d1_clnt.c
-	$(CC) /Fo$(OBJ_D)\d1_clnt.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\d1_clnt.c
-
-$(OBJ_D)\d1_lib.obj: $(SRC_D)\ssl\d1_lib.c
-	$(CC) /Fo$(OBJ_D)\d1_lib.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\d1_lib.c
-
-$(OBJ_D)\d1_pkt.obj: $(SRC_D)\ssl\d1_pkt.c
-	$(CC) /Fo$(OBJ_D)\d1_pkt.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\d1_pkt.c
-
-$(OBJ_D)\d1_both.obj: $(SRC_D)\ssl\d1_both.c
-	$(CC) /Fo$(OBJ_D)\d1_both.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\d1_both.c
-
-$(OBJ_D)\d1_srtp.obj: $(SRC_D)\ssl\d1_srtp.c
-	$(CC) /Fo$(OBJ_D)\d1_srtp.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\d1_srtp.c
-
-$(OBJ_D)\ssl_lib.obj: $(SRC_D)\ssl\ssl_lib.c
-	$(CC) /Fo$(OBJ_D)\ssl_lib.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\ssl_lib.c
-
-$(OBJ_D)\ssl_err2.obj: $(SRC_D)\ssl\ssl_err2.c
-	$(CC) /Fo$(OBJ_D)\ssl_err2.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\ssl_err2.c
-
-$(OBJ_D)\ssl_cert.obj: $(SRC_D)\ssl\ssl_cert.c
-	$(CC) /Fo$(OBJ_D)\ssl_cert.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\ssl_cert.c
-
-$(OBJ_D)\ssl_sess.obj: $(SRC_D)\ssl\ssl_sess.c
-	$(CC) /Fo$(OBJ_D)\ssl_sess.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\ssl_sess.c
-
-$(OBJ_D)\ssl_ciph.obj: $(SRC_D)\ssl\ssl_ciph.c
-	$(CC) /Fo$(OBJ_D)\ssl_ciph.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\ssl_ciph.c
-
-$(OBJ_D)\ssl_stat.obj: $(SRC_D)\ssl\ssl_stat.c
-	$(CC) /Fo$(OBJ_D)\ssl_stat.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\ssl_stat.c
-
-$(OBJ_D)\ssl_rsa.obj: $(SRC_D)\ssl\ssl_rsa.c
-	$(CC) /Fo$(OBJ_D)\ssl_rsa.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\ssl_rsa.c
-
-$(OBJ_D)\ssl_asn1.obj: $(SRC_D)\ssl\ssl_asn1.c
-	$(CC) /Fo$(OBJ_D)\ssl_asn1.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\ssl_asn1.c
-
-$(OBJ_D)\ssl_txt.obj: $(SRC_D)\ssl\ssl_txt.c
-	$(CC) /Fo$(OBJ_D)\ssl_txt.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\ssl_txt.c
-
-$(OBJ_D)\ssl_algs.obj: $(SRC_D)\ssl\ssl_algs.c
-	$(CC) /Fo$(OBJ_D)\ssl_algs.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\ssl_algs.c
-
-$(OBJ_D)\ssl_conf.obj: $(SRC_D)\ssl\ssl_conf.c
-	$(CC) /Fo$(OBJ_D)\ssl_conf.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\ssl_conf.c
-
-$(OBJ_D)\bio_ssl.obj: $(SRC_D)\ssl\bio_ssl.c
-	$(CC) /Fo$(OBJ_D)\bio_ssl.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\bio_ssl.c
-
-$(OBJ_D)\ssl_err.obj: $(SRC_D)\ssl\ssl_err.c
-	$(CC) /Fo$(OBJ_D)\ssl_err.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\ssl_err.c
-
-$(OBJ_D)\kssl.obj: $(SRC_D)\ssl\kssl.c
-	$(CC) /Fo$(OBJ_D)\kssl.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\kssl.c
-
-$(OBJ_D)\t1_reneg.obj: $(SRC_D)\ssl\t1_reneg.c
-	$(CC) /Fo$(OBJ_D)\t1_reneg.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\t1_reneg.c
-
-$(OBJ_D)\tls_srp.obj: $(SRC_D)\ssl\tls_srp.c
-	$(CC) /Fo$(OBJ_D)\tls_srp.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\tls_srp.c
-
-$(OBJ_D)\t1_trce.obj: $(SRC_D)\ssl\t1_trce.c
-	$(CC) /Fo$(OBJ_D)\t1_trce.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\t1_trce.c
-
-$(OBJ_D)\ssl_utst.obj: $(SRC_D)\ssl\ssl_utst.c
-	$(CC) /Fo$(OBJ_D)\ssl_utst.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\ssl_utst.c
-
 $(OBJ_D)\cryptlib.obj: $(SRC_D)\crypto\cryptlib.c
 	$(CC) /Fo$(OBJ_D)\cryptlib.obj  $(LIB_CFLAGS) -c $(SRC_D)\crypto\cryptlib.c
 
@@ -1413,6 +1263,9 @@ $(OBJ_D)\o_init.obj: $(SRC_D)\crypto\o_init.c
 
 $(OBJ_D)\fips_ers.obj: $(SRC_D)\crypto\fips_ers.c
 	$(CC) /Fo$(OBJ_D)\fips_ers.obj  $(LIB_CFLAGS) -c $(SRC_D)\crypto\fips_ers.c
+
+$(OBJ_D)\getenv.obj: $(SRC_D)\crypto\getenv.c
+	$(CC) /Fo$(OBJ_D)\getenv.obj  $(LIB_CFLAGS) -c $(SRC_D)\crypto\getenv.c
 
 $(TMP_D)\x86_64cpuid.asm: crypto\x86_64cpuid.pl
 	set ASM=$(ASM)
@@ -3353,6 +3206,156 @@ $(OBJ_D)\gost_pmeth.obj: $(SRC_D)\engines\ccgost\gost_pmeth.c
 
 $(OBJ_D)\gost_sign.obj: $(SRC_D)\engines\ccgost\gost_sign.c
 	$(CC) /Fo$(OBJ_D)\gost_sign.obj  $(LIB_CFLAGS) -c $(SRC_D)\engines\ccgost\gost_sign.c
+
+$(OBJ_D)\s2_meth.obj: $(SRC_D)\ssl\s2_meth.c
+	$(CC) /Fo$(OBJ_D)\s2_meth.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\s2_meth.c
+
+$(OBJ_D)\s2_srvr.obj: $(SRC_D)\ssl\s2_srvr.c
+	$(CC) /Fo$(OBJ_D)\s2_srvr.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\s2_srvr.c
+
+$(OBJ_D)\s2_clnt.obj: $(SRC_D)\ssl\s2_clnt.c
+	$(CC) /Fo$(OBJ_D)\s2_clnt.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\s2_clnt.c
+
+$(OBJ_D)\s2_lib.obj: $(SRC_D)\ssl\s2_lib.c
+	$(CC) /Fo$(OBJ_D)\s2_lib.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\s2_lib.c
+
+$(OBJ_D)\s2_enc.obj: $(SRC_D)\ssl\s2_enc.c
+	$(CC) /Fo$(OBJ_D)\s2_enc.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\s2_enc.c
+
+$(OBJ_D)\s2_pkt.obj: $(SRC_D)\ssl\s2_pkt.c
+	$(CC) /Fo$(OBJ_D)\s2_pkt.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\s2_pkt.c
+
+$(OBJ_D)\s3_meth.obj: $(SRC_D)\ssl\s3_meth.c
+	$(CC) /Fo$(OBJ_D)\s3_meth.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\s3_meth.c
+
+$(OBJ_D)\s3_srvr.obj: $(SRC_D)\ssl\s3_srvr.c
+	$(CC) /Fo$(OBJ_D)\s3_srvr.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\s3_srvr.c
+
+$(OBJ_D)\s3_clnt.obj: $(SRC_D)\ssl\s3_clnt.c
+	$(CC) /Fo$(OBJ_D)\s3_clnt.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\s3_clnt.c
+
+$(OBJ_D)\s3_lib.obj: $(SRC_D)\ssl\s3_lib.c
+	$(CC) /Fo$(OBJ_D)\s3_lib.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\s3_lib.c
+
+$(OBJ_D)\s3_enc.obj: $(SRC_D)\ssl\s3_enc.c
+	$(CC) /Fo$(OBJ_D)\s3_enc.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\s3_enc.c
+
+$(OBJ_D)\s3_pkt.obj: $(SRC_D)\ssl\s3_pkt.c
+	$(CC) /Fo$(OBJ_D)\s3_pkt.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\s3_pkt.c
+
+$(OBJ_D)\s3_both.obj: $(SRC_D)\ssl\s3_both.c
+	$(CC) /Fo$(OBJ_D)\s3_both.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\s3_both.c
+
+$(OBJ_D)\s3_cbc.obj: $(SRC_D)\ssl\s3_cbc.c
+	$(CC) /Fo$(OBJ_D)\s3_cbc.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\s3_cbc.c
+
+$(OBJ_D)\s23_meth.obj: $(SRC_D)\ssl\s23_meth.c
+	$(CC) /Fo$(OBJ_D)\s23_meth.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\s23_meth.c
+
+$(OBJ_D)\s23_srvr.obj: $(SRC_D)\ssl\s23_srvr.c
+	$(CC) /Fo$(OBJ_D)\s23_srvr.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\s23_srvr.c
+
+$(OBJ_D)\s23_clnt.obj: $(SRC_D)\ssl\s23_clnt.c
+	$(CC) /Fo$(OBJ_D)\s23_clnt.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\s23_clnt.c
+
+$(OBJ_D)\s23_lib.obj: $(SRC_D)\ssl\s23_lib.c
+	$(CC) /Fo$(OBJ_D)\s23_lib.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\s23_lib.c
+
+$(OBJ_D)\s23_pkt.obj: $(SRC_D)\ssl\s23_pkt.c
+	$(CC) /Fo$(OBJ_D)\s23_pkt.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\s23_pkt.c
+
+$(OBJ_D)\t1_meth.obj: $(SRC_D)\ssl\t1_meth.c
+	$(CC) /Fo$(OBJ_D)\t1_meth.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\t1_meth.c
+
+$(OBJ_D)\t1_srvr.obj: $(SRC_D)\ssl\t1_srvr.c
+	$(CC) /Fo$(OBJ_D)\t1_srvr.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\t1_srvr.c
+
+$(OBJ_D)\t1_clnt.obj: $(SRC_D)\ssl\t1_clnt.c
+	$(CC) /Fo$(OBJ_D)\t1_clnt.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\t1_clnt.c
+
+$(OBJ_D)\t1_lib.obj: $(SRC_D)\ssl\t1_lib.c
+	$(CC) /Fo$(OBJ_D)\t1_lib.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\t1_lib.c
+
+$(OBJ_D)\t1_enc.obj: $(SRC_D)\ssl\t1_enc.c
+	$(CC) /Fo$(OBJ_D)\t1_enc.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\t1_enc.c
+
+$(OBJ_D)\t1_ext.obj: $(SRC_D)\ssl\t1_ext.c
+	$(CC) /Fo$(OBJ_D)\t1_ext.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\t1_ext.c
+
+$(OBJ_D)\d1_meth.obj: $(SRC_D)\ssl\d1_meth.c
+	$(CC) /Fo$(OBJ_D)\d1_meth.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\d1_meth.c
+
+$(OBJ_D)\d1_srvr.obj: $(SRC_D)\ssl\d1_srvr.c
+	$(CC) /Fo$(OBJ_D)\d1_srvr.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\d1_srvr.c
+
+$(OBJ_D)\d1_clnt.obj: $(SRC_D)\ssl\d1_clnt.c
+	$(CC) /Fo$(OBJ_D)\d1_clnt.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\d1_clnt.c
+
+$(OBJ_D)\d1_lib.obj: $(SRC_D)\ssl\d1_lib.c
+	$(CC) /Fo$(OBJ_D)\d1_lib.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\d1_lib.c
+
+$(OBJ_D)\d1_pkt.obj: $(SRC_D)\ssl\d1_pkt.c
+	$(CC) /Fo$(OBJ_D)\d1_pkt.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\d1_pkt.c
+
+$(OBJ_D)\d1_both.obj: $(SRC_D)\ssl\d1_both.c
+	$(CC) /Fo$(OBJ_D)\d1_both.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\d1_both.c
+
+$(OBJ_D)\d1_srtp.obj: $(SRC_D)\ssl\d1_srtp.c
+	$(CC) /Fo$(OBJ_D)\d1_srtp.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\d1_srtp.c
+
+$(OBJ_D)\ssl_lib.obj: $(SRC_D)\ssl\ssl_lib.c
+	$(CC) /Fo$(OBJ_D)\ssl_lib.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\ssl_lib.c
+
+$(OBJ_D)\ssl_err2.obj: $(SRC_D)\ssl\ssl_err2.c
+	$(CC) /Fo$(OBJ_D)\ssl_err2.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\ssl_err2.c
+
+$(OBJ_D)\ssl_cert.obj: $(SRC_D)\ssl\ssl_cert.c
+	$(CC) /Fo$(OBJ_D)\ssl_cert.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\ssl_cert.c
+
+$(OBJ_D)\ssl_sess.obj: $(SRC_D)\ssl\ssl_sess.c
+	$(CC) /Fo$(OBJ_D)\ssl_sess.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\ssl_sess.c
+
+$(OBJ_D)\ssl_ciph.obj: $(SRC_D)\ssl\ssl_ciph.c
+	$(CC) /Fo$(OBJ_D)\ssl_ciph.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\ssl_ciph.c
+
+$(OBJ_D)\ssl_stat.obj: $(SRC_D)\ssl\ssl_stat.c
+	$(CC) /Fo$(OBJ_D)\ssl_stat.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\ssl_stat.c
+
+$(OBJ_D)\ssl_rsa.obj: $(SRC_D)\ssl\ssl_rsa.c
+	$(CC) /Fo$(OBJ_D)\ssl_rsa.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\ssl_rsa.c
+
+$(OBJ_D)\ssl_asn1.obj: $(SRC_D)\ssl\ssl_asn1.c
+	$(CC) /Fo$(OBJ_D)\ssl_asn1.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\ssl_asn1.c
+
+$(OBJ_D)\ssl_txt.obj: $(SRC_D)\ssl\ssl_txt.c
+	$(CC) /Fo$(OBJ_D)\ssl_txt.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\ssl_txt.c
+
+$(OBJ_D)\ssl_algs.obj: $(SRC_D)\ssl\ssl_algs.c
+	$(CC) /Fo$(OBJ_D)\ssl_algs.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\ssl_algs.c
+
+$(OBJ_D)\ssl_conf.obj: $(SRC_D)\ssl\ssl_conf.c
+	$(CC) /Fo$(OBJ_D)\ssl_conf.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\ssl_conf.c
+
+$(OBJ_D)\bio_ssl.obj: $(SRC_D)\ssl\bio_ssl.c
+	$(CC) /Fo$(OBJ_D)\bio_ssl.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\bio_ssl.c
+
+$(OBJ_D)\ssl_err.obj: $(SRC_D)\ssl\ssl_err.c
+	$(CC) /Fo$(OBJ_D)\ssl_err.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\ssl_err.c
+
+$(OBJ_D)\kssl.obj: $(SRC_D)\ssl\kssl.c
+	$(CC) /Fo$(OBJ_D)\kssl.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\kssl.c
+
+$(OBJ_D)\t1_reneg.obj: $(SRC_D)\ssl\t1_reneg.c
+	$(CC) /Fo$(OBJ_D)\t1_reneg.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\t1_reneg.c
+
+$(OBJ_D)\tls_srp.obj: $(SRC_D)\ssl\tls_srp.c
+	$(CC) /Fo$(OBJ_D)\tls_srp.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\tls_srp.c
+
+$(OBJ_D)\t1_trce.obj: $(SRC_D)\ssl\t1_trce.c
+	$(CC) /Fo$(OBJ_D)\t1_trce.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\t1_trce.c
+
+$(OBJ_D)\ssl_utst.obj: $(SRC_D)\ssl\ssl_utst.c
+	$(CC) /Fo$(OBJ_D)\ssl_utst.obj  $(LIB_CFLAGS) -c $(SRC_D)\ssl\ssl_utst.c
 
 $(OBJ_D)\$(CRYPTO).res: ms\version32.rc
 	$(RSC) /fo"$(OBJ_D)\$(CRYPTO).res" /d CRYPTO ms\version32.rc
