@@ -15,9 +15,6 @@
 /* Define to the flags needed for the .section .eh_frame directive. */
 /* #undef EH_FRAME_FLAGS */
 
-/* using static library */
-#define FFI_BUILDING 1
-
 /* Define this if you want extra debugging. */
 /* #undef FFI_DEBUG */
 
@@ -77,11 +74,8 @@
 /* Define if you support more than one size of the long double type */
 /* #undef HAVE_LONG_DOUBLE_VARIANT */
 
-/* Define if you have the ANSI C header files.  */
-#define STDC_HEADERS 1
-
 /* Define to 1 if you have the `memcpy' function. */
-#define HAVE_MEMCPY 1
+/* #undef HAVE_MEMCPY */
 
 /* Define to 1 if you have the <memory.h> header file. */
 #define HAVE_MEMORY_H 1
@@ -159,10 +153,7 @@
 #define SIZEOF_DOUBLE 8
 
 /* The size of `long double', as computed by sizeof. */
-#define SIZEOF_LONG_DOUBLE 12
-
-/* Define if you have the long double type and it is bigger than a double */
-#define HAVE_LONG_DOUBLE 1
+#define SIZEOF_LONG_DOUBLE 8
 
 /* The size of `size_t', as computed by sizeof. */
 #define SIZEOF_SIZE_T 4

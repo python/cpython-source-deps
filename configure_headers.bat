@@ -54,26 +54,14 @@ REM get VS build environment
 call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" %VCVARS_PLATFORM%
 
 REM just configure the build to generate fficonfig.h and ffi.h
-REM c:\cygwin\bin\sh -lc "(cd $OLDPWD; ./autogen.sh;)"
-REM c:\cygwin\bin\sh -lc "(cd $OLDPWD; export MSVCC=`/usr/bin/find $PWD -name msvcc.sh`; echo \"MSVCC=${MSVCC}\"; ./configure CC=''\"$MSVCC $ML\"' CXX='\"$MSVCC $ML\"'' LD='link' CPP='cl -nologo -EP' CXXCPP='cl -nologo -EP' CPPFLAGS='-DFFI_BUILDING' NM='dumpbin -symbols' STRIP=':' --build=$BUILD --host=$HOST;)"
-REM if /I "%VCVARS_PLATFORM%" EQU "amd64" (
-REM     c:\cygwin\bin\sh -lc "(cd $OLDPWD; ./configure CC='%MSVCC% %ML%' CXX='%MSVCC% %ML%' LD='link' CPP='cl -nologo -EP' CXXCPP='cl -nologo -EP' CPPFLAGS='-DFFI_BUILDING_DLL' NM='dumpbin -symbols' STRIP=':' --build=$BUILD --host=$HOST;)"
-REM ) else (
-REM     c:\cygwin\bin\sh -lc "(cd $OLDPWD; ./configure CC='/cygdrive/e/py/src_ffi/msvcc.sh' CXX='/cygdrive/e/py/src_ffi/msvcc.sh $ML' LD='link' CPP='cl -nologo -EP' CXXCPP='cl -nologo -EP' CPPFLAGS='-DFFI_BUILDING_DLL' NM='dumpbin -symbols' STRIP=':' --build=$BUILD --host=$HOST;)"
-REM )
 c:\cygwin\bin\sh -lc "(cd $OLDPWD; ./configure CC='%MSVCC% %ML%' CXX='%MSVCC% %ML%' LD='link' CPP='cl -nologo -EP' CXXCPP='cl -nologo -EP' CPPFLAGS='-DFFI_BUILDING_DLL' NM='dumpbin -symbols' STRIP=':' --build=$BUILD --host=$HOST;)"
 
 REM There is no support for building .DLLs currently.
 REM c:\cygwin\bin\sh -lc "(cd $OLDPWD; cp src/x86/ffitarget.h include; make; find .;)"
 
 REM Running the libffi tests doesn't work when using msvc
-REM msvcc.sh is missing support for -l and -L according to the note in appveyor.yml (see copy below)
+REM msvcc.sh is missing support for -l and -L according to the note in appveyor.yml
 REM c:\cygwin\bin\sh -lc "(cd $OLDPWD; cp `find . -name 'libffi-?.dll'` $HOST/testsuite/; make check; cat `find ./ -name libffi.log`)"
-
-REM # FIXME: "make check" currently fails.  It just looks like msvcc needs
-REM # to learn about -L and -l options.  If you add "make check; cat `find
-REM # ./ -name libffi.log" to the end of that build command you'll see
-REM # what I mean.
 
 REM create header output directory and copy headers to check-in location
 if not exist %LIBFFI_SOURCE%\include\%VCVARS_PLATFORM% (md %LIBFFI_SOURCE%\include\%VCVARS_PLATFORM%)
