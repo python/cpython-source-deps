@@ -39,3 +39,4 @@ src/arm/trampoline.S
 
 x86_64-w64-cygwin
 i686-pc-cygwin
+arm-w32-cygwin
