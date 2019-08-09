@@ -1,5 +1,5 @@
 /* -----------------------------------------------------------------*-C-*-
-   libffi @VERSION@ - Copyright (c) 2011, 2014 Anthony Green
+   libffi 3.3-rc0 - Copyright (c) 2011, 2014 Anthony Green
                     - Copyright (c) 1996-2003, 2007, 2008 Red Hat, Inc.
 
    Permission is hereby granted, free of charge, to any person
@@ -49,8 +49,8 @@ extern "C" {
 #endif
 
 /* Specify which architecture libffi is configured for. */
-#ifndef @TARGET@
-#define @TARGET@
+#ifndef AARCH64
+#define AARCH64
 #endif
 
 /* ---- System configuration information --------------------------------- */
@@ -197,7 +197,7 @@ FFI_EXTERN ffi_type ffi_type_float;
 FFI_EXTERN ffi_type ffi_type_double;
 FFI_EXTERN ffi_type ffi_type_pointer;
 
-#if @HAVE_LONG_DOUBLE@
+#ifndef _M_ARM64
 FFI_EXTERN ffi_type ffi_type_longdouble;
 #else
 #define ffi_type_longdouble ffi_type_double
@@ -206,7 +206,7 @@ FFI_EXTERN ffi_type ffi_type_longdouble;
 #ifdef FFI_TARGET_HAS_COMPLEX_TYPE
 FFI_EXTERN ffi_type ffi_type_complex_float;
 FFI_EXTERN ffi_type ffi_type_complex_double;
-#if @HAVE_LONG_DOUBLE@
+#if 1
 FFI_EXTERN ffi_type ffi_type_complex_longdouble;
 #else
 #define ffi_type_complex_longdouble ffi_type_complex_double
@@ -283,13 +283,11 @@ FFI_API size_t ffi_raw_size (ffi_cif *cif);
    packing, even on 64-bit machines.  I.e. on 64-bit machines longs
    and doubles are followed by an empty 64-bit word.  */
 
-#if !FFI_NATIVE_RAW_API
 FFI_API
 void ffi_java_raw_call (ffi_cif *cif,
 			void (*fn)(void),
 			void *rvalue,
 			ffi_java_raw *avalue);
-#endif
 
 FFI_API
 void ffi_java_ptrarray_to_raw (ffi_cif *cif, void **args, ffi_java_raw *raw);
@@ -306,7 +304,7 @@ size_t ffi_java_raw_size (ffi_cif *cif);
 __declspec(align(8))
 #endif
 typedef struct {
-#if @FFI_EXEC_TRAMPOLINE_TABLE@
+#if 0
   void *trampoline_table;
   void *trampoline_table_entry;
 #else
@@ -353,7 +351,7 @@ ffi_prep_closure_loc (ffi_closure*,
 # pragma pack 8
 #endif
 typedef struct {
-#if @FFI_EXEC_TRAMPOLINE_TABLE@
+#if 0
   void *trampoline_table;
   void *trampoline_table_entry;
 #else
@@ -378,7 +376,7 @@ typedef struct {
 } ffi_raw_closure;
 
 typedef struct {
-#if @FFI_EXEC_TRAMPOLINE_TABLE@
+#if 0
   void *trampoline_table;
   void *trampoline_table_entry;
 #else
@@ -416,7 +414,6 @@ ffi_prep_raw_closure_loc (ffi_raw_closure*,
 			  void *user_data,
 			  void *codeloc);
 
-#if !FFI_NATIVE_RAW_API
 FFI_API ffi_status
 ffi_prep_java_raw_closure (ffi_java_raw_closure*,
 		           ffi_cif *cif,
@@ -429,7 +426,6 @@ ffi_prep_java_raw_closure_loc (ffi_java_raw_closure*,
 			       void (*fun)(ffi_cif*,void*,ffi_java_raw*,void*),
 			       void *user_data,
 			       void *codeloc);
-#endif
 
 #endif /* FFI_CLOSURES */
 
@@ -488,7 +484,7 @@ ffi_status ffi_get_struct_offsets (ffi_abi abi, ffi_type *struct_type,
 #define FFI_TYPE_INT        1
 #define FFI_TYPE_FLOAT      2    
 #define FFI_TYPE_DOUBLE     3
-#if @HAVE_LONG_DOUBLE@
+#ifndef _M_ARM64
 #define FFI_TYPE_LONGDOUBLE 4
 #else
 #define FFI_TYPE_LONGDOUBLE FFI_TYPE_DOUBLE
@@ -504,9 +500,9 @@ ffi_status ffi_get_struct_offsets (ffi_abi abi, ffi_type *struct_type,
 #define FFI_TYPE_STRUCT     13
 #define FFI_TYPE_POINTER    14
 #define FFI_TYPE_COMPLEX    15
-
 /* This should always refer to the last type code (for sanity checks).  */
-#define FFI_TYPE_LAST       FFI_TYPE_COMPLEX
+#define FFI_TYPE_LAST   FFI_TYPE_COMPLEX
+
 
 #ifdef __cplusplus
 }
