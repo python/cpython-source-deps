@@ -4,7 +4,7 @@
 ## Makefile for OpenSSL
 ##
 
-VERSION=1.0.2s
+VERSION=1.0.2t
 MAJOR=1
 MINOR=0.2
 SHLIB_VERSION_NUMBER=1.0.0
@@ -70,7 +70,7 @@ AR= ar $(ARFLAGS) r
 RANLIB= true
 RC= windres
 NM= nm
-PERL= perl
+PERL= C:\Perl64\bin\perl.exe
 TAR= tar
 TARFLAGS= --no-recursion
 MAKEDEPPROG=makedepend

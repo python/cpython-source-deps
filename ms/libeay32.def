@@ -1942,6 +1942,7 @@ EXPORTS
     OPENSSL_load_builtin_modules            @3214
     OPENSSL_memcmp                          @4565
     OPENSSL_no_config                       @3228
+    OPENSSL_rdtsc                           @4790
     OPENSSL_showfatal                       @4676
     OPENSSL_stderr                          @4674
     OPENSSL_strcasecmp                      @4564
