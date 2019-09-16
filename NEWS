@@ -5,6 +5,20 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
+  Major changes between OpenSSL 1.1.0k and OpenSSL 1.1.0l [10 Sep 2019]
+
+      o Fixed a padding oracle in PKCS7_dataDecode and CMS_decrypt_set1_pkey
+        (CVE-2019-1563)
+      o For built-in EC curves, ensure an EC_GROUP built from the curve name is
+        used even when parsing explicit parameters
+      o Compute ECC cofactors if not provided during EC_GROUP construction
+        (CVE-2019-1547)
+      o Use Windows installation paths in the mingw builds (CVE-2019-1552)
+
+  Major changes between OpenSSL 1.1.0j and OpenSSL 1.1.0k [28 May 2019]
+
+      o Prevent over long nonces in ChaCha20-Poly1305 (CVE-2019-1543)
+
   Major changes between OpenSSL 1.1.0i and OpenSSL 1.1.0j [20 Nov 2018]
 
       o Timing vulnerability in DSA signature generation (CVE-2018-0734)
