@@ -63,9 +63,9 @@ typedef struct mFile {
  * Most data in a GIF image is binary and is treated as such. However, a few
  * key bits are stashed in ASCII. If we try to compare those pieces to the
  * char they represent, it will fail on any non-ASCII (eg, EBCDIC) system. To
- * accomodate these systems, we test against the numeric value of the ASCII
+ * accommodate these systems, we test against the numeric value of the ASCII
  * characters instead of the characters themselves. This is encoding
- * independant.
+ * independent.
  */
 
 static const char GIF87a[] = {			/* ASCII GIF87a */
@@ -1034,7 +1034,7 @@ ReadImage(
     int transparent)
 {
     unsigned char initialCodeSize;
-    int xpos = 0, ypos = 0, pass = 0, i;
+    int xpos = 0, ypos = 0, pass = 0, i, count;
     register unsigned char *pixelPtr;
     static const int interlaceStep[] = { 8, 8, 4, 2 };
     static const int interlaceStart[] = { 0, 4, 2, 1 };
@@ -1251,6 +1251,25 @@ ReadImage(
 	    ypos++;
 	}
 	pixelPtr = imagePtr + (ypos) * len * ((transparent>=0)?4:3);
+    }
+
+    /*
+     * Now read until the final zero byte.
+     * It was observed that there might be 1 length blocks
+     * (test imgPhoto-14.1) which are not read.
+     *
+     * The field "stack" is abused for temporary buffer. it has 4096 bytes
+     * and we need 256.
+     *
+     * Loop until we hit a 0 length block which is the end sign.
+     */
+    while ( 0 < (count = GetDataBlock(gifConfPtr, chan, stack)))
+    {
+	if (-1 == count ) {
+	    Tcl_SetObjResult(interp, Tcl_ObjPrintf(
+		    "error reading GIF image: %s", Tcl_PosixError(interp)));
+	    return TCL_ERROR;
+	}
     }
     return TCL_OK;
 }

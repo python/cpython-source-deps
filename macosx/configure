@@ -2287,7 +2287,7 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 TK_VERSION=8.6
 TK_MAJOR_VERSION=8
 TK_MINOR_VERSION=6
-TK_PATCH_LEVEL=".9"
+TK_PATCH_LEVEL=".10"
 VERSION=${TK_VERSION}
 LOCALES="cs da de el en en_gb eo es fr hu it nl pl pt ru sv"
 
@@ -2362,7 +2362,6 @@ $as_echo "$as_me: WARNING: --with-tcl argument should refer to directory contain
 		for i in `ls -d ~/Library/Frameworks 2>/dev/null` \
 			`ls -d /Library/Frameworks 2>/dev/null` \
 			`ls -d /Network/Library/Frameworks 2>/dev/null` \
-			`ls -d /System/Library/Frameworks 2>/dev/null` \
 			; do
 		    if test -f "$i/Tcl.framework/tclConfig.sh" ; then
 			ac_cv_c_tclconfig="`(cd $i/Tcl.framework; pwd)`"
@@ -2379,6 +2378,7 @@ $as_echo "$as_me: WARNING: --with-tcl argument should refer to directory contain
 			`ls -d /usr/local/lib 2>/dev/null` \
 			`ls -d /usr/contrib/lib 2>/dev/null` \
 			`ls -d /usr/pkg/lib 2>/dev/null` \
+			`ls -d /usr/lib/tcl8.6 2>/dev/null` \
 			`ls -d /usr/lib 2>/dev/null` \
 			`ls -d /usr/lib64 2>/dev/null` \
 			`ls -d /usr/local/lib/tcl8.6 2>/dev/null` \
@@ -4527,6 +4527,9 @@ $as_echo "$as_me: WARNING: can't find uname command" >&2;}
 		if test "`uname -s`" = "AIX" ; then
 		    tcl_cv_sys_version=AIX-`uname -v`.`uname -r`
 		fi
+		if test "`uname -s`" = "NetBSD" -a -f /etc/debian_version ; then
+		    tcl_cv_sys_version=NetBSD-Debian
+		fi
 	    fi
 	fi
 
@@ -5596,12 +5599,6 @@ fi
 	    SHLIB_SUFFIX=".dylib"
 	    DL_OBJS="tclLoadDyld.o"
 	    DL_LIBS=""
-	    # Don't use -prebind when building for Mac OS X 10.4 or later only:
-	    if test "`echo "${MACOSX_DEPLOYMENT_TARGET}" | awk -F '10\\.' '{print int($2)}'`" -lt 4 -a \
-		"`echo "${CPPFLAGS}" | awk -F '-mmacosx-version-min=10\\.' '{print int($2)}'`" -lt 4; then :
-
-		LDFLAGS="$LDFLAGS -prebind"
-fi
 	    LDFLAGS="$LDFLAGS -headerpad_max_install_names"
 	    { $as_echo "$as_me:${as_lineno-$LINENO}: checking if ld accepts -search_paths_first flag" >&5
 $as_echo_n "checking if ld accepts -search_paths_first flag... " >&6; }
@@ -8123,8 +8120,8 @@ $as_echo "$enable_xft" >&6; }
 	XFT_LIBS=`xft-config --libs 2>/dev/null` || found_xft="no"
 	if test "$found_xft" = "no" ; then
 	    found_xft=yes
-	    XFT_CFLAGS=`pkg-config --cflags xft 2>/dev/null` || found_xft="no"
-	    XFT_LIBS=`pkg-config --libs xft 2>/dev/null` || found_xft="no"
+	    XFT_CFLAGS=`pkg-config --cflags xft fontconfig 2>/dev/null` || found_xft="no"
+	    XFT_LIBS=`pkg-config --libs xft fontconfig 2>/dev/null` || found_xft="no"
 	fi
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $found_xft" >&5
 $as_echo "$found_xft" >&6; }
@@ -8614,7 +8611,7 @@ if test "${SHARED_BUILD}" = "1" -a "${SHLIB_SUFFIX}" != ""; then
     TCL_STUB_FLAGS="-DUSE_TCL_STUBS"
 fi
 
-TK_LIBRARY='$(prefix)/lib/tk$(VERSION)'
+test -z "$TK_LIBRARY" && TK_LIBRARY='$(prefix)/lib/tk$(VERSION)'
 PRIVATE_INCLUDE_DIR='$(includedir)'
 HTML_DIR='$(DISTDIR)/html'
 TK_PKG_DIR='tk$(VERSION)'

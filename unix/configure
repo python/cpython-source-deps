@@ -1338,7 +1338,7 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 TK_VERSION=8.6
 TK_MAJOR_VERSION=8
 TK_MINOR_VERSION=6
-TK_PATCH_LEVEL=".9"
+TK_PATCH_LEVEL=".10"
 VERSION=${TK_VERSION}
 LOCALES="cs da de el en en_gb eo es fr hu it nl pl pt ru sv"
 
@@ -1415,7 +1415,6 @@ echo "$as_me: error: ${with_tclconfig} directory doesn't contain tclConfig.sh" >
 		for i in `ls -d ~/Library/Frameworks 2>/dev/null` \
 			`ls -d /Library/Frameworks 2>/dev/null` \
 			`ls -d /Network/Library/Frameworks 2>/dev/null` \
-			`ls -d /System/Library/Frameworks 2>/dev/null` \
 			; do
 		    if test -f "$i/Tcl.framework/tclConfig.sh" ; then
 			ac_cv_c_tclconfig="`(cd $i/Tcl.framework; pwd)`"
@@ -1432,6 +1431,7 @@ echo "$as_me: error: ${with_tclconfig} directory doesn't contain tclConfig.sh" >
 			`ls -d /usr/local/lib 2>/dev/null` \
 			`ls -d /usr/contrib/lib 2>/dev/null` \
 			`ls -d /usr/pkg/lib 2>/dev/null` \
+			`ls -d /usr/lib/tcl8.6 2>/dev/null` \
 			`ls -d /usr/lib 2>/dev/null` \
 			`ls -d /usr/lib64 2>/dev/null` \
 			`ls -d /usr/local/lib/tcl8.6 2>/dev/null` \
@@ -4294,6 +4294,9 @@ echo "$as_me: WARNING: can't find uname command" >&2;}
 		if test "`uname -s`" = "AIX" ; then
 		    tcl_cv_sys_version=AIX-`uname -v`.`uname -r`
 		fi
+		if test "`uname -s`" = "NetBSD" -a -f /etc/debian_version ; then
+		    tcl_cv_sys_version=NetBSD-Debian
+		fi
 	    fi
 	fi
 
@@ -5682,13 +5685,6 @@ fi
 	    SHLIB_SUFFIX=".dylib"
 	    DL_OBJS="tclLoadDyld.o"
 	    DL_LIBS=""
-	    # Don't use -prebind when building for Mac OS X 10.4 or later only:
-	    if test "`echo "${MACOSX_DEPLOYMENT_TARGET}" | awk -F '10\\.' '{print int($2)}'`" -lt 4 -a \
-		"`echo "${CPPFLAGS}" | awk -F '-mmacosx-version-min=10\\.' '{print int($2)}'`" -lt 4; then
-
-		LDFLAGS="$LDFLAGS -prebind"
-fi
-
 	    LDFLAGS="$LDFLAGS -headerpad_max_install_names"
 	    echo "$as_me:$LINENO: checking if ld accepts -search_paths_first flag" >&5
 echo $ECHO_N "checking if ld accepts -search_paths_first flag... $ECHO_C" >&6
@@ -9461,7 +9457,7 @@ ac_x_header_dirs='
 /usr/openwin/share/include'
 
 if test "$ac_x_includes" = no; then
-  # Guess where to find include files, by looking for Intrinsic.h.
+  # Guess where to find include files, by looking for Xlib.h.
   # First, try using that file with no special directory specified.
   cat >conftest.$ac_ext <<_ACEOF
 /* confdefs.h.  */
@@ -9469,7 +9465,7 @@ _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-#include <X11/Intrinsic.h>
+#include <X11/Xlib.h>
 _ACEOF
 if { (eval echo "$as_me:$LINENO: \"$ac_cpp conftest.$ac_ext\"") >&5
   (eval $ac_cpp conftest.$ac_ext) 2>conftest.er1
@@ -9496,7 +9492,7 @@ else
 sed 's/^/| /' conftest.$ac_ext >&5
 
   for ac_dir in $ac_x_header_dirs; do
-  if test -r "$ac_dir/X11/Intrinsic.h"; then
+  if test -r "$ac_dir/X11/Xlib.h"; then
     ac_x_includes=$ac_dir
     break
   fi
@@ -9510,18 +9506,18 @@ if test "$ac_x_libraries" = no; then
   # See if we find them without any special options.
   # Don't add to $LIBS permanently.
   ac_save_LIBS=$LIBS
-  LIBS="-lXt $LIBS"
+  LIBS="-lX11 $LIBS"
   cat >conftest.$ac_ext <<_ACEOF
 /* confdefs.h.  */
 _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-#include <X11/Intrinsic.h>
+#include <X11/Xlib.h>
 int
 main ()
 {
-XtMalloc (0)
+XrmInitialize ()
   ;
   return 0;
 }
@@ -10013,8 +10009,8 @@ echo "${ECHO_T}$enable_xft" >&6
 	XFT_LIBS=`xft-config --libs 2>/dev/null` || found_xft="no"
 	if test "$found_xft" = "no" ; then
 	    found_xft=yes
-	    XFT_CFLAGS=`pkg-config --cflags xft 2>/dev/null` || found_xft="no"
-	    XFT_LIBS=`pkg-config --libs xft 2>/dev/null` || found_xft="no"
+	    XFT_CFLAGS=`pkg-config --cflags xft fontconfig 2>/dev/null` || found_xft="no"
+	    XFT_LIBS=`pkg-config --libs xft fontconfig 2>/dev/null` || found_xft="no"
 	fi
 	echo "$as_me:$LINENO: result: $found_xft" >&5
 echo "${ECHO_T}$found_xft" >&6
@@ -10938,7 +10934,7 @@ if test "${SHARED_BUILD}" = "1" -a "${SHLIB_SUFFIX}" != ""; then
     TCL_STUB_FLAGS="-DUSE_TCL_STUBS"
 fi
 
-TK_LIBRARY='$(prefix)/lib/tk$(VERSION)'
+test -z "$TK_LIBRARY" && TK_LIBRARY='$(prefix)/lib/tk$(VERSION)'
 PRIVATE_INCLUDE_DIR='$(includedir)'
 HTML_DIR='$(DISTDIR)/html'
 TK_PKG_DIR='tk$(VERSION)'

@@ -50,7 +50,7 @@ typedef struct {
  * the information isn't retrievable from the GC.
  */
 
-typedef struct ThreadSpecificData {
+typedef struct {
     Region clipRegion;		/* The clipping region, or None. */
 } ThreadSpecificData;
 static Tcl_ThreadDataKey dataKey;
@@ -69,7 +69,7 @@ void
 TkpFontPkgInit(
     TkMainInfo *mainPtr)	/* The application being created. */
 {
-    static Tcl_Config cfg[] = {
+    static const Tcl_Config cfg[] = {
 	{ "fontsystem", "xft" },
 	{ 0,0 }
     };
@@ -937,7 +937,7 @@ Tk_DrawChars(
 
   doUnderlineStrikeout:
     if (tsdPtr->clipRegion != None) {
-	XftDrawSetClip(fontPtr->ftDraw, None);
+	XftDrawSetClip(fontPtr->ftDraw, NULL);
     }
     if (fontPtr->font.fa.underline != 0) {
 	XFillRectangle(display, drawable, gc, xStart,
@@ -1183,7 +1183,7 @@ TkDrawAngledChars(
 
   doUnderlineStrikeout:
     if (tsdPtr->clipRegion != None) {
-	XftDrawSetClip(fontPtr->ftDraw, None);
+	XftDrawSetClip(fontPtr->ftDraw, NULL);
     }
     if (fontPtr->font.fa.underline || fontPtr->font.fa.overstrike) {
 	XPoint points[5];
