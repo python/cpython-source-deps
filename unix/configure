@@ -1338,7 +1338,7 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 TK_VERSION=8.6
 TK_MAJOR_VERSION=8
 TK_MINOR_VERSION=6
-TK_PATCH_LEVEL=".10"
+TK_PATCH_LEVEL=".11"
 VERSION=${TK_VERSION}
 LOCALES="cs da de el en en_gb eo es fr hu it nl pl pt ru sv"
 
@@ -1487,10 +1487,6 @@ echo "${ECHO_T}loading" >&6
 echo "${ECHO_T}could not find ${TCL_BIN_DIR}/tclConfig.sh" >&6
     fi
 
-    # eval is required to do the TCL_DBGX substitution
-    eval "TCL_LIB_FILE=\"${TCL_LIB_FILE}\""
-    eval "TCL_STUB_LIB_FILE=\"${TCL_STUB_LIB_FILE}\""
-
     # If the TCL_BIN_DIR is the build directory (not the install directory),
     # then set the common variable name to the value of the build variables.
     # For example, the variable TCL_LIB_SPEC will be set to the value
@@ -1523,12 +1519,6 @@ echo "${ECHO_T}could not find ${TCL_BIN_DIR}/tclConfig.sh" >&6
 		;;
 	esac
     fi
-
-    # eval is required to do the TCL_DBGX substitution
-    eval "TCL_LIB_FLAG=\"${TCL_LIB_FLAG}\""
-    eval "TCL_LIB_SPEC=\"${TCL_LIB_SPEC}\""
-    eval "TCL_STUB_LIB_FLAG=\"${TCL_STUB_LIB_FLAG}\""
-    eval "TCL_STUB_LIB_SPEC=\"${TCL_STUB_LIB_SPEC}\""
 
 
 
@@ -3059,6 +3049,7 @@ cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
 #include <ctype.h>
+#include <stdlib.h>
 #if ((' ' & 0x0FF) == 0x020)
 # define ISLOWER(c) ('a' <= (c) && (c) <= 'z')
 # define TOUPPER(c) (ISLOWER(c) ? 'A' + ((c) - 'a') : (c))
@@ -4029,14 +4020,6 @@ if test "${enable_shared+set}" = set; then
 else
   tcl_ok=yes
 fi;
-
-    if test "${enable_shared+set}" = set; then
-	enableval="$enable_shared"
-	tcl_ok=$enableval
-    else
-	tcl_ok=yes
-    fi
-
     if test "$tcl_ok" = "yes" ; then
 	echo "$as_me:$LINENO: result: shared" >&5
 echo "${ECHO_T}shared" >&6
@@ -4402,7 +4385,7 @@ fi
     if test "$GCC" = yes; then
 
 	CFLAGS_OPTIMIZE=-O2
-	CFLAGS_WARNING="-Wall"
+	CFLAGS_WARNING="-Wall -Wpointer-arith"
 
 else
 
@@ -4693,7 +4676,7 @@ fi
 	    CC_SEARCH_FLAGS=""
 	    LD_SEARCH_FLAGS=""
 	    ;;
-	CYGWIN_*|MINGW32*)
+	CYGWIN_*|MINGW32_*|MSYS_*)
 	    SHLIB_CFLAGS=""
 	    SHLIB_LD='${CC} -shared'
 	    SHLIB_SUFFIX=".dll"
@@ -4704,7 +4687,7 @@ fi
 	    CC_SEARCH_FLAGS=""
 	    LD_SEARCH_FLAGS=""
 	    TCL_NEEDS_EXP_FILE=1
-	    TCL_EXPORT_FILE_SUFFIX='${VERSION}\$\{DBGX\}.dll.a'
+	    TCL_EXPORT_FILE_SUFFIX='${VERSION}.dll.a'
 	    SHLIB_LD_LIBS="${SHLIB_LD_LIBS} -Wl,--out-implib,\$@.a"
 	    echo "$as_me:$LINENO: checking for Cygwin version of gcc" >&5
 echo $ECHO_N "checking for Cygwin version of gcc... $ECHO_C" >&6
@@ -5005,7 +4988,7 @@ fi
 			    SHLIB_LD='${CC} -shared'
 			    if test $doRpath = yes; then
 
-				CC_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'
+				CC_SEARCH_FLAGS='"-Wl,-rpath,${LIB_RUNTIME_DIR}"'
 fi
 
 			    LD_SEARCH_FLAGS=${CC_SEARCH_FLAGS}
@@ -5129,7 +5112,7 @@ esac
 
 	    if test $doRpath = yes; then
 
-		CC_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'
+		CC_SEARCH_FLAGS='"-Wl,-rpath,${LIB_RUNTIME_DIR}"'
 		LD_SEARCH_FLAGS='-rpath ${LIB_RUNTIME_DIR}'
 fi
 
@@ -5150,7 +5133,7 @@ esac
 
 	    if test $doRpath = yes; then
 
-		CC_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'
+		CC_SEARCH_FLAGS='"-Wl,-rpath,${LIB_RUNTIME_DIR}"'
 		LD_SEARCH_FLAGS='-rpath ${LIB_RUNTIME_DIR}'
 fi
 
@@ -5191,7 +5174,7 @@ esac
 
 	    if test $doRpath = yes; then
 
-		CC_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'
+		CC_SEARCH_FLAGS='"-Wl,-rpath,${LIB_RUNTIME_DIR}"'
 		LD_SEARCH_FLAGS='-rpath ${LIB_RUNTIME_DIR}'
 fi
 
@@ -5234,7 +5217,7 @@ fi
 	    LDFLAGS="$LDFLAGS -Wl,--export-dynamic"
 	    if test $doRpath = yes; then
 
-		CC_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'
+		CC_SEARCH_FLAGS='"-Wl,-rpath,${LIB_RUNTIME_DIR}"'
 fi
 
 	    LD_SEARCH_FLAGS=${CC_SEARCH_FLAGS}
@@ -5334,8 +5317,8 @@ fi
 	    LD_FLAGS="-Wl,--export-dynamic"
 	    if test $doRpath = yes; then
 
-		CC_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'
-		LD_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'
+		CC_SEARCH_FLAGS='"-Wl,-rpath,${LIB_RUNTIME_DIR}"'
+		LD_SEARCH_FLAGS='"-Wl,-rpath,${LIB_RUNTIME_DIR}"'
 fi
 
 	    ;;
@@ -5376,7 +5359,7 @@ fi
 	    DL_LIBS=""
 	    if test $doRpath = yes; then
 
-		CC_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'
+		CC_SEARCH_FLAGS='"-Wl,-rpath,${LIB_RUNTIME_DIR}"'
 fi
 
 	    LD_SEARCH_FLAGS=${CC_SEARCH_FLAGS}
@@ -5406,7 +5389,7 @@ fi
 	    LDFLAGS="$LDFLAGS -export-dynamic"
 	    if test $doRpath = yes; then
 
-		CC_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'
+		CC_SEARCH_FLAGS='"-Wl,-rpath,${LIB_RUNTIME_DIR}"'
 fi
 
 	    LD_SEARCH_FLAGS=${CC_SEARCH_FLAGS}
@@ -5428,11 +5411,10 @@ fi
 	    SHLIB_SUFFIX=".so"
 	    DL_OBJS="tclLoadDl.o"
 	    DL_LIBS=""
-	    LDFLAGS=""
 	    if test $doRpath = yes; then
 
-		CC_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'
-		LD_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'
+		CC_SEARCH_FLAGS='"-Wl,-rpath,${LIB_RUNTIME_DIR}"'
+		LD_SEARCH_FLAGS='"-Wl,-rpath,${LIB_RUNTIME_DIR}"'
 fi
 
 	    if test "${TCL_THREADS}" = "1"; then
@@ -5757,6 +5739,7 @@ cat >>confdefs.h <<\_ACEOF
 #define MODULE_SCOPE __private_extern__
 _ACEOF
 
+		tcl_cv_cc_visibility_hidden=yes
 
 fi
 
@@ -6020,7 +6003,7 @@ fi
 	    DL_LIBS=""
 	    if test $doRpath = yes; then
 
-		CC_SEARCH_FLAGS='-Wl,-rpath,${LIB_RUNTIME_DIR}'
+		CC_SEARCH_FLAGS='"-Wl,-rpath,${LIB_RUNTIME_DIR}"'
 		LD_SEARCH_FLAGS='-rpath ${LIB_RUNTIME_DIR}'
 fi
 
@@ -6619,7 +6602,7 @@ fi
 	case $system in
 	    AIX-*) ;;
 	    BSD/OS*) ;;
-	    CYGWIN_*|MINGW32_*) ;;
+	    CYGWIN_*|MINGW32_*|MSYS_*) ;;
 	    IRIX*) ;;
 	    NetBSD-*|DragonFly-*|FreeBSD-*|OpenBSD-*) ;;
 	    Darwin-*) ;;
@@ -6655,7 +6638,7 @@ fi
     if test "${SHARED_BUILD}" = 1 -a "${SHLIB_SUFFIX}" != ""; then
 
         LIB_SUFFIX=${SHARED_LIB_SUFFIX}
-        MAKE_LIB='${SHLIB_LD} -o $@ ${OBJS} ${SHLIB_LD_LIBS} ${TCL_SHLIB_LD_EXTRAS} ${TK_SHLIB_LD_EXTRAS} ${LD_SEARCH_FLAGS}'
+        MAKE_LIB='${SHLIB_LD} -o $@ ${OBJS} ${LDFLAGS} ${SHLIB_LD_LIBS} ${TCL_SHLIB_LD_EXTRAS} ${TK_SHLIB_LD_EXTRAS} ${LD_SEARCH_FLAGS}'
         if test "${SHLIB_SUFFIX}" = ".dll"; then
 
             INSTALL_LIB='$(INSTALL_LIBRARY) $(LIB_FILE) "$(BIN_INSTALL_DIR)/$(LIB_FILE)";if test -f $(LIB_FILE).a; then $(INSTALL_DATA) $(LIB_FILE).a "$(LIB_INSTALL_DIR)"; fi;'
@@ -6831,7 +6814,6 @@ else
   tcl_ok=no
 fi;
 # FIXME: Currently, LDFLAGS_DEFAULT is not used, it should work like CFLAGS_DEFAULT.
-    DBGX=""
     if test "$tcl_ok" = "no"; then
 	CFLAGS_DEFAULT='$(CFLAGS_OPTIMIZE)'
 	LDFLAGS_DEFAULT='$(LDFLAGS_OPTIMIZE)'
@@ -8816,7 +8798,7 @@ cat >>conftest.$ac_ext <<_ACEOF
 int
 main ()
 {
-struct passwd pwd; pwd.pw_gecos;
+struct passwd pwd; (void)pwd.pw_gecos;
   ;
   return 0;
 }
@@ -10991,8 +10973,12 @@ echo "${ECHO_T}static library" >&6
     echo "$LDFLAGS " | grep -q -- '-prebind ' && TK_SHLIB_LD_EXTRAS="${TK_SHLIB_LD_EXTRAS}"' -seg1addr 0xb000000'
     TK_SHLIB_LD_EXTRAS="${TK_SHLIB_LD_EXTRAS}"' -sectcreate __TEXT __info_plist Tk-Info.plist'
     EXTRA_WISH_LIBS='-sectcreate __TEXT __info_plist Wish-Info.plist'
+    EXTRA_WISH_LIBS=${EXTRA_WISH_LIBS}' -sectcreate __TEXT __credits_html Credits.html'
+    if test "${SHARED_BUILD}" = "0"; then
+	EXTRA_WISH_LIBS=${EXTRA_WISH_LIBS}' -ObjC'
+    fi
     EXTRA_APP_CC_SWITCHES="${EXTRA_APP_CC_SWITCHES}"' -mdynamic-no-pic'
-                        ac_config_files="$ac_config_files Tk-Info.plist:../macosx/Tk-Info.plist.in Wish-Info.plist:../macosx/Wish-Info.plist.in"
+                                  ac_config_files="$ac_config_files Tk-Info.plist:../macosx/Tk-Info.plist.in Wish-Info.plist:../macosx/Wish-Info.plist.in Credits.html:../macosx/Credits.html.in"
 
     for l in ${LOCALES}; do CFBUNDLELOCALIZATIONS="${CFBUNDLELOCALIZATIONS}<string>$l</string>"; done
     TK_YEAR="`date +%Y`"
@@ -11028,6 +11014,7 @@ _ACEOF
     EXTRA_INSTALL="install-private-headers html-tk"
     EXTRA_BUILD_HTML='@ln -fs contents.htm "$(HTML_INSTALL_DIR)"/TkTOC.html'
     EXTRA_INSTALL_BINARIES='@echo "Installing Info.plist to $(LIB_INSTALL_DIR)/Resources/" && $(INSTALL_DATA_DIR) "$(LIB_INSTALL_DIR)/Resources" && $(INSTALL_DATA) Tk-Info.plist "$(LIB_INSTALL_DIR)/Resources/Info.plist"'
+    EXTRA_INSTALL_BINARIES="$EXTRA_INSTALL_BINARIES"' && echo "Installing Credits.html to $(LIB_INSTALL_DIR)/Resources/" && $(INSTALL_DATA_DIR) "$(LIB_INSTALL_DIR)/Resources" && $(INSTALL_DATA) Credits.html "$(LIB_INSTALL_DIR)/Resources"'
     EXTRA_INSTALL_BINARIES="$EXTRA_INSTALL_BINARIES"' && echo "Installing license.terms to $(LIB_INSTALL_DIR)/Resources/" && $(INSTALL_DATA) "$(TOP_DIR)/license.terms" "$(LIB_INSTALL_DIR)/Resources"'
     if test $tk_aqua = yes; then
 	EXTRA_INSTALL_BINARIES="$EXTRA_INSTALL_BINARIES"' && echo "Installing Images to $(LIB_INSTALL_DIR)/Resources/" && $(INSTALL_DATA_DIR) "$(LIB_INSTALL_DIR)/Resources" && for i in Tk.tiff Tk.icns; do $(INSTALL_DATA) "$(MAC_OSX_DIR)/$$i" "$(LIB_INSTALL_DIR)/Resources"; done'
@@ -11037,6 +11024,7 @@ _ACEOF
 	EXTRA_INSTALL_BINARIES="$EXTRA_INSTALL_BINARIES"' && echo "Installing Wish.icns to $(BIN_INSTALL_DIR)/../Resources" && $(INSTALL_DATA_DIR) "$(BIN_INSTALL_DIR)/../Resources"'
 	EXTRA_INSTALL_BINARIES="$EXTRA_INSTALL_BINARIES"' && $(INSTALL_DATA) "$(MAC_OSX_DIR)/Tk.icns" "$(BIN_INSTALL_DIR)/../Resources/Wish.icns"'
 	EXTRA_INSTALL_BINARIES="$EXTRA_INSTALL_BINARIES"' && echo "Installing Wish.sdef to $(BIN_INSTALL_DIR)/../Resources" && $(INSTALL_DATA) "$(MAC_OSX_DIR)/Wish.sdef" "$(BIN_INSTALL_DIR)/../Resources"'
+	EXTRA_INSTALL_BINARIES="$EXTRA_INSTALL_BINARIES"' && echo "Installing Credits.html to $(BIN_INSTALL_DIR)/../Resources" && $(INSTALL_DATA) Credits.html "$(BIN_INSTALL_DIR)/../Resources"'
     fi
     EXTRA_INSTALL_BINARIES="$EXTRA_INSTALL_BINARIES"' && echo "Finalizing Tk.framework" && rm -f "$(LIB_INSTALL_DIR)/../Current" && ln -s "$(VERSION)" "$(LIB_INSTALL_DIR)/../Current" && for f in "$(LIB_FILE)" tkConfig.sh Resources Headers PrivateHeaders; do rm -f "$(LIB_INSTALL_DIR)/../../$$f" && ln -s "Versions/Current/$$f" "$(LIB_INSTALL_DIR)/../.."; done && f="$(STUB_LIB_FILE)" && rm -f "$(LIB_INSTALL_DIR)/../../$$f" && ln -s "Versions/$(VERSION)/$$f" "$(LIB_INSTALL_DIR)/../.."'
     # Don't use AC_DEFINE for the following as the framework version define
@@ -11709,6 +11697,7 @@ do
   # Handling of arguments.
   "Tk-Info.plist" ) CONFIG_FILES="$CONFIG_FILES Tk-Info.plist:../macosx/Tk-Info.plist.in" ;;
   "Wish-Info.plist" ) CONFIG_FILES="$CONFIG_FILES Wish-Info.plist:../macosx/Wish-Info.plist.in" ;;
+  "Credits.html" ) CONFIG_FILES="$CONFIG_FILES Credits.html:../macosx/Credits.html.in" ;;
   "Makefile" ) CONFIG_FILES="$CONFIG_FILES Makefile:../unix/Makefile.in" ;;
   "tkConfig.sh" ) CONFIG_FILES="$CONFIG_FILES tkConfig.sh:../unix/tkConfig.sh.in" ;;
   "tk.pc" ) CONFIG_FILES="$CONFIG_FILES tk.pc:../unix/tk.pc.in" ;;
