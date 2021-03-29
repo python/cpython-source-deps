@@ -22,7 +22,6 @@
 static int		GetIndexFromObjList(Tcl_Interp *interp,
 			    Tcl_Obj *objPtr, Tcl_Obj *tableObjPtr,
 			    const char *msg, int flags, int *indexPtr);
-static int		SetIndexFromAny(Tcl_Interp *interp, Tcl_Obj *objPtr);
 static void		UpdateStringOfIndex(Tcl_Obj *objPtr);
 static void		DupIndex(Tcl_Obj *srcPtr, Tcl_Obj *dupPtr);
 static void		FreeIndex(Tcl_Obj *objPtr);
@@ -48,7 +47,7 @@ static const Tcl_ObjType indexType = {
     FreeIndex,			/* freeIntRepProc */
     DupIndex,			/* dupIntRepProc */
     UpdateStringOfIndex,	/* updateStringProc */
-    SetIndexFromAny		/* setFromAnyProc */
+    NULL			/* setFromAnyProc */
 };
 
 /*
@@ -397,39 +396,6 @@ Tcl_GetIndexFromObjStruct(
 /*
  *----------------------------------------------------------------------
  *
- * SetIndexFromAny --
- *
- *	This function is called to convert a Tcl object to index internal
- *	form. However, this doesn't make sense (need to have a table of
- *	keywords in order to do the conversion) so the function always
- *	generates an error.
- *
- * Results:
- *	The return value is always TCL_ERROR, and an error message is left in
- *	interp's result if interp isn't NULL.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-static int
-SetIndexFromAny(
-    Tcl_Interp *interp,		/* Used for error reporting if not NULL. */
-    register Tcl_Obj *objPtr)	/* The object to convert. */
-{
-    if (interp) {
-	Tcl_SetObjResult(interp, Tcl_NewStringObj(
-	    "can't convert value to index except via Tcl_GetIndexFromObj API",
-	    -1));
-    }
-    return TCL_ERROR;
-}
-
-/*
- *----------------------------------------------------------------------
- *
  * UpdateStringOfIndex --
  *
  *	This function is called to convert a Tcl object from index internal
@@ -449,9 +415,9 @@ UpdateStringOfIndex(
     Tcl_Obj *objPtr)
 {
     IndexRep *indexRep = objPtr->internalRep.twoPtrValue.ptr1;
-    register char *buf;
-    register unsigned len;
-    register const char *indexStr = EXPAND_OF(indexRep);
+    char *buf;
+    unsigned len;
+    const char *indexStr = EXPAND_OF(indexRep);
 
     len = strlen(indexStr);
     buf = ckalloc(len + 1);
@@ -814,7 +780,7 @@ PrefixLongestObjCmd(
 		     * Adjust in case we stopped in the middle of a UTF char.
 		     */
 
-		    resultLength = Tcl_UtfPrev(&resultString[i+1],
+		    resultLength = TclUtfPrev(&resultString[i+1],
 			    resultString) - resultString;
 		    break;
 		}
@@ -961,7 +927,7 @@ Tcl_WrongNumArgs(
 	     */
 
 	    if (origObjv[i]->typePtr == &indexType) {
-		register IndexRep *indexRep =
+		IndexRep *indexRep =
 			origObjv[i]->internalRep.twoPtrValue.ptr1;
 
 		elementStr = EXPAND_OF(indexRep);
@@ -1011,7 +977,7 @@ Tcl_WrongNumArgs(
 	 */
 
 	if (objv[i]->typePtr == &indexType) {
-	    register IndexRep *indexRep = objv[i]->internalRep.twoPtrValue.ptr1;
+	    IndexRep *indexRep = objv[i]->internalRep.twoPtrValue.ptr1;
 
 	    Tcl_AppendStringsToObj(objPtr, EXPAND_OF(indexRep), NULL);
 	} else {
@@ -1103,14 +1069,14 @@ Tcl_ParseArgsObjv(
 				 * successful exit. Will include the name of
 				 * the command. */
     int nrem;			/* Size of leftovers.*/
-    register const Tcl_ArgvInfo *infoPtr;
+    const Tcl_ArgvInfo *infoPtr;
 				/* Pointer to the current entry in the table
 				 * of argument descriptions. */
     const Tcl_ArgvInfo *matchPtr;
 				/* Descriptor that matches current argument */
     Tcl_Obj *curArg;		/* Current argument */
     const char *str = NULL;
-    register char c;		/* Second character of current arg (used for
+    char c;		/* Second character of current arg (used for
 				 * quick check for matching; use 2nd char.
 				 * because first char. will almost always be
 				 * '-'). */
@@ -1358,7 +1324,7 @@ PrintUsage(
 				/* Array of command-specific argument
 				 * descriptions. */
 {
-    register const Tcl_ArgvInfo *infoPtr;
+    const Tcl_ArgvInfo *infoPtr;
     int width, numSpaces;
 #define NUM_SPACES 20
     static const char spaces[] = "                    ";
