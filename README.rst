@@ -50,7 +50,7 @@ Download links
 --------------
 
 - ``sqlite``: https://www.sqlite.org/download.html
-- ``bzip2``: http://www.bzip.org/downloads.html
+- ``bzip2``: https://www.sourceware.org/bzip2/downloads.html
 - ``xz``: https://tukaani.org/xz/
 - ``zlib``: https://zlib.net/
 - ``tcl``/``tk``: https://tcl.tk/software/tcltk/download.html
