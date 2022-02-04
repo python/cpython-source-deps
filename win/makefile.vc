@@ -97,7 +97,7 @@
 #		nodep	 = Turns off compatibility macros to ensure the core
 #			    isn't being built with deprecated functions.
 #
-#	MACHINE=(ALPHA|AMD64|IA64|IX86)
+#	MACHINE=(ALPHA|AMD64|ARM64|IA64|IX86)
 #		Set the machine type used for the compiler, linker, and
 #		resource compiler.  This hook is needed to tell the tools
 #		when alternate platforms are requested.  IX86 is the default
