@@ -755,8 +755,8 @@ ENDF(ffi_closure_raw_THISCALL)
 /* 	movl	(%esp), %edx */
 /* 	ret */
 /* ENDF(C(__x86.get_pc_thunk.dx)) */
-/* #endif /* DARWIN || HIDDEN */ */
-/* #endif /* __PIC__ */ */
+/* #endif DARWIN || HIDDEN */
+/* #endif __PIC__ */
 
 #if 0
 /* Sadly, OSX cctools-as doesn't understand .cfi directives at all.  */
