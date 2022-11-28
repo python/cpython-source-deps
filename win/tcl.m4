@@ -649,7 +649,7 @@ AC_DEFUN([SC_CONFIG_CFLAGS], [
 	if test "$ac_cv_win32" != "yes"; then
 	    AC_MSG_ERROR([${CC} cannot produce win32 executables.])
 	fi
-	if test "$MACHINE" != "ARM64"; then
+	if test "$do64bit" != "arm64"; then
 	    extra_cflags="$extra_cflags -DHAVE_CPUID=1"
 	fi
 
@@ -669,6 +669,7 @@ AC_DEFUN([SC_CONFIG_CFLAGS], [
 	else
 	    extra_cflags="$extra_cflags -DTCL_BROKEN_MAINARGS"
 	fi
+	hold_cflags=$CFLAGS; CFLAGS="$CFLAGS -fno-lto"
 	AC_CACHE_CHECK(for working -fno-lto,
 	    ac_cv_nolto,
 	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([])],
@@ -681,6 +682,18 @@ AC_DEFUN([SC_CONFIG_CFLAGS], [
 	else
 	    CFLAGS_NOLTO=""
 	fi
+    fi
+
+    hold_cflags=$CFLAGS; CFLAGS="$CFLAGS -Wl,--enable-auto-image-base"
+    AC_CACHE_CHECK(for working --enable-auto-image-base,
+	ac_cv_enable_auto_image_base,
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([])],
+	[ac_cv_enable_auto_image_base=yes],
+	[ac_cv_enable_auto_image_base=no])
+    )
+    CFLAGS=$hold_cflags
+    if test "$ac_cv_enable_auto_image_base" == "yes" ; then
+	extra_ldflags="$extra_ldflags -Wl,--enable-auto-image-base"
     fi
 
     AC_MSG_CHECKING([compiler flags])
@@ -1220,7 +1233,7 @@ AC_DEFUN([SC_PROG_TCLSH], [
 
 AC_DEFUN([SC_BUILD_TCLSH], [
     AC_MSG_CHECKING([for tclsh in Tcl build directory])
-    BUILD_TCLSH=${TCL_BIN_DIR}/tclsh${TCL_MAJOR_VERSION}${TCL_MINOR_VERSION}${TCL_DBGX}${EXEEXT}
+    BUILD_TCLSH=${TCL_BIN_DIR}/tclsh${TCL_MAJOR_VERSION}${TCL_MINOR_VERSION}\${EXESUFFIX}
     AC_MSG_RESULT($BUILD_TCLSH)
     AC_SUBST(BUILD_TCLSH)
 ])
