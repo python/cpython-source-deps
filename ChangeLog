@@ -1,3 +1,241 @@
+commit f24180be1367f942824365b131ae894b9c769c7d
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sun Oct 23 20:17:29 2022 -0400
+
+    Update to version 3.4.4
+
+commit 848052fabb207d6f56485c8c2c3509eddecbe828
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sun Oct 23 11:25:10 2022 -0400
+
+    More aarch64 fixes
+
+commit af0f14cd6d932bd1c2f7c39c01e2df3b0ad19ea9
+Author: Icecream95 <the.real.icecream95@gmail.com>
+Date:   Mon Oct 24 04:08:10 2022 +1300
+
+    Fix types of temporary variables in aarch64 extend_integer_type (#745)
+    
+    Fixes truncated values in weston-info output.
+
+commit f7233db2a781b43e419a30edbec7639f74fa2a00
+Author: musvaage <112724366+musvaage@users.noreply.github.com>
+Date:   Mon Oct 17 17:26:17 2022 -0500
+
+    typos (#742)
+
+commit 45e492952e9f984a105ab281fb9433a4bbc12146
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sun Oct 16 12:41:56 2022 -0400
+
+    Add 32-bit cygwin test
+
+commit 93cfb655200f34ab1b2b7d8955291c457b91ee9f
+Author: Anthony Green <green@moxielogic.com>
+Date:   Mon Oct 10 14:32:35 2022 -0400
+
+    Correction for older compilers
+
+commit 77a0fb82b53087647a12334c6ddd590ea6215199
+Author: Andreas Schwab <schwab@linux-m68k.org>
+Date:   Mon Oct 10 17:59:04 2022 +0200
+
+    Flush output before aborting (#740)
+    
+    Co-authored-by: Andreas Schwab <schwab@suse.de>
+
+commit 3874fd9865eef72a5cf5a761781b51f8db9fa267
+Author: Andreas Schwab <schwab@linux-m68k.org>
+Date:   Mon Oct 10 17:58:48 2022 +0200
+
+    Fix strict aliasing problem in aarch64 ffi_call (#739)
+    
+    The assignment a = &dest in ffi_call_int may be moved after the call to
+    extend_integer_type because that function accesses the assigned value with
+    a different type.
+    
+    Co-authored-by: Andreas Schwab <schwab@suse.de>
+
+commit 4b0c358e28fae22164bf0d423f183dfed8a1ba10
+Author: Andreas Schwab <schwab@linux-m68k.org>
+Date:   Mon Oct 10 17:57:47 2022 +0200
+
+    riscv: make copies of structs passed by reference (#738)
+    
+    Co-authored-by: Andreas Schwab <schwab@suse.de>
+
+commit c163d93ac032a101cda1818855d681430f7af89a
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sat Oct 8 18:35:38 2022 -0400
+
+    Add gcc-12 testing for aarch64 linux
+
+commit 62fd1f218be35976858a9f3a0b36fe0d38146bc9
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sun Oct 2 13:03:37 2022 -0400
+
+    Tweak quotes
+
+commit e1d1b094d31dbf97bd53c09736be97e1e9812d6a
+Author: Anthony Green <green@moxielogic.com>
+Date:   Wed Sep 28 10:16:45 2022 -0400
+
+    Add .
+
+commit b45f68949d7d1b705eb5e26f58a09972ad70a9c4
+Author: Anthony Green <green@moxielogic.com>
+Date:   Wed Sep 28 10:16:01 2022 -0400
+
+    Update README for 3.4.4.
+
+commit 817a43fbc1d6d1c702c492e926f158b17ae988e4
+Author: Anthony Green <green@moxielogic.com>
+Date:   Wed Sep 28 09:05:45 2022 -0400
+
+    Revert to previous cfi check. (#735)
+
+commit 963c4a969326192a2a0ad536d3943f21dbbb0eaa
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Sep 27 22:05:42 2022 -0400
+
+    Remove nested comments
+
+commit e9e44157526c00bfd1142175ed6a7eb936ea0ede
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Sep 27 21:25:30 2022 -0400
+
+    Don't tweak path
+
+commit 4594dcc98770b4fa60fce313abf557f090f8a0fd
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Sep 27 21:05:26 2022 -0400
+
+    Fix find
+
+commit fe68a7b998329f471c3c0c5726073b9cb1a5a126
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Sep 27 20:29:17 2022 -0400
+
+    Locate tools
+
+commit cfb3f4c255cda534d1dc5de6a31cff70f02f9d69
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Sep 27 20:13:42 2022 -0400
+
+    Use cross tools for Windows
+
+commit ae544e0043079d778fdf0e16408db3b7a6d723bd
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Sep 27 18:23:06 2022 -0400
+
+    Fix shell
+
+commit b8d849bd85294253787bbe1838de354ad2f54201
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Sep 27 17:58:31 2022 -0400
+
+    Find ms tools
+
+commit 9785eee066782d7575023f94b64402963b55aa8c
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Sep 27 17:39:44 2022 -0400
+
+    32- and 64-bit Windows
+
+commit 1421717effc7b5052e3c26e2b715a83a8a61355c
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Sep 27 08:13:17 2022 -0400
+
+    Add "lto" to triple to identify lto builds
+
+commit 425acd4c2f217b00868ec1577c20b73de032c114
+Author: Anthony Green <green@moxielogic.com>
+Date:   Tue Sep 27 07:57:37 2022 -0400
+
+    Try aarch64 linux with -flto
+
+commit c4261a0588fa997837e44f8417fc8577b37cd461
+Author: Anthony Green <green@moxielogic.com>
+Date:   Mon Sep 26 16:45:00 2022 -0400
+
+    Show compiler version
+
+commit a1467200c36ce80dacb8d9d0d50049765809b6f4
+Author: Anthony Green <green@moxielogic.com>
+Date:   Mon Sep 26 11:41:48 2022 -0400
+
+    Never link pthread for android
+
+commit 5ce26a0e03eacb483709189e8cbb05509fa68612
+Author: Frederik Seiffert <frederik@seiffert.org>
+Date:   Mon Sep 26 13:43:40 2022 +0200
+
+    CI: add Android builds (#732)
+
+commit 55bcc47717bb0f9c5276a45710d757cda7a61f8e
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sat Sep 24 22:03:52 2022 -0400
+
+    Test idea borrowed from cpython
+
+commit a2473cde0a02c096dc3e0b57f0cb73f598765570
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sat Sep 24 21:41:02 2022 -0400
+
+    or1k: All struct args are passed in memory
+
+commit f93224d38662a8cdc33ca56fe6f2d5650a86d690
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sat Sep 24 21:38:57 2022 -0400
+
+    moxie: All struct args are passed in memory
+
+commit e79f19489bb294ce60bef5cdba5e56c3e7d84382
+Author: Anthony Green <green@moxielogic.com>
+Date:   Sat Sep 24 17:11:30 2022 -0400
+
+    Add test case transcribed from cpython
+
+commit ab96038772ec4f4ccfaf49d621cd20f58742c401
+Author: Anthony Green <green@moxielogic.com>
+Date:   Mon Sep 19 19:42:35 2022 -0400
+
+    Set host triplet for native builds
+
+commit a6fc81653d6ce649a6bc29675baa112c68a21df0
+Author: Anthony Green <green@moxielogic.com>
+Date:   Mon Sep 19 19:25:09 2022 -0400
+
+    Update job names
+
+commit 6b7fb6ce9eb4751ed3179de256566971c9d46cb7
+Author: Anthony Green <green@moxielogic.com>
+Date:   Mon Sep 19 18:23:42 2022 -0400
+
+    Give better names to CI workflows
+
+commit f0675ab7e85ca31095b51db5a5c955f1005240cb
+Author: Anthony Green <green@moxielogic.com>
+Date:   Mon Sep 19 17:30:51 2022 -0400
+
+    Update version to 3.4.4-experimental
+
+commit e3eaa609882fbcffb6c1b21270b6ff46fb57699f
+Author: Hans <h-c-mueller@users.noreply.github.com>
+Date:   Mon Sep 19 23:26:59 2022 +0200
+
+    Suppress error console output duing configure in case not an ELF file (#729)
+    
+    On Cygwin, MSYS and MinGW readelf is available, but files generated are no
+    ELF files. This results in an Error output on console:
+    'checking whether .eh_frame section should be read-only... readelf: Error: Not an ELF file - it has the wrong magic bytes at the start
+    yes'
+    With this patch the error output is suppressed resulting in only
+    'checking whether .eh_frame section should be read-only... yes'
+    Setting of related variables is not changed.
+    
+    Co-authored-by: Hannes Müller <>
+
 commit 84817695eab13c282436fca278bde2384ca955e5
 Author: Anthony Green <green@moxielogic.com>
 Date:   Mon Sep 19 13:31:46 2022 -0400

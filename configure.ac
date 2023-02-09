@@ -2,7 +2,7 @@ dnl Process this with autoconf to create configure
 
 AC_PREREQ([2.71])
 
-AC_INIT([libffi],[3.4.3],[http://github.com/libffi/libffi/issues])
+AC_INIT([libffi],[3.4.4],[http://github.com/libffi/libffi/issues])
 AC_CONFIG_HEADERS([fficonfig.h])
 
 AC_CANONICAL_TARGET
@@ -124,20 +124,7 @@ AC_SUBST(HAVE_LONG_DOUBLE_VARIANT)
 
 AC_C_BIGENDIAN
 
-AC_CACHE_CHECK([compiler generates .cfi pseudo-ops],
-  gcc_cv_cc_cfi_pseudo_op, [
-	gcc_cv_cc_cfi_pseudo_op=no
-	echo 'void foo(void) { foo(); }' > conftest.c
-	if $CC $CFLAGS -S conftest.c > /dev/null 2>&1; then
-	    if grep -q cfi_startproc conftest.s; then
-	        gcc_cv_cc_cfi_pseudo_op=yes
-            fi
-	fi
-	])
-if test "x$gcc_cv_cc_cfi_pseudo_op" = xyes; then
-   AC_DEFINE(HAVE_AS_CFI_PSEUDO_OP, 1,
-      [Define if your assembler supports .cfi_* directives.])
-fi
+GCC_AS_CFI_PSEUDO_OP
 
 case "$TARGET" in
   SPARC)
@@ -294,7 +281,7 @@ if test "x$GCC" = "xyes"; then
   	libffi_cv_ro_eh_frame=yes
   	echo 'extern void foo (void); void bar (void) { foo (); foo (); }' > conftest.c
   	if $CC $CFLAGS -c -fpic -fexceptions $libffi_cv_no_lto -o conftest.o conftest.c > /dev/null 2>&1; then
-	    if $READELF -WS conftest.o | grep -q -n 'eh_frame .* WA'; then
+	    if $READELF -WS conftest.o 2>/dev/null | grep -q -n 'eh_frame .* WA'; then
 	        libffi_cv_ro_eh_frame=no
 	    fi
   	fi
