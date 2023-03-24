@@ -17,6 +17,16 @@ How to update the SQLite source code in this branch:
 
 4. Unpack the amalgamation source code and commit the changes.
 
+   ```console
+   # Example with SQLite 3.41.2
+   $ git commit -a -m "Add SQLite 3.41.2 sources"
+   ```
+
 5. Tag the new commit.
 
-6. Push
+   ```console
+   # The fourth number is unused, but kept for compatibility with the build scripts
+   $ git tag -sam "SQLite 3.41.2" sqlite-3.41.2.0
+   ```
+
+6. Push changes (including tags) upstream.
