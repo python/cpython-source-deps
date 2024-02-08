@@ -50,13 +50,14 @@ the release management team to create those builds.
 Download links
 --------------
 
-- ``sqlite``: https://www.sqlite.org/download.html
 - ``bzip2``: https://www.sourceware.org/bzip2/downloads.html
+- ``libffi`` : https://github.com/libffi/libffi
+- ``mpdecimal`` : https://www.bytereef.org/mpdecimal/download.html
+- ``openssl``: https://www.openssl.org/source/
+- ``sqlite``: https://www.sqlite.org/download.html
+- ``tcl``/``tk``: https://tcl.tk/software/tcltk/download.html
 - ``xz``: https://tukaani.org/xz/
 - ``zlib``: https://zlib.net/
-- ``tcl``/``tk``: https://tcl.tk/software/tcltk/download.html
-- ``openssl``: https://www.openssl.org/source/
-- ``libffi`` : https://github.com/libffi/libffi
 
 Tagging the commit
 ------------------
