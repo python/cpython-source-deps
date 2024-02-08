@@ -56,7 +56,7 @@ Download links
 - ``openssl``: https://www.openssl.org/source/
 - ``sqlite``: https://www.sqlite.org/download.html
 - ``tcl``/``tk``: https://tcl.tk/software/tcltk/download.html
-- ``xz``: https://tukaani.org/xz/
+- ``xz``: https://xz.tukaani.org/xz-utils/
 - ``zlib``: https://zlib.net/
 
 Tagging the commit
