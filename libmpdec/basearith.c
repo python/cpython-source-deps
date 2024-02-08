@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2020 Stefan Krah. All rights reserved.
+ * Copyright (c) 2008-2024 Stefan Krah. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -7,12 +7,11 @@
  *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
- *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS "AS IS" AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
  * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
@@ -26,13 +25,12 @@
  */
 
 
-#include "mpdecimal.h"
-
 #include <assert.h>
 #include <stdio.h>
 
 #include "basearith.h"
 #include "constants.h"
+#include "mpdecimal.h"
 #include "typearith.h"
 
 
@@ -40,11 +38,10 @@
 /*                   Calculations in base MPD_RADIX                  */
 /*********************************************************************/
 
-
 /*
  * Knuth, TAOCP, Volume 2, 4.3.1:
- *    w := sum of u (len m) and v (len n)
- *    n > 0 and m >= n
+ *     w := sum of u (len m) and v (len n)
+ *     n > 0 and m >= n
  * The calling function has to handle a possible final carry.
  */
 mpd_uint_t
@@ -337,7 +334,6 @@ _mpd_basedivmod(mpd_uint_t *q, mpd_uint_t *r,
 
     /* D2: loop */
     for (j=m; j != MPD_SIZE_MAX; j--) {
-        assert(2 <= j+n && j+n <= nplusm); /* annotation for scan-build */
 
         /* D3: calculate qhat and rhat */
         rhat = _mpd_shortdiv(w2, u+j+n-1, 2, v[n-1]);
@@ -417,11 +413,10 @@ return retval;
  *                 = q * rdigits + r + qsrc * rdigits + msdigits
  *                 = q * rdigits + (qsrc * rdigits + (r + msdigits))
  *
- *  The result has q zero words, followed by the coefficient that
- *  is left-shifted by r. The case r == 0 is trivial. For r > 0, it
- *  is important to keep in mind that we always read m source words,
- *  but write m+1 destination words if r + msdigits > rdigits, m words
- *  otherwise.
+ *  The result has q zero words, followed by the coefficient that is left-
+ *  shifted by r.  The case r == 0 is trivial. For r > 0, it is important
+ *  to keep in mind that we always read m source words, but write m+1
+ *  destination words if r + msdigits > rdigits, m words otherwise.
  */
 void
 _mpd_baseshiftl(mpd_uint_t *dest, mpd_uint_t *src, mpd_size_t n, mpd_size_t m,
@@ -549,7 +544,6 @@ _mpd_baseshiftr(mpd_uint_t *dest, mpd_uint_t *src, mpd_size_t slen,
     /* 6-9  ==> rnd+rest > 0.5   */
     return (rnd == 0 || rnd == 5) ? rnd + !!rest : rnd;
 }
-
 
 /*********************************************************************/
 /*                      Calculations in base b                       */

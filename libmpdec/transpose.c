@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2020 Stefan Krah. All rights reserved.
+ * Copyright (c) 2008-2024 Stefan Krah. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -7,12 +7,11 @@
  *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
- *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS "AS IS" AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
  * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
@@ -26,16 +25,16 @@
  */
 
 
-#include "mpdecimal.h"
-
 #include <assert.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+
 #include "bits.h"
 #include "constants.h"
+#include "mpdecimal.h"
 #include "transpose.h"
 #include "typearith.h"
 
@@ -45,7 +44,7 @@
 
 
 /* Bignum: The transpose functions are used for very large transforms
-   in sixstep.c and fourstep.c. */
+           in sixstep.c and fourstep.c. */
 
 
 /* Definition of the matrix transpose */
@@ -132,7 +131,7 @@ swap_halfrows_pow2(mpd_uint_t *matrix, mpd_size_t rows, mpd_size_t cols, int dir
                 done[next/dbits] |= mpd_bits[next%dbits];
 
                 next = mulmod_size_t(next, r, m);
-                    hp = matrix + next*cols/2;
+                hp = matrix + next*cols/2;
 
             }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2020 Stefan Krah. All rights reserved.
+ * Copyright (c) 2008-2024 Stefan Krah. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -7,12 +7,11 @@
  *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
- *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS "AS IS" AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
  * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
@@ -25,8 +24,6 @@
  * SUCH DAMAGE.
  */
 
-
-#include "mpdecimal.h"
 
 #include <assert.h>
 #include <limits.h>
@@ -41,7 +38,9 @@
 #include "convolute.h"
 #include "crt.h"
 #include "mpalloc.h"
+#include "mpdecimal.h"
 #include "typearith.h"
+
 
 #ifdef PPRO
   #if defined(_MSC_VER)
@@ -49,14 +48,14 @@
     #pragma float_control(precise, on)
     #pragma fenv_access(on)
   #elif !defined(__OpenBSD__) && !defined(__NetBSD__)
-    /* C99 */
+    /* The C99 standard requires the pragma */
     #include <fenv.h>
     #pragma STDC FENV_ACCESS ON
   #endif
 #endif
 
 
-/* Disable warning that is part of -Wextra since gcc 7.0. */
+/* Disable warning that is part of -Wextra since gcc 7.0 */
 #if defined(__GNUC__) && !defined(__INTEL_COMPILER) && __GNUC__ >= 7
   #pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
 #endif
@@ -64,7 +63,7 @@
 
 #if defined(_MSC_VER)
   #define ALWAYS_INLINE __forceinline
-#elif defined (__IBMC__) || defined(LEGACY_COMPILER)
+#elif defined (__IBMC__) || defined(__COMPCERT__) || defined(LEGACY_COMPILER)
   #define ALWAYS_INLINE
   #undef inline
   #define inline
@@ -72,7 +71,7 @@
   #ifdef TEST_COVERAGE
     #define ALWAYS_INLINE
   #else
-    #define ALWAYS_INLINE inline __attribute__ ((always_inline))
+    #define ALWAYS_INLINE inline
   #endif
 #endif
 
@@ -516,7 +515,7 @@ mpd_qresize(mpd_t *result, mpd_ssize_t nwords, uint32_t *status)
     return mpd_realloc_dyn(result, nwords, status);
 }
 
-/* Same as mpd_qresize, but do not set the result no NaN on failure. */
+/* Same as mpd_qresize, but do not set the result to NaN on failure. */
 static ALWAYS_INLINE int
 mpd_qresize_cxx(mpd_t *result, mpd_ssize_t nwords)
 {
@@ -1275,19 +1274,20 @@ void
 mpd_qset_i64_exact(mpd_t *result, int64_t a, uint32_t *status)
 {
     mpd_context_t maxcontext;
+    uint32_t workstatus = 0;
 
     mpd_maxcontext(&maxcontext);
 #ifdef CONFIG_64
-    mpd_qset_ssize(result, a, &maxcontext, status);
+    mpd_qset_ssize(result, a, &maxcontext, &workstatus);
 #else
-    _c32_qset_i64(result, a, &maxcontext, status);
+    _c32_qset_i64(result, a, &maxcontext, &workstatus);
 #endif
 
-    if (*status & (MPD_Inexact|MPD_Rounded|MPD_Clamped)) {
+    if (workstatus & (MPD_Inexact|MPD_Rounded|MPD_Clamped)) {
         /* we want exact results */
-        mpd_seterror(result, MPD_Invalid_operation, status);
+        mpd_seterror(result, MPD_Invalid_operation, status); /* GCOV_NOT_REACHED */
     }
-    *status &= MPD_Errors;
+    *status |= (workstatus&MPD_Errors);
 }
 
 /* quietly set a decimal from a uint64_t */
@@ -1307,19 +1307,20 @@ void
 mpd_qset_u64_exact(mpd_t *result, uint64_t a, uint32_t *status)
 {
     mpd_context_t maxcontext;
+    uint32_t workstatus = 0;
 
     mpd_maxcontext(&maxcontext);
 #ifdef CONFIG_64
-    mpd_qset_uint(result, a, &maxcontext, status);
+    mpd_qset_uint(result, a, &maxcontext, &workstatus);
 #else
-    _c32_qset_u64(result, a, &maxcontext, status);
+    _c32_qset_u64(result, a, &maxcontext, &workstatus);
 #endif
 
-    if (*status & (MPD_Inexact|MPD_Rounded|MPD_Clamped)) {
+    if (workstatus & (MPD_Inexact|MPD_Rounded|MPD_Clamped)) {
         /* we want exact results */
-        mpd_seterror(result, MPD_Invalid_operation, status);
+        mpd_seterror(result, MPD_Invalid_operation, status); /* GCOV_NOT_REACHED */
     }
-    *status &= MPD_Errors;
+    *status |= (workstatus&MPD_Errors);
 }
 #endif /* !LEGACY_COMPILER */
 
@@ -1424,7 +1425,7 @@ mpd_qget_ssize(const mpd_t *a, uint32_t *status)
     if (u <= MPD_SSIZE_MAX) {
         return isneg ? -((mpd_ssize_t)u) : (mpd_ssize_t)u;
     }
-    else if (isneg && u+(MPD_SSIZE_MIN+MPD_SSIZE_MAX) == MPD_SSIZE_MAX) {
+    else if (isneg && u+(mpd_uint_t)(MPD_SSIZE_MIN+MPD_SSIZE_MAX) == MPD_SSIZE_MAX) {
         return MPD_SSIZE_MIN;
     }
 
@@ -1508,7 +1509,7 @@ _c32_qget_i64(const mpd_t *a, uint32_t *status)
     if (u <= INT64_MAX) {
         return isneg ? -((int64_t)u) : (int64_t)u;
     }
-    else if (isneg && u+(INT64_MIN+INT64_MAX) == INT64_MAX) {
+    else if (isneg && u+(uint64_t)(INT64_MIN+INT64_MAX) == INT64_MAX) {
         return INT64_MIN;
     }
 
@@ -3919,8 +3920,9 @@ mpd_qdiv(mpd_t *q, const mpd_t *a, const mpd_t *b,
          *   log10(a_coeff) + log10(b_coeff) / log10(2) <=
          *   a->digits + b->digits * 4;
          */
-        mpd_context_t workctx = *ctx;
         uint32_t ystatus = 0;
+        mpd_context_t workctx;
+        mpd_workcontext(&workctx, ctx);
 
         workctx.prec = a->digits + b->digits * 4;
         if (workctx.prec >= ctx->prec) {
@@ -4378,7 +4380,7 @@ _mpd_get_exp_iterations(const mpd_t *r, mpd_ssize_t p)
  *  - The analysis for early abortion has been adapted for the mpd_t
  *    ranges.
  */
-static void
+static int
 _mpd_qexp(mpd_t *result, const mpd_t *a, const mpd_context_t *ctx,
           uint32_t *status)
 {
@@ -4392,7 +4394,7 @@ _mpd_qexp(mpd_t *result, const mpd_t *a, const mpd_context_t *ctx,
 
     if (mpd_iszerocoeff(a)) {
         _settriple(result, MPD_POS, 1, 0);
-        return;
+        return 1;
     }
 
     /*
@@ -4425,12 +4427,12 @@ _mpd_qexp(mpd_t *result, const mpd_t *a, const mpd_context_t *ctx,
             *status |= (MPD_Inexact|MPD_Rounded|MPD_Subnormal|
                         MPD_Underflow|MPD_Clamped);
         }
-        return;
+        return 1;
     }
 
     /* abs(a) <= 9 * 10**(-prec-1) */
     if (_mpd_qexp_check_one(result, a, ctx, status)) {
-        return;
+        return 1;
     }
 
     mpd_maxcontext(&workctx);
@@ -4439,7 +4441,7 @@ _mpd_qexp(mpd_t *result, const mpd_t *a, const mpd_context_t *ctx,
     workctx.round = MPD_ROUND_HALF_EVEN;
 
     if (!mpd_qcopy(result, a, status)) {
-        return;
+        return 1;
     }
     result->exp -= t;
 
@@ -4453,7 +4455,7 @@ _mpd_qexp(mpd_t *result, const mpd_t *a, const mpd_context_t *ctx,
     n = _mpd_get_exp_iterations(result, workctx.prec);
     if (n == MPD_SSIZE_MAX) {
         mpd_seterror(result, MPD_Invalid_operation, status); /* GCOV_UNLIKELY */
-        return; /* GCOV_UNLIKELY */
+        return 1; /* GCOV_UNLIKELY */
     }
 
     _settriple(&sum, MPD_POS, 1, 0);
@@ -4483,6 +4485,8 @@ _mpd_qexp(mpd_t *result, const mpd_t *a, const mpd_context_t *ctx,
     mpd_del(&sum);
     *status |= (workctx.status&MPD_Errors);
     *status |= (MPD_Inexact|MPD_Rounded);
+
+    return 0;
 }
 
 /* exp(a) */
@@ -4509,17 +4513,17 @@ mpd_qexp(mpd_t *result, const mpd_t *a, const mpd_context_t *ctx,
         return;
     }
 
-    workctx = *ctx;
+    mpd_workcontext(&workctx, ctx);
     workctx.round = MPD_ROUND_HALF_EVEN;
 
     if (ctx->allcr) {
-        MPD_NEW_STATIC(t1, 0,0,0,0);
-        MPD_NEW_STATIC(t2, 0,0,0,0);
+        MPD_NEW_STATIC(hi, 0,0,0,0);
+        MPD_NEW_STATIC(lo, 0,0,0,0);
         MPD_NEW_STATIC(ulp, 0,0,0,0);
         MPD_NEW_STATIC(aa, 0,0,0,0);
+        uint32_t loop_protect = 0;
         mpd_ssize_t prec;
         mpd_ssize_t ulpexp;
-        uint32_t workstatus;
 
         if (result == a) {
             if (!mpd_qcopy(&aa, a, status)) {
@@ -4532,14 +4536,30 @@ mpd_qexp(mpd_t *result, const mpd_t *a, const mpd_context_t *ctx,
         workctx.clamp = 0;
         prec = ctx->prec + 3;
         while (1) {
-            workctx.prec = prec;
-            workstatus = 0;
+            uint32_t status_res = 0;
+            uint32_t status_hi = 0;
+            uint32_t status_lo = 0;
+            int shortcut;
+            int bounds_eq;
+            int subnormal_eq;
 
-            _mpd_qexp(result, a, &workctx, &workstatus);
-            *status |= workstatus;
+            workctx.prec = prec;
+            shortcut = _mpd_qexp(result, a, &workctx, &status_res);
+            if (mpd_isnan(result)) {
+                mpd_seterror(result, status_res, status);
+                break;
+            }
+            if (shortcut || mpd_isinfinite(result) || mpd_iszero(result)) {
+                *status |= status_res;
+                workctx.prec = ctx->prec;
+                workctx.clamp = ctx->clamp;
+                _mpd_zeropad(result, &workctx, status);
+                mpd_qfinalize(result, &workctx, status);
+                break;
+            }
 
             ulpexp = result->exp + result->digits - workctx.prec;
-            if (workstatus & MPD_Underflow) {
+            if (status_res & MPD_Underflow) {
                 /* The effective work precision is result->digits. */
                 ulpexp = result->exp;
             }
@@ -4559,20 +4579,46 @@ mpd_qexp(mpd_t *result, const mpd_t *a, const mpd_context_t *ctx,
              *     error for a similar argument.
              */
             workctx.prec = ctx->prec;
-            mpd_qadd(&t1, result, &ulp, &workctx, &workctx.status);
-            mpd_qsub(&t2, result, &ulp, &workctx, &workctx.status);
-            if (mpd_isspecial(result) || mpd_iszerocoeff(result) ||
-                mpd_qcmp(&t1, &t2, status) == 0) {
+            mpd_qadd(&hi, result, &ulp, &workctx, &status_hi);
+            mpd_qsub(&lo, result, &ulp, &workctx, &status_lo);
+            if (mpd_isnan(&hi) || mpd_isnan(&lo)) {
+                mpd_seterror(result, status_hi|status_lo, status);
+                break;
+            }
+
+            subnormal_eq = (status_hi&MPD_Subnormal) == (status_lo&MPD_Subnormal);
+            bounds_eq = mpd_qcmp(&hi, &lo, status) == 0;
+            if (bounds_eq && ++loop_protect > 5) {
+                /* If the bounds are equal, the result is always correctly rounded.
+
+                   Resolving the subnormal status can take more iterations (around
+                   three) in extremely rare cases. 'hi' and 'lo' are so close that
+                   subnormal/underflow is largely cosmetic, so allow a maximum of
+                   five additional iterations. */
+                subnormal_eq = 1; /* GCOV_NOT_REACHED */
+            }
+
+            if (subnormal_eq && bounds_eq) {
+                *status |= status_lo;
                 workctx.clamp = ctx->clamp;
                 _mpd_zeropad(result, &workctx, status);
-                mpd_check_underflow(result, &workctx, status);
                 mpd_qfinalize(result, &workctx, status);
                 break;
             }
-            prec += MPD_RDIGITS;
+
+            if (subnormal_eq) {
+                prec += MPD_RDIGITS;
+            }
+            else {
+                prec *= 2;
+            }
+            if (prec > MPD_MAX_PREC) {
+                mpd_seterror(result, MPD_Invalid_operation, status);
+                break;
+            }
         }
-        mpd_del(&t1);
-        mpd_del(&t2);
+        mpd_del(&hi);
+        mpd_del(&lo);
         mpd_del(&ulp);
         mpd_del(&aa);
     }
@@ -4838,7 +4884,7 @@ static const uint16_t lnapprox[900] = {
  * Internal ln() function that does not check for specials, zero or one.
  * Relative error: abs(result - log(a)) < 0.1 * 10**-prec * abs(log(a))
  */
-static void
+static int
 _mpd_qln(mpd_t *result, const mpd_t *a, const mpd_context_t *ctx,
          uint32_t *status)
 {
@@ -4851,6 +4897,7 @@ _mpd_qln(mpd_t *result, const mpd_t *a, const mpd_context_t *ctx,
     mpd_ssize_t maxprec, shift, t;
     mpd_ssize_t a_digits, a_exp;
     mpd_uint_t dummy, x;
+    int ret = 1;
     int i;
 
     assert(!mpd_isspecial(a) && !mpd_iszerocoeff(a));
@@ -4997,12 +5044,14 @@ _mpd_qln(mpd_t *result, const mpd_t *a, const mpd_context_t *ctx,
     mpd_qmul_ssize(&tmp, &v, t, &maxcontext, status);
     mpd_qadd(result, &tmp, z, &maxcontext, status);
 
+    ret = 0;
 
 finish:
     *status |= (MPD_Inexact|MPD_Rounded);
     mpd_del(&v);
     mpd_del(&vtmp);
     mpd_del(&tmp);
+    return ret;
 }
 
 /* ln(a) */
@@ -5066,14 +5115,15 @@ mpd_qln(mpd_t *result, const mpd_t *a, const mpd_context_t *ctx,
         return;
     }
 
-    workctx = *ctx;
+    mpd_workcontext(&workctx, ctx);
     workctx.round = MPD_ROUND_HALF_EVEN;
 
     if (ctx->allcr) {
-        MPD_NEW_STATIC(t1, 0,0,0,0);
-        MPD_NEW_STATIC(t2, 0,0,0,0);
+        MPD_NEW_STATIC(hi, 0,0,0,0);
+        MPD_NEW_STATIC(lo, 0,0,0,0);
         MPD_NEW_STATIC(ulp, 0,0,0,0);
         MPD_NEW_STATIC(aa, 0,0,0,0);
+        uint32_t loop_protect = 0;
         mpd_ssize_t prec;
 
         if (result == a) {
@@ -5087,25 +5137,70 @@ mpd_qln(mpd_t *result, const mpd_t *a, const mpd_context_t *ctx,
         workctx.clamp = 0;
         prec = ctx->prec + 3;
         while (1) {
+            uint32_t status_res = 0;
+            uint32_t status_hi = 0;
+            uint32_t status_lo = 0;
+            int shortcut;
+            int bounds_eq;
+            int subnormal_eq;
+
             workctx.prec = prec;
-            _mpd_qln(result, a, &workctx, status);
+            shortcut = _mpd_qln(result, a, &workctx, &status_res);
+            if (mpd_isnan(result)) {
+                mpd_seterror(result, status_res, status);
+                break;
+            }
+            if (shortcut || mpd_isinfinite(result) || mpd_iszero(result)) {
+                *status |= status_res;
+                workctx.prec = ctx->prec;
+                workctx.clamp = ctx->clamp;
+                mpd_qfinalize(result, &workctx, status);
+                break;
+            }
+
             _ssettriple(&ulp, MPD_POS, 1,
                         result->exp + result->digits-workctx.prec);
 
             workctx.prec = ctx->prec;
-            mpd_qadd(&t1, result, &ulp, &workctx, &workctx.status);
-            mpd_qsub(&t2, result, &ulp, &workctx, &workctx.status);
-            if (mpd_isspecial(result) || mpd_iszerocoeff(result) ||
-                mpd_qcmp(&t1, &t2, status) == 0) {
+            mpd_qadd(&hi, result, &ulp, &workctx, &status_hi);
+            mpd_qsub(&lo, result, &ulp, &workctx, &status_lo);
+            if (mpd_isnan(&hi) || mpd_isnan(&lo)) {
+                mpd_seterror(result, status_hi|status_lo, status);
+                break;
+            }
+            subnormal_eq = (status_hi&MPD_Subnormal) == (status_lo&MPD_Subnormal);
+            bounds_eq = mpd_qcmp(&hi, &lo, status) == 0;
+            if (bounds_eq && ++loop_protect > 5) {
+                /* If the bounds are equal, the result is always correctly rounded.
+
+                   Resolving the subnormal status can take more iterations (around
+                   three) in extremely rare cases. 'hi' and 'lo' are so close that
+                   subnormal/underflow is largely cosmetic, so allow a maximum of
+                   five additional iterations. */
+                subnormal_eq = 1; /* GCOV_NOT_REACHED */
+            }
+
+            if (subnormal_eq && bounds_eq) {
+                *status |= status_lo;
                 workctx.clamp = ctx->clamp;
-                mpd_check_underflow(result, &workctx, status);
                 mpd_qfinalize(result, &workctx, status);
                 break;
             }
-            prec += MPD_RDIGITS;
+
+            if (subnormal_eq) {
+                prec += MPD_RDIGITS;
+            }
+            else {
+                prec *= 2;
+            }
+
+            if (prec > MPD_MAX_PREC) {
+                mpd_seterror(result, MPD_Invalid_operation, status);
+                break;
+            }
         }
-        mpd_del(&t1);
-        mpd_del(&t2);
+        mpd_del(&hi);
+        mpd_del(&lo);
         mpd_del(&ulp);
         mpd_del(&aa);
     }
@@ -5124,29 +5219,31 @@ mpd_qln(mpd_t *result, const mpd_t *a, const mpd_context_t *ctx,
  *   Ulp error: abs(result - log10(a)) < ulp(log10(a))
  */
 enum {SKIP_FINALIZE, DO_FINALIZE};
-static void
+static int
 _mpd_qlog10(int action, mpd_t *result, const mpd_t *a,
             const mpd_context_t *ctx, uint32_t *status)
 {
     mpd_context_t workctx;
     MPD_NEW_STATIC(ln10,0,0,0,0);
+    int ret;
 
     mpd_maxcontext(&workctx);
     workctx.prec = ctx->prec + 3;
     /* relative error: 0.1 * 10**(-p-3). The specific underflow shortcut
      * in _mpd_qln() does not change the final result. */
-    _mpd_qln(result, a, &workctx, status);
+    ret = _mpd_qln(result, a, &workctx, status);
     /* relative error: 5 * 10**(-p-3) */
     mpd_qln10(&ln10, workctx.prec, status);
 
     if (action == DO_FINALIZE) {
-        workctx = *ctx;
+        mpd_workcontext(&workctx, ctx);
         workctx.round = MPD_ROUND_HALF_EVEN;
     }
     /* SKIP_FINALIZE: relative error: 5 * 10**(-p-3) */
     _mpd_qdiv(NO_IDEAL_EXP, result, result, &ln10, &workctx, status);
 
     mpd_del(&ln10);
+    return ret;
 }
 
 /* log10(a) */
@@ -5157,7 +5254,7 @@ mpd_qlog10(mpd_t *result, const mpd_t *a, const mpd_context_t *ctx,
     mpd_context_t workctx;
     mpd_ssize_t adjexp, t;
 
-    workctx = *ctx;
+    mpd_workcontext(&workctx, ctx);
     workctx.round = MPD_ROUND_HALF_EVEN;
 
     if (mpd_isspecial(a)) {
@@ -5219,10 +5316,11 @@ mpd_qlog10(mpd_t *result, const mpd_t *a, const mpd_context_t *ctx,
     }
 
     if (ctx->allcr) {
-        MPD_NEW_STATIC(t1, 0,0,0,0);
-        MPD_NEW_STATIC(t2, 0,0,0,0);
+        MPD_NEW_STATIC(hi, 0,0,0,0);
+        MPD_NEW_STATIC(lo, 0,0,0,0);
         MPD_NEW_STATIC(ulp, 0,0,0,0);
         MPD_NEW_STATIC(aa, 0,0,0,0);
+        uint32_t loop_protect = 0;
         mpd_ssize_t prec;
 
         if (result == a) {
@@ -5236,25 +5334,70 @@ mpd_qlog10(mpd_t *result, const mpd_t *a, const mpd_context_t *ctx,
         workctx.clamp = 0;
         prec = ctx->prec + 3;
         while (1) {
+            uint32_t status_res = 0;
+            uint32_t status_hi = 0;
+            uint32_t status_lo = 0;
+            int shortcut;
+            int bounds_eq;
+            int subnormal_eq;
+
             workctx.prec = prec;
-            _mpd_qlog10(SKIP_FINALIZE, result, a, &workctx, status);
+            shortcut = _mpd_qlog10(SKIP_FINALIZE, result, a, &workctx, &status_res);
+            if (mpd_isnan(result)) {
+                mpd_seterror(result, status_res, status);
+                break;
+            }
+            if (shortcut || mpd_isinfinite(result) || mpd_iszero(result)) {
+                *status |= status_res;
+                workctx.prec = ctx->prec;
+                workctx.clamp = ctx->clamp;
+                mpd_qfinalize(result, &workctx, status);
+                break;
+            }
+
             _ssettriple(&ulp, MPD_POS, 1,
                         result->exp + result->digits-workctx.prec);
 
             workctx.prec = ctx->prec;
-            mpd_qadd(&t1, result, &ulp, &workctx, &workctx.status);
-            mpd_qsub(&t2, result, &ulp, &workctx, &workctx.status);
-            if (mpd_isspecial(result) || mpd_iszerocoeff(result) ||
-                mpd_qcmp(&t1, &t2, status) == 0) {
+            mpd_qadd(&hi, result, &ulp, &workctx, &status_hi);
+            mpd_qsub(&lo, result, &ulp, &workctx, &status_lo);
+            if (mpd_isnan(&hi) || mpd_isnan(&lo)) {
+                mpd_seterror(result, status_hi|status_lo, status);
+                break;
+            }
+            subnormal_eq = (status_hi&MPD_Subnormal) == (status_lo&MPD_Subnormal);
+            bounds_eq = mpd_qcmp(&hi, &lo, status) == 0;
+            if (bounds_eq && ++loop_protect > 5) {
+                /* If the bounds are equal, the result is always correctly rounded.
+
+                   Resolving the subnormal status can take more iterations (around
+                   three) in extremely rare cases. 'hi' and 'lo' are so close that
+                   subnormal/underflow is largely cosmetic, so allow a maximum of
+                   five additional iterations. */
+                subnormal_eq = 1; /* GCOV_NOT_REACHED */
+            }
+
+            if (subnormal_eq && bounds_eq) {
+                *status |= status_lo;
                 workctx.clamp = ctx->clamp;
-                mpd_check_underflow(result, &workctx, status);
                 mpd_qfinalize(result, &workctx, status);
                 break;
             }
-            prec += MPD_RDIGITS;
+
+            if (subnormal_eq) {
+                prec += MPD_RDIGITS;
+            }
+            else {
+                prec *= 2;
+            }
+
+            if (prec > MPD_MAX_PREC) {
+                mpd_seterror(result, MPD_Invalid_operation, status);
+                break;
+            }
         }
-        mpd_del(&t1);
-        mpd_del(&t2);
+        mpd_del(&hi);
+        mpd_del(&lo);
         mpd_del(&ulp);
         mpd_del(&aa);
     }
@@ -7359,7 +7502,8 @@ void
 mpd_qfloor(mpd_t *result, const mpd_t *a, const mpd_context_t *ctx,
            uint32_t *status)
 {
-    mpd_context_t workctx = *ctx;
+    mpd_context_t workctx;
+    mpd_workcontext(&workctx, ctx);
 
     if (mpd_isspecial(a)) {
         mpd_seterror(result, MPD_Invalid_operation, status);
@@ -7375,7 +7519,8 @@ void
 mpd_qceil(mpd_t *result, const mpd_t *a, const mpd_context_t *ctx,
           uint32_t *status)
 {
-    mpd_context_t workctx = *ctx;
+    mpd_context_t workctx;
+    mpd_workcontext(&workctx, ctx);
 
     if (mpd_isspecial(a)) {
         mpd_seterror(result, MPD_Invalid_operation, status);
@@ -7876,7 +8021,7 @@ mpd_qinvroot(mpd_t *result, const mpd_t *a, const mpd_context_t *ctx,
         return;
     }
 
-    workctx = *ctx;
+    mpd_workcontext(&workctx, ctx);
     workctx.prec += 2;
     workctx.round = MPD_ROUND_HALF_EVEN;
     _mpd_qinvroot(result, a, &workctx, status);
@@ -8009,7 +8154,7 @@ out:
     mpd_del(&c);
     mpd_del(&q);
     mpd_del(&r);
-    maxcontext = *ctx;
+    mpd_workcontext(&maxcontext, ctx);
     maxcontext.round = MPD_ROUND_HALF_EVEN;
     mpd_qfinalize(result, &maxcontext, status);
     return;
@@ -8047,7 +8192,8 @@ mpd_qsqrt(mpd_t *result, const mpd_t *a, const mpd_context_t *ctx,
          * NOTE: sqrt(40e9) = 2.0e+5 /\ digits(40e9) = digits(2.0e+5) = 2
          */
         uint32_t ystatus = 0;
-        mpd_context_t workctx = *ctx;
+        mpd_context_t workctx;
+        mpd_workcontext(&workctx, ctx);
 
         workctx.prec = a->digits;
         if (workctx.prec >= ctx->prec) {
@@ -8661,7 +8807,7 @@ mpd_qimport_u32(mpd_t *result,
 /*                                From triple                                 */
 /******************************************************************************/
 
-#if defined(CONFIG_64) && defined(__SIZEOF_INT128__)
+#if defined(CONFIG_64) && defined(__SIZEOF_INT128__) && !defined(_MSC_VER)
 static mpd_ssize_t
 _set_coeff(uint64_t data[3], uint64_t hi, uint64_t lo)
 {
@@ -8745,7 +8891,7 @@ _set_uint128_coeff_exp(mpd_t *result, uint64_t hi, uint64_t lo, mpd_ssize_t exp)
     uint32_t status = 0;
     mpd_ssize_t len;
 
-#if defined(CONFIG_64) && defined(__SIZEOF_INT128__)
+#if defined(CONFIG_64) && defined(__SIZEOF_INT128__) && !defined(_MSC_VER)
     len = _set_coeff(data, hi, lo);
 #else
     len = _set_coeff(data, 5, hi, lo);
@@ -8869,7 +9015,7 @@ malloc_error:
 /*                                  As triple                                 */
 /******************************************************************************/
 
-#if defined(CONFIG_64) && defined(__SIZEOF_INT128__)
+#if defined(CONFIG_64) && defined(__SIZEOF_INT128__) && !defined(_MSC_VER)
 static void
 _get_coeff(uint64_t *hi, uint64_t *lo, const mpd_t *a)
 {

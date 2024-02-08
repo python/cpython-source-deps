@@ -6,4 +6,3 @@ Directory for shared object files
 
    symbols64.exp ==> 64-bit libmpdec API
 
-   libmpdec.imp ==> AIX import file

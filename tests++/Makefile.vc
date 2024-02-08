@@ -1,32 +1,35 @@
 
 SRCDIR = ..\libmpdec
-LIBSTATIC = libmpdec-2.5.1.lib
-LIBSHARED = libmpdec-2.5.1.dll
-LIBIMPORT = libmpdec-2.5.1.dll.lib
+LIBSTATIC = libmpdec-4.0.0.lib
+LIBSHARED = libmpdec-4.0.0.dll
+LIBIMPORT = libmpdec-4.0.0.dll.lib
 
 SRCDIR_CXX = ..\libmpdec++
-LIBSTATIC_CXX = libmpdec++-2.5.1.lib
-LIBSHARED_CXX = libmpdec++-2.5.1.dll
-LIBIMPORT_CXX = libmpdec++-2.5.1.dll.lib
-
-CXX = cl.exe
+LIBSTATIC_CXX = libmpdec++-4.0.0.lib
+LIBSHARED_CXX = libmpdec++-4.0.0.dll
+LIBIMPORT_CXX = libmpdec++-4.0.0.dll.lib
 
 !if "$(DEBUG)" == "1"
 OPT = /MTd /Od /Zi /EHsc
 OPT_SHARED = /MDd /Od /Zi /EHsc
 !else
-OPT = /MT /Ox /GS /EHsc
-OPT_SHARED = /MD /Ox /GS /EHsc
+OPT = /MT /O2 /GS /EHsc /DNDEBUG
+OPT_SHARED = /MD /O2 /GS /EHsc /DNDEBUG
 !endif
 
-MPD_CXXFLAGS = /W4 /wd4200 /wd4204 /wd4221 /D_CRT_SECURE_NO_WARNINGS /nologo $(OPT)
-MPD_CXXFLAGS_SHARED = /W4 /wd4200 /wd4204 /wd4221 /D_CRT_SECURE_NO_WARNINGS /nologo $(OPT_SHARED)
+!if "$(CC)" == "clang-cl"
+WARN = /W4 /wd4200 /wd4204 /wd4221 /wd4714 -Wno-undefined-inline /D_CRT_SECURE_NO_WARNINGS
+!else
+WARN = /W4 /wd4200 /wd4204 /wd4221 /wd4714 /D_CRT_SECURE_NO_WARNINGS
+!endif
+
+MPD_CXXFLAGS = $(WARN) /nologo $(OPT)
+MPD_CXXFLAGS_SHARED = $(WARN) /nologo $(OPT_SHARED)
 
 
 default: runtest runtest_shared apitest apitest_shared copy_dll
 
 
-# Short test.
 runtest:\
 Makefile runtest.cc test.cc $(SRCDIR)\mpdecimal.h $(SRCDIR_CXX)\decimal.hh test.hh vctest.hh \
 $(SRCDIR)\$(LIBSTATIC) $(SRCDIR_CXX)\$(LIBSTATIC_CXX)
@@ -38,7 +41,6 @@ $(SRCDIR_CXX)\$(LIBIMPORT_CXX) $(SRCDIR)\$(LIBIMPORT)
 	$(CXX) -I$(SRCDIR) -I$(SRCDIR_CXX) $(MPD_CXXFLAGS_SHARED) /Fe:runtest_shared runtest.cc test.cc $(SRCDIR_CXX)\$(LIBIMPORT_CXX) $(SRCDIR)\$(LIBIMPORT)
 
 
-# API test.
 apitest:\
 Makefile apitest.cc test.cc $(SRCDIR)\mpdecimal.h $(SRCDIR_CXX)\decimal.hh test.hh vctest.hh \
 $(SRCDIR_CXX)\$(LIBSTATIC_CXX) $(SRCDIR)\$(LIBSTATIC)
@@ -74,6 +76,4 @@ distclean: FORCE
 	nmake clean
 	-@if exist testdata rd /q /s testdata
 	-@if exist Makefile del Makefile
-
-
 

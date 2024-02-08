@@ -48,7 +48,6 @@ libmpdec++ has been tested on 64/32-bit Linux, 64/32-bit FreeBSD and OpenBSD
 and 64/32-bit Windows.
 
 
-
 Contact: Stefan Krah <skrah@bytereef.org>
 
 

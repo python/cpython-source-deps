@@ -1,13 +1,13 @@
-
+-- Selected test cases to reduce both the archive size and runtime.  For the
+-- large test suite, download the separate mpdecimal-testdata distribution and
+-- replace the testdata_dist directory.
 
 -- Quis custodiet ipsos custodes?
 -- Small sanity check that failures are indeed reported.
 
-
 Precision: 100
 maxExponent: 100000
 minExponent: -100000
-
 
 rt_should_fail000   tosci  918231.131  ->  8123813091.1
 rt_should_fail001   apply  0.0391301  ->  10E+2387432
@@ -109,13 +109,8 @@ rt_should_fail084   shiftleft  10239  5  ->  129
 rt_should_fail085   shiftright  1029  3  ->  32
 rt_should_fail086   baseconv  2130  ->  3432
   
-
 -- status test
 
 rt_should_fail087   divide  10  0  ->  NaN
 rt_should_fail088   power  1E44  1E444444  ->  Infinity
 rt_should_fail089   remaindernear 10 6  ->  -2  Clamped Conversion_syntax Division_by_zero Division_impossible Division_undefined Fpu_error Inexact Invalid_context Invalid_operation Malloc_error Not_implemented Overflow Rounded Subnormal Underflow
- 
-
-
-

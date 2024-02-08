@@ -3,8 +3,11 @@
 #                          Unix Makefile for libmpdec
 # ==============================================================================
 
+ENABLE_STATIC = @ENABLE_STATIC@
 ENABLE_SHARED = @ENABLE_SHARED@
+ENABLE_MINGW = @ENABLE_MINGW@
 
+FPIC = @FPIC@
 LIBSTATIC = @LIBSTATIC@
 LIBNAME = @LIBNAME@
 LIBSONAME = @LIBSONAME@
@@ -15,6 +18,8 @@ LINK_STATIC = @LINK_STATIC@
 LINK_DYNAMIC = @LINK_DYNAMIC@
 
 EXPORTSYMS = @EXPORTSYMS@
+OBJECT_SUFFIX = @OBJECT_SUFFIX@
+COPY = @cp -f $1 $2
 
 CC = @CC@
 LD = @LD@
@@ -23,14 +28,19 @@ RANLIB = @RANLIB@
 MPD_PGEN = @MPD_PGEN@
 MPD_PUSE = @MPD_PUSE@
 MPD_PREC = @MPD_PREC@
-MPD_DPREC = @MPD_DPREC@
+
+# gcc produces a random false positive warning for LTO bytecode in libmpdec.a
+# (see: bench target).  Users of libmpdec.a should not get spurious warnings.
+FILTER_FOR_STATIC = @FILTER_FOR_STATIC@
 
 CONFIGURE_LIBMPDEC_CFLAGS = @CONFIGURE_LIBMPDEC_CFLAGS@
-MPD_CFLAGS = $(strip $(filter-out $(CFLAGS),$(CONFIGURE_LIBMPDEC_CFLAGS)) $(CFLAGS))
-MPD_CFLAGS_SHARED = $(MPD_CFLAGS) -fPIC
+MPD_CFLAGS_COMMON = $(strip $(filter-out $(CFLAGS),$(CONFIGURE_LIBMPDEC_CFLAGS)) $(CFLAGS))
+MPD_CFLAGS_SHARED = $(strip $(filter-out $(FPIC),$(MPD_CFLAGS_COMMON)) $(FPIC))
+MPD_CFLAGS = $(strip $(filter-out $(FILTER_FOR_STATIC),$(MPD_CFLAGS_COMMON)))
 
 CONFIGURE_CFLAGS = @CONFIGURE_CFLAGS@
-MPD_BIN_CFLAGS = $(strip $(filter-out $(CFLAGS),$(CONFIGURE_CFLAGS)) $(CFLAGS))
+MPD_BIN_CFLAGS_SHARED = $(strip $(filter-out $(CFLAGS),$(CONFIGURE_CFLAGS)) $(CFLAGS))
+MPD_BIN_CFLAGS = $(strip $(filter-out $(FILTER_FOR_STATIC),$(MPD_BIN_CFLAGS_SHARED)))
 
 CONFIGURE_LDFLAGS = @CONFIGURE_LDFLAGS@
 MPD_LDFLAGS = $(strip $(filter-out $(LDFLAGS),$(CONFIGURE_LDFLAGS)) $(LDFLAGS))
@@ -38,23 +48,26 @@ MPD_LDFLAGS = $(strip $(filter-out $(LDFLAGS),$(CONFIGURE_LDFLAGS)) $(LDFLAGS))
 LINK_LIBSTATIC = $(strip $(LINK_STATIC) $(LIBSTATIC) $(LINK_DYNAMIC))
 
 ifeq ($(MAKECMDGOALS), profile_gen)
-  MPD_CFLAGS += $(MPD_PGEN)
-  MPD_BIN_CFLAGS += $(MPD_PGEN)
+  MPD_CFLAGS_COMMON += $(MPD_PGEN)
+  MPD_BIN_CFLAGS_SHARED += $(MPD_PGEN)
   MPD_LDFLAGS += $(MPD_PGEN)
 endif
 ifeq ($(MAKECMDGOALS), profile_use)
-  MPD_CFLAGS += $(MPD_PUSE)
-  MPD_BIN_CFLAGS += $(MPD_PUSE)
+  MPD_CFLAGS_COMMON += $(MPD_PUSE)
+  MPD_BIN_CFLAGS_SHARED += $(MPD_PUSE)
   MPD_LDFLAGS += $(MPD_PUSE)
 endif
 
-
-
-ifeq ($(ENABLE_SHARED), yes)
-default: $(LIBSTATIC) $(LIBSHARED)
-else
-default: $(LIBSTATIC)
+MPD_TARGETS =
+ifeq ($(ENABLE_STATIC), yes)
+    MPD_TARGETS += $(LIBSTATIC)
 endif
+ifeq ($(ENABLE_SHARED), yes)
+    MPD_TARGETS += $(LIBSHARED)
+endif
+
+
+default: $(MPD_TARGETS)
 
 
 OBJS := basearith.o context.o constants.o convolute.o crt.o mpdecimal.o \
@@ -69,13 +82,17 @@ SHARED_OBJS := .objs/basearith.o .objs/context.o .objs/constants.o \
 
 
 ifeq ($(LIBSHARED_USE_AR), yes)
+AR_STATIC_OBJS := $(OBJS:.o=$(OBJECT_SUFFIX))
+AR_SHARED_OBJS := $(LIBSHARED:.o=$(OBJECT_SUFFIX))
+%$(OBJECT_SUFFIX): %.o
+	$(call COPY,$<,$@)
+
 $(LIBSHARED): Makefile $(SHARED_OBJS)
 	cp .objs/$(EXPORTSYMS) .objs/symbols.exp
-	cp .objs/$(LIBIMPORT) .
 	$(LD) $(MPD_LDFLAGS) -o $(LIBSHARED) $(SHARED_OBJS) -lm
 
-$(LIBSTATIC): Makefile $(OBJS) $(LIBSHARED)
-	$(AR) rc $(LIBSTATIC) $(OBJS) $(LIBSHARED)
+$(LIBSTATIC): Makefile $(AR_STATIC_OBJS) $(AR_SHARED_OBJS)
+	$(AR) rc $(LIBSTATIC) $(AR_SHARED_OBJS) $(AR_STATIC_OBJS)
 	$(RANLIB) $(LIBSTATIC)
 else
 $(LIBSTATIC): Makefile $(OBJS)
@@ -84,8 +101,10 @@ $(LIBSTATIC): Makefile $(OBJS)
 
 $(LIBSHARED): Makefile $(SHARED_OBJS)
 	$(LD) $(MPD_LDFLAGS) -o $(LIBSHARED) $(SHARED_OBJS) -lm
+ifeq ($(ENABLE_MINGW), no)
 	ln -sf $(LIBSHARED) $(LIBNAME)
 	ln -sf $(LIBSHARED) $(LIBSONAME)
+endif
 endif
 
 
@@ -98,11 +117,11 @@ Makefile basearith.c mpdecimal.h basearith.h typearith.h constants.h
 	$(CC) $(MPD_CFLAGS_SHARED) -c basearith.c -o .objs/basearith.o
 
 constants.o:\
-Makefile constants.c mpdecimal.h constants.h
+Makefile constants.c mpdecimal.h basearith.h typearith.h constants.h
 	$(CC) $(MPD_CFLAGS) -c constants.c
 
 .objs/constants.o:\
-Makefile constants.c mpdecimal.h constants.h
+Makefile constants.c mpdecimal.h basearith.h typearith.h constants.h
 	$(CC) $(MPD_CFLAGS_SHARED) -c constants.c -o .objs/constants.o
 
 context.o:\
@@ -228,17 +247,17 @@ typearith.h
 	$(CC) $(MPD_CFLAGS_SHARED) -c transpose.c -o .objs/transpose.o
 
 
-bench: bench.c $(LIBSTATIC)
+bench: bench.c mpdecimal.h $(LIBSTATIC)
 	$(CC) $(MPD_BIN_CFLAGS) -o bench bench.c $(LINK_LIBSTATIC) -lm
 
-bench_full: bench_full.c $(LIBSTATIC)
+bench_full: bench_full.c mpdecimal.h $(LIBSTATIC)
 	$(CC) $(MPD_BIN_CFLAGS) -o bench_full bench_full.c $(LINK_LIBSTATIC) -lm
 
-bench_shared: bench.c $(LIBSHARED)
-	$(CC) -L. $(MPD_BIN_CFLAGS) -o bench_shared bench.c -lmpdec -lm
+bench_shared: bench.c mpdecimal.h $(LIBSHARED)
+	$(CC) -L. $(MPD_BIN_CFLAGS_SHARED) -o bench_shared bench.c -lmpdec -lm
 
-bench_full_shared: bench_full.c $(LIBSHARED)
-	$(CC) -L. $(MPD_BIN_CFLAGS) -o bench_full_shared bench_full.c -lmpdec -lm
+bench_full_shared: bench_full.c mpdecimal.h $(LIBSHARED)
+	$(CC) -L. $(MPD_BIN_CFLAGS_SHARED) -o bench_full_shared bench_full.c -lmpdec -lm
 
 
 pow: Makefile examples/pow.c $(LIBSTATIC)
@@ -250,34 +269,29 @@ sqrt: Makefile examples/sqrt.c $(LIBSTATIC)
 examples: pow sqrt
 
 
+GEN_TARGETS =
+ifeq ($(ENABLE_STATIC), yes)
+GEN_TARGETS += bench_full
+endif
 ifeq ($(ENABLE_SHARED), yes)
-profile_gen: clean bench_full bench_shared
-	./bench_full $(MPD_PREC) 1000
-	./bench_full $(MPD_DPREC) 1000
-	LD_32_LIBRARY_PATH=. LD_LIBRARY_PATH=. ./bench_shared $(MPD_PREC) 1000000
-	LD_32_LIBRARY_PATH=. LD_LIBRARY_PATH=. ./bench_shared $(MPD_DPREC) 1000000
-	rm -f *.o *.gch .objs/*.o .objs/*.gch bench_full bench_shared
-	rm -f $(LIBSTATIC) $(LIBSHARED) $(LIBSONAME) $(LIBNAME)
-
-profile_use: bench_full bench_shared
-	./bench_full $(MPD_PREC) 1000
-	./bench_full $(MPD_DPREC) 1000
-	LD_32_LIBRARY_PATH=. LD_LIBRARY_PATH=. ./bench_shared $(MPD_PREC) 1000000
-	LD_32_LIBRARY_PATH=. LD_LIBRARY_PATH=. ./bench_shared $(MPD_DPREC) 1000000
-else
-profile_gen: clean bench_full
-	./bench_full $(MPD_PREC) 1000
-	./bench_full $(MPD_DPREC) 1000
-	rm -f *.o *.gch .objs/*.o .objs/*.gch bench_full
-	rm -f $(LIBSTATIC)
-
-profile_use: bench_full
-	./bench_full $(MPD_PREC) 1000
-	./bench_full $(MPD_DPREC) 1000
+GEN_TARGETS += bench_shared
 endif
 
+profile_gen: $(GEN_TARGETS)
+	./.profile/train.sh $(MPD_PREC)
+
+profile_clean:
+	rm -f *.o *.so *.gch
+	rm -f bench bench_shared bench_full bench_full_shared pow sqrt
+	rm -f $(LIBSTATIC) $(LIBNAME) $(LIBSONAME) $(LIBSHARED) $(LIBIMPORT)
+	cd .objs && rm -f *.o *.so *.gch symbols.exp
+
+profile_use: default
+
 profile:
+	$(MAKE) clean
 	$(MAKE) profile_gen
+	$(MAKE) profile_clean
 	$(MAKE) profile_use
 
 
@@ -293,8 +307,9 @@ check_alloc: default
 
 clean:
 	rm -f *.o *.so *.gch *.gcda *.gcno *.gcov *.dyn *.dpi *.lock
-	rm -f bench bench_shared bench_full bench_full_shared pow sqrt $(LIBSTATIC) $(LIBNAME) $(LIBSONAME) $(LIBSHARED) $(LIBIMPORT)
-	cd .objs && rm -f *.o *.so *.gch *.gcda *.gcno *.gcov *.dyn *.dpi *.lock
+	rm -f bench bench_shared bench_full bench_full_shared pow sqrt
+	rm -f $(LIBSTATIC) $(LIBNAME) $(LIBSONAME) $(LIBSHARED) $(LIBIMPORT)
+	cd .objs && rm -f *.o *.so *.gch *.gcda *.gcno *.gcov *.dyn *.dpi *.lock symbols.exp
 
 distclean: clean
-	rm -f config.h config.log config.status Makefile mpdecimal.h
+	rm -f config.h config.log config.status Makefile mpdecimal.h .pc/libmpdec.pc

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2020 Stefan Krah. All rights reserved.
+ * Copyright (c) 2008-2024 Stefan Krah. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -7,12 +7,11 @@
  *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
- *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS "AS IS" AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
  * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
@@ -26,12 +25,11 @@
  */
 
 
-#include "mpdecimal.h"
-
 #include <assert.h>
 
 #include "constants.h"
 #include "fourstep.h"
+#include "mpdecimal.h"
 #include "numbertheory.h"
 #include "sixstep.h"
 #include "umodarith.h"
@@ -186,13 +184,6 @@ four_step_fnt(mpd_uint_t *a, mpd_size_t n, int modnum)
         }
     }
 
-#if 0
-    /* An unordered transform is sufficient for convolution. */
-    /* Transpose the matrix. */
-    #include "transpose.h"
-    transpose_3xpow2(a, R, C);
-#endif
-
     return 1;
 }
 
@@ -215,14 +206,6 @@ inv_four_step_fnt(mpd_uint_t *a, mpd_size_t n, int modnum)
 
     assert(n >= 48);
     assert(n <= 3*MPD_MAXTRANSFORM_2N);
-
-
-#if 0
-    /* An unordered transform is sufficient for convolution. */
-    /* Transpose the matrix, producing an R*C matrix. */
-    #include "transpose.h"
-    transpose_3xpow2(a, C, R);
-#endif
 
     /* Length C transform on the rows. */
     for (s = a; s < a+n; s += C) {

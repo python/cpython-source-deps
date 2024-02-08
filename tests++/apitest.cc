@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 Stefan Krah. All rights reserved.
+ * Copyright (c) 2020-2024 Stefan Krah. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -7,12 +7,11 @@
  *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
- *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS "AS IS" AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
  * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
@@ -116,7 +115,7 @@ using test::Failure;
 
 
 /******************************************************************************/
-/*            Default Python context (for some generated test cases)          */
+/*                Default context for some generated test cases               */
 /******************************************************************************/
 
 static const Context pycontext{ 28, 999999, -999999, ROUND_HALF_EVEN,
@@ -664,7 +663,31 @@ ExactConstructionTest()
     s = std::string("0E") + std::to_string(INT64_MAX);
     Decimal res = Decimal::exact(s, c);
     assertEqual(c.status(), DecInvalidOperation);
+
+    /* large values */
+    const char *decstring = "9.999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999e425000000";
+    const char *large_exp = "9.999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999e99999999999999999999";
+    Decimal large{decstring};
+
+    c.traps(DecMaxStatus-1);
+    c.prec(1);
+
+    Decimal xlarge = Decimal(large);
+    assertEqual(xlarge, large);
+
+    xlarge = Decimal(std::move(large));
+    assertEqual(xlarge, Decimal(decstring));
+    assertTrue(large.issnan());
+
+    assertRaises(InvalidOperation, [&](){ Decimal x = Decimal(large_exp); });
+
+    s = std::string(large_exp);
+    assertRaises(InvalidOperation, [&](){ Decimal x = Decimal(s); });
+
+    context.clear_status();
+    context.clear_traps();
 }
+
 
 /******************************************************************************/
 /*                     Conversions that respect the context                   */
@@ -845,6 +868,28 @@ InexactConstructionTest()
 
     ctx.traps(DecConversionSyntax);
     assertRaises(ConversionSyntax, [&](){ Decimal(std::string("NaN12345"), ctx); });
+
+#ifndef __mips__ /* miscompilation */
+    /* large values */
+    const char *decstring = "9.999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999e425000000";
+    const char *large_exp = "9.999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999e99999999999999999999";
+    Decimal large{decstring};
+
+    ctx.traps(DecMaxStatus-1);
+    ctx.prec(100);
+    ctx.emax(425000000);
+    ctx.emin(-425000000);
+
+    Decimal xlarge = Decimal(large, ctx);
+    assertEqual(xlarge, large);
+
+    ctx.prec(1);
+    assertRaises(Overflow, [&](){ Decimal x = Decimal(large_exp, ctx); });
+
+    std::string s = std::string(large_exp);
+    assertRaises(Overflow, [&](){ Decimal x = Decimal(s, ctx); });
+#endif
+
     ctx.clear_status();
     ctx.clear_traps();
 }
@@ -1102,11 +1147,14 @@ PointerAssignmentOperatorTest()
     const Decimal *x = d;
     assertEqual(x, d);
 
+/* CheriBSD: the operator<< overload for uintptr_t is missing (purecap mode) */
+#if !defined(__CHERI__)
     x += 10;
     assertEqual(reinterpret_cast<uintptr_t>(x), reinterpret_cast<uintptr_t>(d) + 10 * (sizeof *d));
 
     x -= 10;
     assertEqual(reinterpret_cast<uintptr_t>(x), reinterpret_cast<uintptr_t>(d));
+#endif
 
     delete x;
 }
@@ -1285,7 +1333,7 @@ PointerComparisonOperatorTest()
 }
 
 /******************************************************************************/
-/*                          Unary arithmetic operators                        */
+/*                         Unary arithmetic operators                         */
 /******************************************************************************/
 
 static void
@@ -1433,11 +1481,14 @@ PointerArithmeticOperatorTest()
     const Decimal *d = new Decimal;
     assertTrue(d->issnan());
 
+/* CheriBSD: the operator<< overload for uintptr_t is missing (purecap mode) */
+#if !defined(__CHERI__)
     const Decimal *x = d + 10;
     assertEqual(reinterpret_cast<uintptr_t>(x), reinterpret_cast<uintptr_t>(d) + 10 * (sizeof *d));
 
     x = x - 10;
     assertEqual(reinterpret_cast<uintptr_t>(x), reinterpret_cast<uintptr_t>(d));
+#endif
 
     delete d;
 }
@@ -2062,9 +2113,15 @@ IrregularFunctionTest()
 
     assertEqual(Decimal("1").shiftl(100), Decimal("1E+100"));
     assertEqual(Decimal("1").shiftl(100, ctx), Decimal("1E+100"));
+    assertRaises(ValueError, [](){ Decimal("NaN").shiftl(100); });
+    assertRaises(ValueError, [](){ Decimal("sNaN").shiftl(100); });
+    assertRaises(ValueError, [](){ Decimal("Infinity").shiftl(100); });
 
     assertEqual(Decimal("1000000000000").shiftr(1), Decimal("100000000000"));
     assertEqual(Decimal("1000000000000").shiftr(1, ctx), Decimal("100000000000"));
+    assertRaises(ValueError, [](){ Decimal("NaN").shiftl(100); });
+    assertRaises(ValueError, [](){ Decimal("sNaN").shiftl(100); });
+    assertRaises(ValueError, [](){ Decimal("Infinity").shiftl(100); });
 
     assertEqual(Decimal::ln10(9), Decimal("2.30258509"));
 }
@@ -2717,7 +2774,7 @@ do_tests_threaded_repeat(const std::array<struct test_case, NUM_TESTS>& tests)
 /*
  * https://gcc.gnu.org/bugzilla/show_bug.cgi?id=77704
  *
- * valgrind --tool=helgrind shows a data race in libstdc++. The race
+ * valgrind --tool=helgrind shows a data race in libstdc++.  The race
  * disappears when streams are used before calling any threads.
  */
 static void
@@ -2770,15 +2827,15 @@ main(int argc, char *argv[])
     context = context_template;
 
     /* Check version numbers */
-    static_assert(MPD_MAJOR_VERSION == 2, "MPD_MAJOR_VERSION must be 2");
-    static_assert(MPD_MINOR_VERSION == 5, "MPD_MINOR_VERSION must be 5");
-    static_assert(MPD_MICRO_VERSION == 1, "MPD_MICRO_VERSION must be 1");
+    static_assert(MPD_MAJOR_VERSION == 4, "MPD_MAJOR_VERSION must be 4");
+    static_assert(MPD_MINOR_VERSION == 0, "MPD_MINOR_VERSION must be 0");
+    static_assert(MPD_MICRO_VERSION == 0, "MPD_MICRO_VERSION must be 0");
 
-    if (mpd_version() != std::string("2.5.1")) {
-        err_exit("mpd_version() != 2.5.1");
+    if (mpd_version() != std::string("4.0.0")) {
+        err_exit("mpd_version() != 4.0.0");
     }
-    if (MPD_VERSION != std::string("2.5.1")) {
-        err_exit("MPD_VERSION != 2.5.1");
+    if (MPD_VERSION != std::string("4.0.0")) {
+        err_exit("MPD_VERSION != 4.0.0");
     }
 
     /* Check fundamental libmpdec++ invariant */

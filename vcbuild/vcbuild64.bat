@@ -26,10 +26,10 @@ copy /y Makefile.vc Makefile
 nmake clean
 nmake MACHINE=%machine% DEBUG=%dbg%
 
-copy /y "libmpdec-2.5.1.lib" ..\vcbuild\dist64
-copy /y "libmpdec-2.5.1.dll" ..\vcbuild\dist64
-copy /y "libmpdec-2.5.1.dll.lib" ..\vcbuild\dist64
-copy /y "libmpdec-2.5.1.dll.exp" ..\vcbuild\dist64
+copy /y "libmpdec-4.0.0.lib" ..\vcbuild\dist64
+copy /y "libmpdec-4.0.0.dll" ..\vcbuild\dist64
+copy /y "libmpdec-4.0.0.dll.lib" ..\vcbuild\dist64
+copy /y "libmpdec-4.0.0.dll.exp" ..\vcbuild\dist64
 copy /y "mpdecimal.h" ..\vcbuild\dist64
 
 
@@ -38,10 +38,10 @@ copy /y Makefile.vc Makefile
 nmake clean
 nmake DEBUG=%dbg%
 
-copy /y "libmpdec++-2.5.1.lib" ..\vcbuild\dist64
-copy /y "libmpdec++-2.5.1.dll" ..\vcbuild\dist64
-copy /y "libmpdec++-2.5.1.dll.lib" ..\vcbuild\dist64
-copy /y "libmpdec++-2.5.1.dll.exp" ..\vcbuild\dist64
+copy /y "libmpdec++-4.0.0.lib" ..\vcbuild\dist64
+copy /y "libmpdec++-4.0.0.dll" ..\vcbuild\dist64
+copy /y "libmpdec++-4.0.0.dll.lib" ..\vcbuild\dist64
+copy /y "libmpdec++-4.0.0.dll.exp" ..\vcbuild\dist64
 copy /y "decimal.hh" ..\vcbuild\dist64
 
 cd ..\vcbuild

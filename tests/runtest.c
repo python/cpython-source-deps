@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2020 Stefan Krah. All rights reserved.
+ * Copyright (c) 2008-2024 Stefan Krah. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -7,12 +7,11 @@
  *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
- *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS "AS IS" AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
  * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
@@ -26,12 +25,10 @@
  */
 
 
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(__COMPCERT__)
   #define _GNU_SOURCE
 #endif
 
-
-#include "mpdecimal.h"
 
 #include <assert.h>
 #include <ctype.h>
@@ -44,6 +41,7 @@
 #include <string.h>
 #include <time.h>
 
+#include "mpdecimal.h"
 #include "test.h"
 #include "vctest.h"
 
@@ -59,10 +57,9 @@
 #endif
 
 
-static int generated = 0;
+static int extended = 1;
 static int global_failure = 0;
 static int file_failure = 0;
-
 
 static mpd_ssize_t
 strtossize(const char *s, char **end, int base)
@@ -105,22 +102,30 @@ mpd_init_rand(mpd_t *x)
     }
 }
 
-static void
-mpd_readcontext(mpd_context_t *ctx)
-{
+/* These ranges are needed for the official test suite
+ * and are generally not problematic at all. */
 #if defined(MPD_CONFIG_64)
-    ctx->prec=1070000000000000000;
-    ctx->emax=1070000000000000000;
-    ctx->emin=-1070000000000000000;
+  #define MPD_READ_MAX_PREC 1070000000000000000LL
 #elif defined(MPD_CONFIG_32)
-    /* These ranges are needed for the official testsuite
-     * and are generally not problematic at all. */
-    ctx->prec=1070000000;
-    ctx->emax=1070000000;
-    ctx->emin=-1070000000;
+  #define MPD_READ_MAX_PREC 1070000000
 #else
   #error "config not defined"
 #endif
+
+static void
+mpd_readcontext(mpd_context_t *ctx)
+{
+    if (extended) {
+        ctx->prec=MPD_READ_MAX_PREC;
+        ctx->emax=MPD_READ_MAX_PREC;
+        ctx->emin=-MPD_READ_MAX_PREC;
+    }
+    else {
+        ctx->prec=MPD_MAX_PREC;
+        ctx->emax=MPD_MAX_EMAX;
+        ctx->emin=MPD_MIN_EMIN;
+    }
+
     ctx->round=MPD_ROUND_HALF_UP;
     ctx->traps=MPD_Traps;
     ctx->status=0;
@@ -132,19 +137,26 @@ mpd_readcontext(mpd_context_t *ctx)
 static void
 mpd_testcontext(mpd_context_t *ctx)
 {
-#if defined(MPD_CONFIG_64)
-    ctx->prec=999999999;
-    ctx->emax=MPD_MAX_EMAX;
-    ctx->emin=MPD_MIN_EMIN;
-#elif defined(MPD_CONFIG_32)
-    /* These ranges are needed for the official testsuite
-     * and are generally not problematic at all. */
-    ctx->prec=999999999;
-    ctx->emax=999999999;
-    ctx->emin=-999999999;
-#else
-  #error "config not defined"
-#endif
+    if (extended) {
+    #if defined(MPD_CONFIG_64)
+        ctx->prec=MPD_MAX_PREC;
+        ctx->emax=MPD_MAX_EMAX;
+        ctx->emin=MPD_MIN_EMIN;
+    #elif defined(MPD_CONFIG_32)
+        /* These ranges are needed for the official test suite. */
+        ctx->prec=999999999;
+        ctx->emax=999999999;
+        ctx->emin=-999999999;
+    #else
+      #error "config not defined"
+    #endif
+    }
+    else {
+        ctx->prec=MPD_MAX_PREC;
+        ctx->emax=MPD_MAX_EMAX;
+        ctx->emin=MPD_MIN_EMIN;
+    }
+
     ctx->round=MPD_ROUND_HALF_UP;
     ctx->traps=MPD_Traps;
     ctx->status=0;
@@ -153,7 +165,20 @@ mpd_testcontext(mpd_context_t *ctx)
     ctx->allcr=1;
 }
 
-/* Known differences that are within the spec */
+static void
+mpd_assert_context_ok(const mpd_context_t *ctx)
+{
+    ASSERT(0 < ctx->prec && ctx->prec <= MPD_READ_MAX_PREC);
+    ASSERT(0 <= ctx->emax && ctx->emax <= MPD_READ_MAX_PREC);
+    ASSERT(-MPD_READ_MAX_PREC <= ctx->emin && ctx->emin <= 0);
+    ASSERT(0 <= ctx->round && ctx->round < MPD_ROUND_GUARD);
+    ASSERT(ctx->traps <= MPD_Max_status);
+    ASSERT(ctx->status <= MPD_Max_status);
+    ASSERT(ctx->clamp == 0 || ctx->clamp == 1);
+    ASSERT(ctx->allcr == 0 || ctx->allcr == 1);
+}
+
+/* Known differences that are within the spec. */
 struct result_diff {
     const char *id;
     const char *calc;
@@ -382,6 +407,17 @@ static const char *skipit[] = {
     "scbx164",
     "scbx165",
     "scbx166",
+#if defined(MPD_CONFIG_32) && MPD_MINALLOC_MAX <= 4
+    /* Under the allocation failure tests, the result is numerically correct
+       (1 == 1.00000) but without zero padding. This is by design, since in
+       case of MPD_Malloc_error mpd_qsqrt() retries the operation with a lower
+       context precision and allows all exact results.
+
+       The MPD_MINALLOC_MAX < 64 feature is is officially unsupported but works
+       (if the little-endian mpd_ln10_data arrays are adjusted).
+    */
+    "sqtx9045",
+#endif
     /* skipped for decNumber, too */
     "powx4302",
     "powx4303",
@@ -643,6 +679,7 @@ get_testno(char *token)
     char *number;
 
     number = strpbrk(token, "0123456789");
+    ASSERT(number != NULL);
     return strtoul(number, NULL, 10);
 }
 
@@ -870,7 +907,7 @@ _TripleTest(const mpd_t *a, mpd_context_t *ctx, const char *testno)
         break;
     }
 
-    /* Allocation failures (only occur in from_triple()) */
+    /* Allocation failures in from_triple() */
     for (alloc_fail = 1; alloc_fail < INT_MAX; alloc_fail++) {
         mpd_init_rand(result);
 
@@ -1065,8 +1102,7 @@ sci_eng_size(char **token, mpd_ssize_t (*func)(char **, const mpd_t *, int), mpd
     check_equalmem(tmp, op, token[0]);
 }
 
-/* Quick and dirty: parse hex escape sequences as printed in bytestring
- * output of Python3x. */
+/* Quick and dirty: parse hex escape sequences */
 static char *
 parse_escapes(const char *s)
 {
@@ -3780,16 +3816,24 @@ scan_ssize(char *token[])
     return strtossize(token[1], NULL, 10);
 }
 
+static void
+_mpd_shiftl(mpd_t *res, const mpd_t *a, mpd_ssize_t n, mpd_context_t *ctx)
+{
+    ASSERT(!mpd_isspecial(a));
+    mpd_shiftl(res, a, n, ctx);
+}
+
+static void
+_mpd_shiftr(mpd_t *res, const mpd_t *a, mpd_ssize_t n, mpd_context_t *ctx)
+{
+    ASSERT(!mpd_isspecial(a));
+    (void)mpd_shiftr(res, a, n, ctx);
+}
+
 /*
  * Test a function with an mpd_t and an mpd_ssize_t operand.
  * Used for the shift functions.
  */
-static void
-_mpd_shiftr(mpd_t *res, const mpd_t *a, mpd_ssize_t n, mpd_context_t *ctx)
-{
-    (void)mpd_shiftr(res, a, n, ctx);
-}
-
 static void
 _Res_Op_Lsize_Ctx(int skip, char *token[], void (*func)(mpd_t *, const mpd_t *, mpd_ssize_t, mpd_context_t *), mpd_context_t *ctx)
 {
@@ -4554,7 +4598,6 @@ _Baseconv(char *token[], mpd_context_t *ctx)
     }
 }
 
-
 /*
  * Test a function returning a uint64_t, accepting:
  *     op, context
@@ -4678,7 +4721,6 @@ _i64_MpdCtx(char **token, int64_t (*func)(const mpd_t *, mpd_context_t *), mpd_c
     check_equalmem(tmp, op, token[0]);
 }
 #endif
-
 
 /*
  * Test a function returning an mpd_ssize_t, accepting:
@@ -4858,7 +4900,22 @@ doit(const char *filename)
 
 
         /* directives */
+        if (startswith(token[0], "ExtendedRange")) {
+            ASSERT(token[1] != NULL);
+            if (strcmp(token[1], "1") == 0) {
+                extended = 1;
+            }
+            else if (strcmp(token[1], "0") == 0) {
+                extended = 0;
+            }
+            else {
+                mpd_err_fatal("%s: %s", filename, line);
+            }
+            goto cleanup;
+        }
+
         if (startswith(token[0], "Precision")) {
+            ASSERT(token[1] != NULL);
             if (strcmp(token[1], "MAX_PREC") == 0) {
                 l = MPD_MAX_PREC;
             }
@@ -4873,6 +4930,7 @@ doit(const char *filename)
         }
 
         if (startswith(token[0], "Rounding")) {
+            ASSERT(token[1] != NULL);
             if (eqtoken(token[1], "Ceiling"))
                 ctx.round = MPD_ROUND_CEILING;
             else if (eqtoken(token[1], "Up"))
@@ -4895,6 +4953,7 @@ doit(const char *filename)
         }
 
         if (startswith(token[0], "MaxExponent")) {
+            ASSERT(token[1] != NULL);
             if (strcmp(token[1], "MAX_EMAX") == 0) {
                 l = MPD_MAX_EMAX;
             }
@@ -4909,6 +4968,7 @@ doit(const char *filename)
         }
 
         if (startswith(token[0], "MinExponent")) {
+            ASSERT(token[1] != NULL);
             if (strcmp(token[1], "MIN_EMIN") == 0) {
                 l = MPD_MIN_EMIN;
             }
@@ -4923,6 +4983,7 @@ doit(const char *filename)
         }
 
         if (startswith(token[0], "Dectest")) {
+            ASSERT(token[1] != NULL);
             if (token[1] == NULL) {
                 mpd_err_fatal("%s: %s", filename, line);
             }
@@ -4930,7 +4991,6 @@ doit(const char *filename)
             goto cleanup;
         }
         /* end directives */
-
 
         /* optional directives */
         if (startswith(token[0], "Version")) {
@@ -4942,6 +5002,7 @@ doit(const char *filename)
         }
 
         if (startswith(token[0], "Clamp")) {
+            ASSERT(token[1] != NULL);
             l = scan_ssize(token);
             if (errno != 0) {
                 mpd_err_fatal("%s: %s", filename, line);
@@ -4952,10 +5013,11 @@ doit(const char *filename)
             goto cleanup;
         }
         if (startswith(token[0], "Locale")) {
+            ASSERT(token[1] != NULL);
             if (token[1] == NULL) {
                 mpd_err_fatal("%s: %s", filename, line);
             }
-            if (!generated) {
+            if (extended) {
                 printf("locale: %s\n", token[1]);
                 fflush(stdout);
             }
@@ -4964,6 +5026,8 @@ doit(const char *filename)
             }
             goto cleanup;
         }
+
+        mpd_assert_context_ok(&ctx);
         /* end optional directives */
 
 
@@ -5031,7 +5095,7 @@ doit(const char *filename)
             _Res_Op_Ctx(token, mpd_copy_negate, &ctx);
         }
         else if (eqtoken(token[1], "exp")) {
-            if (!generated) {
+            if (extended) {
                 if (testno != 126) {
                     ctx.allcr = 0;
                     /* exp: err < 1ulp, but not correctly rounded */
@@ -5048,7 +5112,7 @@ doit(const char *filename)
             _Res_Op_Ctx(token, mpd_invroot, &ctx);
         }
         else if (eqtoken(token[1], "ln")) {
-            if (!generated) {
+            if (extended) {
                 ctx.allcr = 0;
                 _Res_Op_Ctx(token, mpd_ln, &ctx);
                 ctx.allcr = 1;
@@ -5056,7 +5120,7 @@ doit(const char *filename)
             _Res_Op_Ctx(token, mpd_ln, &ctx);
         }
         else if (eqtoken(token[1], "log10")) {
-            if (!generated) {
+            if (extended) {
                 ctx.allcr = 0;
                 _Res_Op_Ctx(token, mpd_log10, &ctx);
                 ctx.allcr = 1;
@@ -5169,7 +5233,7 @@ doit(const char *filename)
             _Res_Binop_Ctx(token, mpd_or, &ctx);
         }
         else if (eqtoken(token[1], "power")) {
-            if (!generated) {
+            if (extended) {
                 ctx.allcr = 0;
                 _Res_Binop_Ctx(token, mpd_pow, &ctx);
                 ctx.allcr = 1;
@@ -5196,7 +5260,7 @@ doit(const char *filename)
         }
         else if (eqtoken(token[1], "shift")) {
             _Res_Binop_Ctx(token, mpd_shift, &ctx);
-            if (!generated) {
+            if (extended) {
                 _Res_Op_Lsize_Ctx(SKIP_NONINT, token, mpd_shiftn, &ctx);
             }
         }
@@ -5245,7 +5309,7 @@ doit(const char *filename)
             _Res_EqualBinop_Ctx(token, mpd_or, &ctx);
         }
         else if (eqtoken(token[1], "power_eq")) {
-            if (!generated) {
+            if (extended) {
                 ctx.allcr = 0;
                 _Res_EqualBinop_Ctx(token, mpd_pow, &ctx);
                 ctx.allcr = 1;
@@ -5364,7 +5428,7 @@ doit(const char *filename)
 
         /* Special cases for the shift functions */
         else if (eqtoken(token[1], "shiftleft")) {
-            _Res_Op_Lsize_Ctx(SKIP_NONINT, token, mpd_shiftl, &ctx);
+            _Res_Op_Lsize_Ctx(SKIP_NONINT, token, _mpd_shiftl, &ctx);
         }
         else if (eqtoken(token[1], "shiftright")) {
             _Res_Op_Lsize_Ctx(SKIP_NONINT, token, _mpd_shiftr, &ctx);
@@ -5455,6 +5519,22 @@ doit(const char *filename)
     fflush(stdout);
 }
 
+static void
+traphandler(mpd_context_t *ctx)
+{
+    if (ctx->newtrap & MPD_Malloc_error) {
+        fprintf(stderr, "\n\n\
+runtest: out of memory:\n\
+    - bignum tests require 200MB heap and 300KB stack.\n\
+    - normal tests require 10MB heap and 50KB stack.\n\n");
+    }
+    else {
+        fprintf(stderr, "\n\nruntest: unexpected error: relevant traps: %u\n\n",
+                        ctx->newtrap);
+    }
+
+    exit(1);
+}
 
 static void
 usage(void)
@@ -5490,12 +5570,12 @@ main(int argc, char *argv[])
     }
 
     /* Test version */
-    if (strcmp(mpd_version(), "2.5.1") != (0)) {
-        fputs("runtest: error: mpd_version() != 2.5.1\n", stderr);
+    if (strcmp(mpd_version(), "4.0.0") != (0)) {
+        fputs("runtest: error: mpd_version() != 4.0.0\n", stderr);
         exit(EXIT_FAILURE);
     }
-    if (strcmp(MPD_VERSION, "2.5.1") != (0)) {
-        fputs("runtest: error: MPD_VERSION != 2.5.1\n", stderr);
+    if (strcmp(MPD_VERSION, "4.0.0") != (0)) {
+        fputs("runtest: error: MPD_VERSION != 4.0.0\n", stderr);
         exit(EXIT_FAILURE);
     }
 
@@ -5503,36 +5583,39 @@ main(int argc, char *argv[])
   #pragma warning(push)
   #pragma warning(disable : 4127)
 #endif
-    if (MPD_MAJOR_VERSION != (2)) {
-        fputs("runtest: error: MPD_MAJOR_VERSION != 2\n", stderr);
+    if (MPD_MAJOR_VERSION != (4)) {
+        fputs("runtest: error: MPD_MAJOR_VERSION != 4\n", stderr);
         exit(EXIT_FAILURE);
     }
-    if (MPD_MINOR_VERSION != (5)) {
-        fputs("runtest: error: MPD_MINOR_VERSION != 5\n", stderr);
+    if (MPD_MINOR_VERSION != (0)) {
+        fputs("runtest: error: MPD_MINOR_VERSION != 0\n", stderr);
         exit(EXIT_FAILURE);
     }
-    if (MPD_MICRO_VERSION != (1)) {
-        fputs("runtest: error: MPD_MICRO_VERSION != 1\n", stderr);
+    if (MPD_MICRO_VERSION != (0)) {
+        fputs("runtest: error: MPD_MICRO_VERSION != 0\n", stderr);
         exit(EXIT_FAILURE);
     }
-    if (MPD_VERSION_HEX != (0x02050100)) {
-        fputs("runtest: error: MPD_VERSION_HEX != 0x02050100\n", stderr);
+    if (MPD_VERSION_HEX != (0x04000000)) {
+        fputs("runtest: error: MPD_VERSION_HEX != 0x04000000\n", stderr);
         exit(EXIT_FAILURE);
     }
 #ifdef _MSC_VER
   #pragma warning(pop)
 #endif
 
-    generated = strcmp(filename, "-") == 0;
+    extended = strcmp(filename, "-") != 0;
 
     /* Initialize random number generator */
-    srand((unsigned int)time(NULL));
+    srandom((unsigned int)time(NULL));
 
     /* Initialize custom allocation functions */
     mpd_init_alloc(custom_alloc, check_alloc);
 
     /* Initialize MPD_MINALLOC (optional, default is 2) */
     MPD_MINALLOC = 2;
+
+    /* Initialize trap handler */
+    mpd_traphandler = traphandler;
 
     op = mpd_qnew();
     op1 = mpd_qnew();

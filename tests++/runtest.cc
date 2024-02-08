@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 Stefan Krah. All rights reserved.
+ * Copyright (c) 2020-2024 Stefan Krah. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -7,12 +7,11 @@
  *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
- *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS "AS IS" AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
  * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
@@ -48,6 +47,7 @@
 #include <ctime>
 
 #include <algorithm>
+#include <atomic>
 #include <fstream>
 #include <iostream>
 #include <random>
@@ -84,49 +84,97 @@ using test::set_alloc_fail;
 
 enum skip_cmp {SKIP_NONE, SKIP_NAN, SKIP_NONINT};
 
-static const mpd_context_t readcontext {
+/*
+ * These extended ranges are required for the official test suite and are
+ * not problematic for its specific test cases. However, they should not
+ * be used in production code.
+ *
+ * The use of the directive "ExtendedRange" is not related to the "Extended"
+ * directive that is briefly referred to in the official tests.
+ */
 #if defined(MPD_CONFIG_64)
-  1070000000000000000,   /* prec */
-  1070000000000000000,   /* emax */
-  -1070000000000000000,  /* emin */
+  #define MPD_READ_MAX_PREC 1070000000000000000LL
 #elif defined(MPD_CONFIG_32)
-  /* These ranges are needed for the official testsuite
-   * and are generally not problematic at all. */
-  1070000000,            /* prec */
-  1070000000,            /* emax */
-  -1070000000,           /* emin */
+  #define MPD_READ_MAX_PREC 1070000000
 #else
   #error "config not defined"
 #endif
-  MPD_Malloc_error,      /* traps */
-  0,                     /* status */
-  0,                     /* newtrap */
-  MPD_ROUND_HALF_UP,     /* round */
-  0,                     /* clamp */
-  1,                     /* allcr */
-};
 
-static const mpd_context_t testcontext {
-#if defined(MPD_CONFIG_64)
-  999999999,               /* prec */
-  MPD_MAX_EMAX,            /* emax */
-  MPD_MIN_EMIN,            /* emin */
-#elif defined(MPD_CONFIG_32)
-  /* These ranges are needed for the official testsuite
-   * and are generally not problematic at all. */
-  999999999,               /* prec */
-  999999999,               /* emax */
-  -999999999,              /* emin */
-#else
-  #error "config not defined"
-#endif
-    MPD_Malloc_error,      /* traps */
-    0,                     /* status */
-    0,                     /* newtrap */
-    MPD_ROUND_HALF_UP,     /* round */
-    0,                     /* clamp */
-    1,                     /* allcr */
-};
+static mpd_context_t
+readcontext(const bool extended)
+{
+    mpd_context_t c;
+
+    if (extended) {
+        c.prec = MPD_READ_MAX_PREC;
+        c.emax = MPD_READ_MAX_PREC;
+        c.emin = -MPD_READ_MAX_PREC;
+    }
+    else {
+        c.prec = MPD_MAX_PREC;
+        c.emax = MPD_MAX_EMAX;
+        c.emin = MPD_MIN_EMIN;
+    }
+
+    c.traps = MPD_Malloc_error;
+    c.status = 0;
+    c.newtrap = 0;
+    c.round = MPD_ROUND_HALF_UP;
+    c.clamp = 0;
+    c.allcr = 1;
+
+    return c;
+}
+
+static mpd_context_t
+testcontext(const bool extended)
+{
+    mpd_context_t c;
+
+    if (extended) {
+    #if defined(MPD_CONFIG_64)
+        c.prec = MPD_MAX_PREC;
+        c.emax = MPD_MAX_EMAX;
+        c.emin = MPD_MIN_EMIN;
+    #elif defined(MPD_CONFIG_32)
+        c.prec = 999999999;
+        c.emax = 999999999;
+        c.emin = -999999999;
+    #else
+        #error "config not defined"
+    #endif
+    }
+    else {
+        c.prec = MPD_MAX_PREC;
+        c.emax = MPD_MAX_EMAX;
+        c.emin = MPD_MIN_EMIN;
+    }
+
+    c.traps = MPD_Malloc_error;
+    c.status = 0;
+    c.newtrap = 0;
+    c.round = MPD_ROUND_HALF_UP;
+    c.clamp = 0;
+    c.allcr = 1;
+
+    return c;
+}
+
+static void
+mpd_assert_context_ok(const Context& c, const std::vector<std::string>& token)
+{
+    const mpd_context_t *ctx = c.getconst();
+
+    DECIMAL_ASSERT(0 < ctx->prec && ctx->prec <= MPD_READ_MAX_PREC, token);
+    DECIMAL_ASSERT(0 <= ctx->emax && ctx->emax <= MPD_READ_MAX_PREC, token);
+    DECIMAL_ASSERT(-MPD_READ_MAX_PREC <= ctx->emin && ctx->emin <= 0, token);
+    DECIMAL_ASSERT(0 <= ctx->round && ctx->round < MPD_ROUND_GUARD, token);
+    DECIMAL_ASSERT(ctx->traps <= MPD_Max_status, token);
+    DECIMAL_ASSERT(ctx->status <= MPD_Max_status, token);
+    DECIMAL_ASSERT(ctx->clamp == 0 || ctx->clamp == 1, token);
+    DECIMAL_ASSERT(ctx->allcr == 0 || ctx->allcr == 1, token);
+}
+
 
 /* Known differences that are within the spec */
 struct result_diff {
@@ -355,6 +403,17 @@ static const char *skipit[] {
     "scbx164",
     "scbx165",
     "scbx166",
+#if defined(MPD_CONFIG_32) && MPD_MINALLOC_MAX <= 4
+    /* Under the allocation failure tests, the result is numerically correct
+       (1 == 1.00000) but without zero padding. This is by design, since in
+       case of MPD_Malloc_error mpd_qsqrt() retries the operation with a lower
+       context precision and allows all exact results.
+
+       The MPD_MINALLOC_MAX < 64 feature is is officially unsupported but works
+       (if the little-endian mpd_ln10_data arrays are adjusted).
+    */
+    "sqtx9045",
+#endif
     /* skipped for decNumber, too */
     "powx4302",
     "powx4303",
@@ -395,7 +454,7 @@ rnd(void)
 static void
 mpd_init_rand(Decimal &x)
 {
-    Context maxcontext{readcontext};
+    Context maxcontext{readcontext(false)};
     uint64_t r = rnd() % 100;
     uint8_t sign = rnd() % 2;
 
@@ -799,6 +858,7 @@ scan_op_op_op_expected(Decimal& op1,
     return 7;
 }
 
+/* Triple tests */
 static void
 Triple(const std::vector<std::string>& token, const Decimal &dec, Context &ctx)
 {
@@ -833,7 +893,7 @@ Triple(const std::vector<std::string>& token, const Decimal &dec, Context &ctx)
         return;
     }
 
-    /* Allocation failures (only occur in Decimal(triple). */
+    /* Allocation failures in Decimal(triple) */
     Decimal d = 10;
     for (uint64_t n = 1; n < UINT64_MAX-1; n++) {
 
@@ -861,10 +921,11 @@ Triple(const std::vector<std::string>& token, const Decimal &dec, Context &ctx)
  */
 typedef std::string (Decimal::*String_DecimalContext)(bool) const;
 static void
-Str_DecCtx(const std::vector<std::string>& token,
-           String_DecimalContext func)
+Str_DecCtx(String_DecimalContext func,
+           const std::vector<std::string>& token,
+           const bool extended)
 {
-    Context maxcontext{readcontext};
+    Context maxcontext{readcontext(extended)};
     Decimal op;
     Decimal tmp;
     std::string expected;
@@ -941,8 +1002,7 @@ Str_DecCtx(const std::vector<std::string>& token,
 #ifdef __INTEL_COMPILER
   #pragma warning(disable : 186)
 #endif
-/* Quick and dirty: parse hex escape sequences as printed in bytestring
- * output of Python3x. */
+/* Quick and dirty: parse hex escape sequences */
 static std::string
 parse_escapes_backslash(const char *s)
 {
@@ -1014,9 +1074,9 @@ parse_escapes(const char *s)
 
 /* This function is used for Decimal::format. */
 static void
-Fmt(const std::vector<std::string>& token)
+Fmt(const std::vector<std::string>& token, const bool extended)
 {
-    Context maxcontext{readcontext};
+    Context maxcontext{readcontext(extended)};
     Decimal op, tmp;
     std::string fmt, expected;
     std::string calc;
@@ -1081,10 +1141,11 @@ Fmt(const std::vector<std::string>& token)
     }
 }
 
+/* test number class */
 static void
-Class(const std::vector<std::string>& token)
+Class(const std::vector<std::string>& token, const bool extended)
 {
-    Context maxcontext{readcontext};
+    Context maxcontext{readcontext(extended)};
     Decimal op, tmp;
     std::string expected;
 
@@ -1146,9 +1207,11 @@ Dec_Dec_RunSingle(Decimal& result, Decimal& tmp,
 }
 
 static void
-Dec_Dec(const std::vector<std::string>& token, Decimal_Decimal func)
+Dec_Dec(Decimal_Decimal func,
+        const std::vector<std::string>& token,
+        const bool extended)
 {
-    Context maxcontext{readcontext};
+    Context maxcontext{readcontext(extended)};
     Decimal op, result, tmp;
     std::string expected;
 
@@ -1205,9 +1268,11 @@ Dec_DecCtx_RunSingle(Decimal& result, Decimal& tmp,
 }
 
 static void
-Dec_DecCtx(const std::vector<std::string>& token, Decimal_DecimalContext func)
+Dec_DecCtx(Decimal_DecimalContext func,
+           const std::vector<std::string>& token,
+           const bool extended)
 {
-    Context maxcontext{readcontext};
+    Context maxcontext{readcontext(extended)};
     Decimal op, result, tmp;
     std::string expected;
 
@@ -1221,9 +1286,11 @@ Dec_DecCtx(const std::vector<std::string>& token, Decimal_DecimalContext func)
 
 /* Same as Dec_DecCtx, but quantize the operand before applying the actual function */
 static void
-Dec_DecCtxWithQuantize(const std::vector<std::string>& token, Decimal_DecimalContext func)
+Dec_DecCtxWithQuantize(Decimal_DecimalContext func,
+                       const std::vector<std::string>& token,
+                       const bool extended)
 {
-    Context maxcontext{readcontext};
+    Context maxcontext{readcontext(extended)};
     Decimal op, scale, result, tmp;
     std::string expected;
 
@@ -1304,11 +1371,12 @@ Dec_DecDecCtx_RunSingle(Decimal& result, Decimal& tmp1, Decimal& tmp2,
 }
 
 static void
-Dec_DecDecCtx(const std::vector<std::string>& token,
-              const Decimal_DecimalDecimalContext func,
-              bool scan_equal=false)
+Dec_DecDecCtx(const Decimal_DecimalDecimalContext func,
+              const std::vector<std::string>& token,
+              const bool scan_equal,
+              const bool extended)
 {
-    Context maxcontext{readcontext};
+    Context maxcontext{readcontext(extended)};
     Decimal result, tmp1, tmp2;
     Decimal op1, op2;
     std::string expected;
@@ -1395,11 +1463,12 @@ DecPair_DecDecCtx_RunSingle(std::pair<Decimal, Decimal>& result, Decimal& tmp1, 
 }
 
 static void
-DecPair_DecDecCtx(const std::vector<std::string>& token,
-                  const DecimalPair_DecimalDecimalContext func,
-                  bool scan_equal=false)
+DecPair_DecDecCtx(const DecimalPair_DecimalDecimalContext func,
+                  const std::vector<std::string>& token,
+                  const bool scan_equal,
+                  const bool extended)
 {
-    Context maxcontext{readcontext};
+    Context maxcontext{readcontext(extended)};
     std::pair<Decimal, Decimal> result;
     Decimal tmp1, tmp2;
     Decimal op1, op2;
@@ -1494,11 +1563,12 @@ Dec_DecDecDecCtx_RunSingle(Decimal& result, Decimal& tmp1, Decimal& tmp2, Decima
 
 enum ternary_equal { OpOpOp, EqEqOp, EqOpEq, OpEqEq, EqEqEq };
 static void
-Dec_DecDecDecCtx(const std::vector<std::string>& token,
-                 const Decimal_DecimalDecimalDecimalContext func,
-                 enum ternary_equal scan_equal=OpOpOp)
+Dec_DecDecDecCtx(const Decimal_DecimalDecimalDecimalContext func,
+                 enum ternary_equal scan_equal,
+                 const std::vector<std::string>& token,
+                 const bool extended)
 {
-    Context maxcontext{readcontext};
+    Context maxcontext{readcontext(extended)};
     Decimal result, tmp1, tmp2, tmp3;
     Decimal op1, op2, op3;
     std::string expected;
@@ -1609,11 +1679,12 @@ Dec_DecDec_RunSingle(Decimal& result, Decimal& tmp1, Decimal& tmp2,
 }
 
 static void
-Dec_DecDec(const std::vector<std::string>& token,
-           const Decimal_DecimalDecimal func,
-           bool scan_equal=false)
+Dec_DecDec(const Decimal_DecimalDecimal func,
+           const std::vector<std::string>& token,
+           const bool scan_equal,
+           const bool extended)
 {
-    Context maxcontext{readcontext};
+    Context maxcontext{readcontext(extended)};
     Decimal result, tmp1, tmp2;
     Decimal op1, op2;
     std::string expected;
@@ -1687,12 +1758,13 @@ Int_DecDec_RunSingle(Decimal& tmp1, Decimal& tmp2,
 }
 
 static void
-Int_DecDec(const enum skip_cmp skip,
+Int_DecDec(const Int_DecimalDecimal func,
            const std::vector<std::string>& token,
-           const Int_DecimalDecimal func,
-           bool scan_equal=false)
+           const enum skip_cmp skip,
+           const bool scan_equal,
+           const bool extended)
 {
-    Context maxcontext{readcontext};
+    Context maxcontext{readcontext(extended)};
     Decimal tmp1, tmp2;
     Decimal op1, op2;
     std::string expected;
@@ -1763,12 +1835,13 @@ Bool_DecDec_RunSingle(Decimal& tmp1, Decimal& tmp2,
 }
 
 static void
-Bool_DecDec(const enum skip_cmp skip,
+Bool_DecDec(const Bool_DecimalDecimal func,
             const std::vector<std::string>& token,
-            const Bool_DecimalDecimal func,
-            bool scan_equal=false)
+            const enum skip_cmp skip,
+            const bool scan_equal,
+            const bool extended)
 {
-    Context maxcontext{readcontext};
+    Context maxcontext{readcontext(extended)};
     Decimal tmp1, tmp2;
     Decimal op1, op2;
     std::string expected;
@@ -1843,10 +1916,11 @@ Dec_DecInt64_RunSingle(Decimal& result, Decimal& tmp,
 }
 
 static void
-Dec_DecInt64Ctx(const std::vector<std::string>& token,
-                const Decimal_DecimalInt64Context func)
+Dec_DecInt64Ctx(const Decimal_DecimalInt64Context func,
+                const std::vector<std::string>& token,
+                const bool extended)
 {
-    Context maxcontext{readcontext};
+    Context maxcontext{readcontext(extended)};
     Decimal result, tmp;
     Decimal op1, op2;
     std::string expected;
@@ -1871,9 +1945,9 @@ Dec_DecInt64Ctx(const std::vector<std::string>& token,
 
 /* Test decimal::ln10 */
 static void
-ln10(const std::vector<std::string>& token)
+ln10(const std::vector<std::string>& token, const bool extended)
 {
-    Context maxcontext{readcontext};
+    Context maxcontext{readcontext(extended)};
     Decimal result;
     Decimal op;
     std::string expected;
@@ -1915,9 +1989,9 @@ ln10(const std::vector<std::string>& token)
 
 /* Test u64() */
 static void
-u64_DecCtx(const std::vector<std::string>& token)
+u64_DecCtx(const std::vector<std::string>& token, const bool extended)
 {
-    Context maxcontext{readcontext};
+    Context maxcontext{readcontext(extended)};
     Decimal op;
     uint64_t u64;
     char calc[23];
@@ -1942,9 +2016,9 @@ u64_DecCtx(const std::vector<std::string>& token)
 
 /* Test u32() */
 static void
-u32_DecCtx(const std::vector<std::string>& token)
+u32_DecCtx(const std::vector<std::string>& token, const bool extended)
 {
-    Context maxcontext{readcontext};
+    Context maxcontext{readcontext(extended)};
     Decimal op;
     std::string expected;
     uint32_t u32;
@@ -1969,9 +2043,9 @@ u32_DecCtx(const std::vector<std::string>& token)
 
 /* Test a function returning an int64_t */
 static void
-i64_DecCtx(const std::vector<std::string>& token)
+i64_DecCtx(const std::vector<std::string>& token, const bool extended)
 {
-    Context maxcontext{readcontext};
+    Context maxcontext{readcontext(extended)};
     Decimal op;
     std::string expected;
     int64_t i64;
@@ -1996,9 +2070,9 @@ i64_DecCtx(const std::vector<std::string>& token)
 
 /* Test a function returning an int64_t */
 static void
-i32_DecCtx(const std::vector<std::string>& token)
+i32_DecCtx(const std::vector<std::string>& token, const bool extended)
 {
-    Context maxcontext{readcontext};
+    Context maxcontext{readcontext(extended)};
     Decimal op;
     std::string expected;
     int32_t i32;
@@ -2021,17 +2095,97 @@ i32_DecCtx(const std::vector<std::string>& token)
     compare_expected(token, calc, expected, 0, context);
 }
 
-/* process an input stream of test cases */
 static void
-do_stream(std::istream& in, const bool generated=false)
+test_copy_constructor(void)
+{
+    const std::vector<std::string> token{"copy_constr"};
+    Decimal a = Decimal(1).shiftl((decimal::MINALLOC*MPD_RDIGITS));
+    Decimal b = Decimal(1).shiftl((2*decimal::MINALLOC*MPD_RDIGITS));
+    Decimal c = 2025;
+    Context ctx;
+
+    /* static ==> dynamic */
+    for (uint64_t n = 1; n < UINT64_MAX-1; n++) {
+
+        set_alloc_fail(ctx, n);
+        try {
+            c = a;
+        }
+        catch (MallocError&) {
+            set_alloc(ctx);
+            DECIMAL_ASSERT(c == 2025, token);
+            continue;
+        }
+
+        set_alloc(ctx);
+        break;
+    }
+
+    DECIMAL_ASSERT(c == a, token);
+
+    /* static ==> larger dynamic */
+    for (uint64_t n = 1; n < UINT64_MAX-1; n++) {
+
+        set_alloc_fail(ctx, n);
+        try {
+            c = b;
+        }
+        catch (MallocError&) {
+            set_alloc(ctx);
+            DECIMAL_ASSERT(c == a, token);
+            continue;
+        }
+
+        set_alloc(ctx);
+        break;
+    }
+
+    DECIMAL_ASSERT(c == b, token);
+}
+
+/* process an input stream of test cases */
+static bool skip_bignum = false;
+static std::atomic<uint32_t> bignum_counter{0};
+
+static void
+do_stream(std::istream& in, bool extended=true)
 {
     std::string line;
 
-    context = Context(testcontext);
+    context = Context(testcontext(extended));
 
     while (std::getline(in, line)) {
         std::vector<std::string> token = split(line);
         if (token.size() == 0) {
+            continue;
+        }
+
+        if (skip_bignum) { /* small thread stack */
+            bool cont = false;
+            for (const std::string &s : token) {
+                /* This is a simple heuristic, which works for the test cases
+                   in additional.topTest. */
+                if (s.size() > 4096) {
+                    cont = true;
+                    bignum_counter++;
+                    break;
+                }
+            }
+            if (cont) {
+                continue;
+            }
+        }
+
+        if (startswith(token.at(0), "ExtendedRange")) {
+            if (token.at(1) == "1") {
+                extended = true;
+            }
+            else if (token.at(1) == "0") {
+                extended = false;
+            }
+            else {
+                err_token(token, "value must be 1 or 0");
+            }
             continue;
         }
 
@@ -2127,6 +2281,8 @@ do_stream(std::istream& in, const bool generated=false)
             continue;  /* optional directive */
         }
 
+        mpd_assert_context_ok(context, token);
+
         /*
          * Actual tests start here:
          *   - token.at(0) is the id
@@ -2156,88 +2312,95 @@ do_stream(std::istream& in, const bool generated=false)
 
         /* Unary functions with std::string result */
         if (eqtoken(token.at(1), "tosci") || eqtoken(token.at(1), "apply")) {
-            Str_DecCtx(token, &Decimal::to_sci);
+            Str_DecCtx(&Decimal::to_sci, token, extended);
         }
         else if (eqtoken(token.at(1), "toeng")) {
-            Str_DecCtx(token, &Decimal::to_eng);
+            Str_DecCtx(&Decimal::to_eng, token, extended);
         }
         else if (eqtoken(token.at(1), "format")) {
-            Fmt(token);
+            Fmt(token, extended);
         }
 
         /* Unary function with const char * result */
         else if (eqtoken(token.at(1), "class")) {
-            Class(token);
+            Class(token, extended);
         }
 
         /* Unary functions with Decimal result */
         else if (eqtoken(token.at(1), "abs")) {
-            Dec_DecCtx(token, &Decimal::abs);
+            Dec_DecCtx(&Decimal::abs, token, extended);
         }
         else if (eqtoken(token.at(1), "copy")) {
-            Dec_Dec(token, &Decimal::copy);
+            Dec_Dec(&Decimal::copy, token, extended);
         }
         else if (eqtoken(token.at(1), "copyabs")) {
-            Dec_Dec(token, &Decimal::copy_abs);
+            Dec_Dec(&Decimal::copy_abs, token, extended);
         }
         else if (eqtoken(token.at(1), "copynegate")) {
-            Dec_Dec(token, &Decimal::copy_negate);
+            Dec_Dec(&Decimal::copy_negate, token, extended);
         }
         else if (eqtoken(token.at(1), "exp")) {
-            if (!generated) {
-                if (testno != 126) {  /* 126: err < 1ulp, but not correctly rounded */
+            if (extended) {
+                if (testno != 126) {
+                    /* Almost all test cases in the official tests are
+                       correctly rounded even when context.allcr is not
+                       set. */
                     context.allcr(0);
-                    Dec_DecCtx(token, &Decimal::exp);
+                    Dec_DecCtx(&Decimal::exp, token, extended);
                     context.allcr(1);
                 }
             }
-            Dec_DecCtx(token, &Decimal::exp);
+            Dec_DecCtx(&Decimal::exp, token, extended);
         }
         else if (eqtoken(token.at(1), "invert")) {
-            Dec_DecCtx(token, &Decimal::logical_invert);
+            Dec_DecCtx(&Decimal::logical_invert, token, extended);
         }
         else if (eqtoken(token.at(1), "invroot")) {
-            Dec_DecCtx(token, &Decimal::invroot);
+            Dec_DecCtx(&Decimal::invroot, token, extended);
         }
         else if (eqtoken(token.at(1), "ln")) {
-            if (!generated) {
+            if (extended) {
+                /* All test cases in the official tests are correctly rounded
+                   even when context.allcr is not set. */
                 context.allcr(0);
-                Dec_DecCtx(token, &Decimal::ln);
+                Dec_DecCtx(&Decimal::ln, token, extended);
                 context.allcr(1);
             }
-            Dec_DecCtx(token, &Decimal::ln);
+            Dec_DecCtx(&Decimal::ln, token, extended);
         }
         else if (eqtoken(token.at(1), "log10")) {
-            if (!generated) {
+            if (extended) {
+                /* All test cases in the official tests are correctly rounded
+                   even when context.allcr is not set. */
                 context.allcr(0);
-                Dec_DecCtx(token,  &Decimal::log10);
+                Dec_DecCtx(&Decimal::log10, token, extended);
                 context.allcr(1);
             }
-            Dec_DecCtx(token,  &Decimal::log10);
+            Dec_DecCtx(&Decimal::log10, token, extended);
         }
         else if (eqtoken(token.at(1), "logb")) {
-            Dec_DecCtx(token, &Decimal::logb);
+            Dec_DecCtx(&Decimal::logb, token, extended);
         }
         else if (eqtoken(token.at(1), "minus")) {
-            Dec_DecCtx(token, &Decimal::minus);
+            Dec_DecCtx(&Decimal::minus, token, extended);
         }
         else if (eqtoken(token.at(1), "nextminus")) {
-            Dec_DecCtx(token, &Decimal::next_minus);
+            Dec_DecCtx(&Decimal::next_minus, token, extended);
         }
         else if (eqtoken(token.at(1), "nextplus")) {
-            Dec_DecCtx(token, &Decimal::next_plus);
+            Dec_DecCtx(&Decimal::next_plus, token, extended);
         }
         else if (eqtoken(token.at(1), "plus")) {
-            Dec_DecCtx(token, &Decimal::plus);
+            Dec_DecCtx(&Decimal::plus, token, extended);
         }
         else if (eqtoken(token.at(1), "reduce")) {
-            Dec_DecCtx(token, &Decimal::reduce);
+            Dec_DecCtx(&Decimal::reduce, token, extended);
         }
         else if (eqtoken(token.at(1), "squareroot")) {
             #ifdef MPD_CONFIG_32
                 if (context.prec() == MPD_MAX_PREC) set_alloc_limit(16000000);
             #endif
-            Dec_DecCtx(token, &Decimal::sqrt);
+            Dec_DecCtx(&Decimal::sqrt, token, extended);
             #ifdef MPD_CONFIG_32
                 if (context.prec() == MPD_MAX_PREC) set_alloc_limit(SIZE_MAX);
             #endif
@@ -2246,309 +2409,312 @@ do_stream(std::istream& in, const bool generated=false)
             #ifdef MPD_CONFIG_32
                 if (context.prec() == MPD_MAX_PREC) set_alloc_limit(16000000);
             #endif
-            Dec_DecCtxWithQuantize(token, &Decimal::sqrt);
+            Dec_DecCtxWithQuantize(&Decimal::sqrt, token, extended);
             #ifdef MPD_CONFIG_32
                 if (context.prec() == MPD_MAX_PREC) set_alloc_limit(SIZE_MAX);
             #endif
         }
         else if (eqtoken(token.at(1), "tointegral")) {
-            Dec_DecCtx(token, &Decimal::to_integral);
+            Dec_DecCtx(&Decimal::to_integral, token, extended);
         }
         else if (eqtoken(token.at(1), "tointegralx")) {
-            Dec_DecCtx(token, &Decimal::to_integral_exact);
+            Dec_DecCtx(&Decimal::to_integral_exact, token, extended);
         }
         else if (eqtoken(token.at(1), "floor")) {
-            Dec_DecCtx(token, &Decimal::floor);
+            Dec_DecCtx(&Decimal::floor, token, extended);
         }
         else if (eqtoken(token.at(1), "ceil")) {
-            Dec_DecCtx(token, &Decimal::ceil);
+            Dec_DecCtx(&Decimal::ceil, token, extended);
         }
         else if (eqtoken(token.at(1), "trunc")) {
-            Dec_DecCtx(token, &Decimal::trunc);
+            Dec_DecCtx(&Decimal::trunc, token, extended);
         }
 
         /* Binary function returning an int */
         else if (eqtoken(token.at(1), "samequantum")) {
-            Bool_DecDec(SKIP_NONE, token, &Decimal::same_quantum);
+            Bool_DecDec(&Decimal::same_quantum, token, SKIP_NONE, false, extended);
         }
 
         /* Binary function returning an int, equal operands */
         else if (eqtoken(token.at(1), "samequantum_eq")) {
-            Bool_DecDec(SKIP_NONE, token, &Decimal::same_quantum, true);
+            Bool_DecDec(&Decimal::same_quantum, token, SKIP_NONE, true, extended);
         }
 
         /* Binary functions with Decimal result */
         else if (eqtoken(token.at(1), "add")) {
-            Dec_DecDecCtx(token, &Decimal::add);
-            Dec_DecDec(token, &Decimal::operator+);
+            Dec_DecDecCtx(&Decimal::add, token, false, extended);
+            Dec_DecDec(&Decimal::operator+, token, false, extended);
         }
         else if (eqtoken(token.at(1), "and")) {
-            Dec_DecDecCtx(token, &Decimal::logical_and);
+            Dec_DecDecCtx(&Decimal::logical_and, token, false, extended);
         }
         else if (eqtoken(token.at(1), "copysign")) {
-            Dec_DecDec(token, &Decimal::copy_sign);
+            Dec_DecDec(&Decimal::copy_sign, token, false, extended);
         }
         else if (eqtoken(token.at(1), "divide")) {
             #ifdef MPD_CONFIG_32
                 if (context.prec() == MPD_MAX_PREC) set_alloc_limit(16000000);
             #endif
-            Dec_DecDecCtx(token, &Decimal::div, false);
-            Dec_DecDec(token, &Decimal::operator/, false);
+            Dec_DecDecCtx(&Decimal::div, token, false, extended);
+            Dec_DecDec(&Decimal::operator/, token, false, extended);
             #ifdef MPD_CONFIG_32
                 if (context.prec() == MPD_MAX_PREC) set_alloc_limit(SIZE_MAX);
             #endif
         }
         else if (eqtoken(token.at(1), "divideint")) {
-            Dec_DecDecCtx(token, &Decimal::divint, false);
+            Dec_DecDecCtx(&Decimal::divint, token, false, extended);
         }
         else if (eqtoken(token.at(1), "max")) {
-            Dec_DecDecCtx(token, &Decimal::max);
+            Dec_DecDecCtx(&Decimal::max, token, false, extended);
         }
         else if (eqtoken(token.at(1), "maxmag") || eqtoken(token.at(1), "max_mag")) {
-            Dec_DecDecCtx(token,  &Decimal::max_mag);
+            Dec_DecDecCtx(&Decimal::max_mag, token, false, extended);
         }
         else if (eqtoken(token.at(1), "min")) {
-            Dec_DecDecCtx(token, &Decimal::min);
+            Dec_DecDecCtx(&Decimal::min, token, false, extended);
         }
         else if (eqtoken(token.at(1), "minmag") || eqtoken(token.at(1), "min_mag")) {
-            Dec_DecDecCtx(token, &Decimal::min_mag);
+            Dec_DecDecCtx(&Decimal::min_mag, token, false, extended);
         }
         else if (eqtoken(token.at(1), "multiply")) {
-            Dec_DecDecCtx(token, &Decimal::mul);
-            Dec_DecDec(token, &Decimal::operator*);
+            Dec_DecDecCtx(&Decimal::mul, token, false, extended);
+            Dec_DecDec(&Decimal::operator*, token, false, extended);
         }
         else if (eqtoken(token.at(1), "nexttoward")) {
-            Dec_DecDecCtx(token, &Decimal::next_toward);
+            Dec_DecDecCtx(&Decimal::next_toward, token, false, extended);
         }
         else if (eqtoken(token.at(1), "or")) {
-            Dec_DecDecCtx(token, &Decimal::logical_or);
+            Dec_DecDecCtx(&Decimal::logical_or, token, false, extended);
         }
         else if (eqtoken(token.at(1), "power")) {
-            if (!generated) {
+            if (extended) {
+                /* All test cases in the official tests are correctly rounded
+                   even when context.allcr is not set. */
                 context.allcr(0);
-                Dec_DecDecCtx(token, &Decimal::pow);
+                Dec_DecDecCtx(&Decimal::pow, token, false, extended);
                 context.allcr(1);
             }
-            Dec_DecDecCtx(token, &Decimal::pow);
+            Dec_DecDecCtx(&Decimal::pow, token, false, extended);
         }
         else if (eqtoken(token.at(1), "quantize")) {
-            Dec_DecDecCtx(token, &Decimal::quantize);
+            Dec_DecDecCtx(&Decimal::quantize, token, false, extended);
         }
         else if (eqtoken(token.at(1), "resc")) {
-            Dec_DecInt64Ctx(token, &Decimal::rescale);
+            Dec_DecInt64Ctx(&Decimal::rescale, token, extended);
         }
         else if (eqtoken(token.at(1), "remainder")) {
-            Dec_DecDecCtx(token, &Decimal::rem, false);
-            Dec_DecDec(token, &Decimal::operator%, false);
+            Dec_DecDecCtx(&Decimal::rem, token, false, extended);
+            Dec_DecDec(&Decimal::operator%, token, false, extended);
         }
         else if (eqtoken(token.at(1), "remaindernear")) {
-            Dec_DecDecCtx(token, &Decimal::rem_near, false);
+            Dec_DecDecCtx(&Decimal::rem_near, token, false, extended);
         }
         else if (eqtoken(token.at(1), "rotate")) {
-            Dec_DecDecCtx(token, &Decimal::rotate);
+            Dec_DecDecCtx(&Decimal::rotate, token, false, extended);
         }
         else if (eqtoken(token.at(1), "scaleb")) {
-            Dec_DecDecCtx(token, &Decimal::scaleb);
+            Dec_DecDecCtx(&Decimal::scaleb, token, false, extended);
         }
         else if (eqtoken(token.at(1), "shift")) {
-            Dec_DecDecCtx(token, &Decimal::shift);
-            if (!generated) {
-                Dec_DecInt64Ctx(token, &Decimal::shiftn);
+            Dec_DecDecCtx(&Decimal::shift, token, false, extended);
+            if (extended) {
+                Dec_DecInt64Ctx(&Decimal::shiftn, token, extended);
             }
         }
         else if (eqtoken(token.at(1), "subtract")) {
-            Dec_DecDecCtx(token, &Decimal::sub);
-            Dec_DecDec(token, &Decimal::operator-);
+            Dec_DecDecCtx(&Decimal::sub, token, false, extended);
+            Dec_DecDec(&Decimal::operator-, token, false, extended);
         }
         else if (eqtoken(token.at(1), "xor")) {
-            Dec_DecDecCtx(token, &Decimal::logical_xor);
+            Dec_DecDecCtx(&Decimal::logical_xor, token, false, extended);
         }
 
         /* Binary functions with Decimal result, equal operands */
         else if (eqtoken(token.at(1), "add_eq")) {
-            Dec_DecDecCtx(token, &Decimal::add, true);
-            Dec_DecDec(token, &Decimal::operator+, true);
+            Dec_DecDecCtx(&Decimal::add, token, true, extended);
+            Dec_DecDec(&Decimal::operator+, token, true, extended);
         }
         else if (eqtoken(token.at(1), "and_eq")) {
-            Dec_DecDecCtx(token, &Decimal::logical_and, true);
+            Dec_DecDecCtx(&Decimal::logical_and, token, true, extended);
         }
         else if (eqtoken(token.at(1), "copysign_eq")) {
-            Dec_DecDec(token, &Decimal::copy_sign, true);
+            Dec_DecDec(&Decimal::copy_sign, token, true, extended);
         }
         else if (eqtoken(token.at(1), "divide_eq")) {
-            Dec_DecDecCtx(token, &Decimal::div, true);
-            Dec_DecDec(token, &Decimal::operator/, true);
+            Dec_DecDecCtx(&Decimal::div, token, true, extended);
+            Dec_DecDec(&Decimal::operator/, token, true, extended);
         }
         else if (eqtoken(token.at(1), "divideint_eq")) {
-            Dec_DecDecCtx(token, &Decimal::divint, true);
+            Dec_DecDecCtx(&Decimal::divint, token, true, extended);
         }
         else if (eqtoken(token.at(1), "max_eq")) {
-            Dec_DecDecCtx(token, &Decimal::max, true);
+            Dec_DecDecCtx(&Decimal::max, token, true, extended);
         }
         else if (eqtoken(token.at(1), "maxmag_eq")) {
-            Dec_DecDecCtx(token, &Decimal::max_mag, true);
+            Dec_DecDecCtx(&Decimal::max_mag, token, true, extended);
         }
         else if (eqtoken(token.at(1), "min_eq")) {
-            Dec_DecDecCtx(token, &Decimal::min, true);
+            Dec_DecDecCtx(&Decimal::min, token, true, extended);
         }
         else if (eqtoken(token.at(1), "minmag_eq")) {
-            Dec_DecDecCtx(token, &Decimal::min_mag, true);
+            Dec_DecDecCtx(&Decimal::min_mag, token, true, extended);
         }
         else if (eqtoken(token.at(1), "multiply_eq")) {
-            Dec_DecDecCtx(token, &Decimal::mul, true);
-            Dec_DecDec(token, &Decimal::operator*, true);
+            Dec_DecDecCtx(&Decimal::mul, token, true, extended);
+            Dec_DecDec(&Decimal::operator*, token, true, extended);
         }
         else if (eqtoken(token.at(1), "nexttoward_eq")) {
-            Dec_DecDecCtx(token, &Decimal::next_toward, true);
+            Dec_DecDecCtx(&Decimal::next_toward, token, true, extended);
         }
         else if (eqtoken(token.at(1), "or_eq")) {
-            Dec_DecDecCtx(token, &Decimal::logical_or, true);
+            Dec_DecDecCtx(&Decimal::logical_or, token, true, extended);
         }
         else if (eqtoken(token.at(1), "power_eq")) {
-            if (!generated) {
+            if (extended) {
+                /* see power */
                 context.allcr(0);
-                Dec_DecDecCtx(token, &Decimal::pow, true);
+                Dec_DecDecCtx(&Decimal::pow, token, true, extended);
                 context.allcr(1);
             }
-            Dec_DecDecCtx(token, &Decimal::pow, true);
+            Dec_DecDecCtx(&Decimal::pow, token, true, extended);
         }
         else if (eqtoken(token.at(1), "quantize_eq")) {
-            Dec_DecDecCtx(token, &Decimal::quantize, true);
+            Dec_DecDecCtx(&Decimal::quantize, token, true, extended);
         }
         else if (eqtoken(token.at(1), "remainder_eq")) {
-            Dec_DecDecCtx(token, &Decimal::rem, true);
-            Dec_DecDec(token, &Decimal::operator%, true);
+            Dec_DecDecCtx(&Decimal::rem, token, true, extended);
+            Dec_DecDec(&Decimal::operator%, token, true, extended);
         }
         else if (eqtoken(token.at(1), "remaindernear_eq")) {
-            Dec_DecDecCtx(token, &Decimal::rem_near, true);
+            Dec_DecDecCtx(&Decimal::rem_near, token, true, extended);
         }
         else if (eqtoken(token.at(1), "rotate_eq")) {
-            Dec_DecDecCtx(token, &Decimal::rotate, true);
+            Dec_DecDecCtx(&Decimal::rotate, token, true, extended);
         }
         else if (eqtoken(token.at(1), "scaleb_eq")) {
-            Dec_DecDecCtx(token, &Decimal::scaleb, true);
+            Dec_DecDecCtx(&Decimal::scaleb, token, true, extended);
         }
         else if (eqtoken(token.at(1), "shift_eq")) {
-            Dec_DecDecCtx(token, &Decimal::shift, true);
+            Dec_DecDecCtx(&Decimal::shift, token, true, extended);
         }
         else if (eqtoken(token.at(1), "subtract_eq")) {
-            Dec_DecDecCtx(token, &Decimal::sub, true);
-            Dec_DecDec(token, &Decimal::operator-, true);
+            Dec_DecDecCtx(&Decimal::sub, token, true, extended);
+            Dec_DecDec(&Decimal::operator-, token, true, extended);
         }
         else if (eqtoken(token.at(1), "xor_eq")) {
-            Dec_DecDecCtx(token, &Decimal::logical_xor, true);
+            Dec_DecDecCtx(&Decimal::logical_xor, token, true, extended);
         }
 
         /* Binary function with Decimal pair result */
         else if (eqtoken(token.at(1), "divmod")) {
-            DecPair_DecDecCtx(token, &Decimal::divmod);
+            DecPair_DecDecCtx(&Decimal::divmod, token, false, extended);
         }
         /* Binary function with Decimal pair result, equal operands */
         else if (eqtoken(token.at(1), "divmod_eq")) {
-            DecPair_DecDecCtx(token, &Decimal::divmod, true);
+            DecPair_DecDecCtx(&Decimal::divmod, token, true, extended);
         }
 
         /* Ternary functions with Decimal result */
         else if (eqtoken(token.at(1), "fma")) {
-            Dec_DecDecDecCtx(token, &Decimal::fma);
+            Dec_DecDecDecCtx(&Decimal::fma, OpOpOp, token, extended);
         }
         else if (eqtoken(token.at(1), "powmod")) {
-            Dec_DecDecDecCtx(token, &Decimal::powmod);
+            Dec_DecDecDecCtx(&Decimal::powmod, OpOpOp, token, extended);
         }
 
         /* Ternary functions with Decimal result, eq_eq_op */
         else if (eqtoken(token.at(1), "fma_eq_eq_op")) {
-            Dec_DecDecDecCtx(token, &Decimal::fma, EqEqOp);
+            Dec_DecDecDecCtx(&Decimal::fma, EqEqOp, token, extended);
         }
         else if (eqtoken(token.at(1), "powmod_eq_eq_op")) {
-            Dec_DecDecDecCtx(token, &Decimal::powmod, EqEqOp);
+            Dec_DecDecDecCtx(&Decimal::powmod, EqEqOp, token, extended);
         }
 
         /* Ternary functions with Decimal result, eq_op_eq */
         else if (eqtoken(token.at(1), "fma_eq_op_eq")) {
-            Dec_DecDecDecCtx(token, &Decimal::fma, EqOpEq);
+            Dec_DecDecDecCtx(&Decimal::fma, EqOpEq, token, extended);
         }
         else if (eqtoken(token.at(1), "powmod_eq_op_eq")) {
-            Dec_DecDecDecCtx(token, &Decimal::powmod, EqOpEq);
+            Dec_DecDecDecCtx(&Decimal::powmod, EqOpEq, token, extended);
         }
 
         /* Ternary functions with Decimal result, op_eq_eq */
         else if (eqtoken(token.at(1), "fma_op_eq_eq")) {
-            Dec_DecDecDecCtx(token, &Decimal::fma, OpEqEq);
+            Dec_DecDecDecCtx(&Decimal::fma, OpEqEq, token, extended);
         }
         else if (eqtoken(token.at(1), "powmod_op_eq_eq")) {
-            Dec_DecDecDecCtx(token, &Decimal::powmod, OpEqEq);
+            Dec_DecDecDecCtx(&Decimal::powmod, OpEqEq, token, extended);
         }
 
         /* Ternary functions with Decimal result, eq_eq_eq */
         else if (eqtoken(token.at(1), "fma_eq_eq_eq")) {
-            Dec_DecDecDecCtx(token, &Decimal::fma, EqEqEq);
+            Dec_DecDecDecCtx(&Decimal::fma, EqEqEq, token, extended);
         }
         else if (eqtoken(token.at(1), "powmod_eq_eq_eq")) {
-            Dec_DecDecDecCtx(token, &Decimal::powmod, EqEqEq);
+            Dec_DecDecDecCtx(&Decimal::powmod, EqEqEq, token, extended);
         }
 
         /* Special cases for the comparison functions */
         else if (eqtoken(token.at(1), "compare")) {
-            Dec_DecDecCtx(token, &Decimal::compare);
-            Int_DecDec(SKIP_NAN, token, &Decimal::cmp);
+            Dec_DecDecCtx(&Decimal::compare, token, false, extended);
+            Int_DecDec(&Decimal::cmp, token, SKIP_NAN, false, extended);
         }
         else if (eqtoken(token.at(1), "comparesig")) {
-            Dec_DecDecCtx(token, &Decimal::compare_signal);
+            Dec_DecDecCtx(&Decimal::compare_signal, token, false, extended);
         }
 
         else if (eqtoken(token.at(1), "comparetotal")) {
-            Dec_DecDec(token, &Decimal::compare_total);
-            Int_DecDec(SKIP_NONE, token, &Decimal::cmp_total);
+            Dec_DecDec(&Decimal::compare_total, token, false, extended);
+            Int_DecDec(&Decimal::cmp_total, token, SKIP_NONE, false, extended);
         }
         else if (eqtoken(token.at(1), "comparetotmag")) {
-            Dec_DecDec(token, &Decimal::compare_total_mag);
-            Int_DecDec(SKIP_NONE, token, &Decimal::cmp_total_mag);
+            Dec_DecDec(&Decimal::compare_total_mag, token, false, extended);
+            Int_DecDec(&Decimal::cmp_total_mag, token, SKIP_NONE, false, extended);
         }
 
         /* Special cases for the comparison functions, equal operands */
         else if (eqtoken(token.at(1), "compare_eq")) {
-            Dec_DecDecCtx(token, &Decimal::compare, true);
-            Int_DecDec(SKIP_NAN, token, &Decimal::cmp, true);
+            Dec_DecDecCtx(&Decimal::compare, token, true, extended);
+            Int_DecDec(&Decimal::cmp, token, SKIP_NAN, true, extended);
         }
         else if (eqtoken(token.at(1), "comparesig_eq")) {
-            Dec_DecDecCtx(token, &Decimal::compare_signal, true);
+            Dec_DecDecCtx(&Decimal::compare_signal, token, true, extended);
         }
 
         else if (eqtoken(token.at(1), "comparetotal_eq")) {
-            Dec_DecDec(token, &Decimal::compare_total, true);
-            Int_DecDec(SKIP_NAN, token, &Decimal::cmp_total, true);
+            Dec_DecDec(&Decimal::compare_total, token, true, extended);
+            Int_DecDec(&Decimal::cmp_total, token, SKIP_NAN, true, extended);
         }
         else if (eqtoken(token.at(1), "comparetotmag_eq")) {
-            Dec_DecDec(token, &Decimal::compare_total_mag, true);
-            Int_DecDec(SKIP_NAN, token, &Decimal::cmp_total_mag, true);
+            Dec_DecDec(&Decimal::compare_total_mag, token, true, extended);
+            Int_DecDec(&Decimal::cmp_total_mag, token, SKIP_NAN, true, extended);
         }
 
         /* Special cases for the shift functions */
         else if (eqtoken(token.at(1), "shiftleft")) {
-            Dec_DecInt64Ctx(token, &Decimal::shiftl);
+            Dec_DecInt64Ctx(&Decimal::shiftl, token, extended);
         }
         else if (eqtoken(token.at(1), "shiftright")) {
-            Dec_DecInt64Ctx(token, &Decimal::shiftr);
+            Dec_DecInt64Ctx(&Decimal::shiftr, token, extended);
         }
 
         /* Special case for Decimal::ln10() */
         else if (eqtoken(token.at(1), "ln10")) {
-            ln10(token);
+            ln10(token, extended);
         }
 
         /* Special cases for the get_int functions */
         else if (eqtoken(token.at(1), "get_u64") || eqtoken(token.at(1), "get_uint64")) {
-            u64_DecCtx(token);
+            u64_DecCtx(token, extended);
         }
         else if (eqtoken(token.at(1), "get_u32") || eqtoken(token.at(1), "get_uint32")) {
-            u32_DecCtx(token);
+            u32_DecCtx(token, extended);
         }
         else if (eqtoken(token.at(1), "get_i64") || eqtoken(token.at(1), "get_int64")) {
-            i64_DecCtx(token);
+            i64_DecCtx(token, extended);
         }
         else if (eqtoken(token.at(1), "get_i32") || eqtoken(token.at(1), "get_int32")) {
-            i32_DecCtx(token);
+            i32_DecCtx(token, extended);
         }
 
         else if (startswith(token.at(0), "bool")) {
@@ -2595,7 +2761,7 @@ do_file(const std::string& filename, std::vector<std::string>& status, size_t i,
 {
     try {
         if (threaded) {
-            // Thread local context is initialized on first access.
+            /* Thread local context is initialized on first access. */
             if (context.prec() != 1) {
                 err_raise("automatic context initialization from template failed");
             }
@@ -2656,14 +2822,21 @@ do_files_thread(const std::vector<std::string>& files)
 
     std::cout << "\n" << std::flush;
 
+    if (skip_bignum) {
+        std::cout << "NOTE: std::thread stack size < 512K: skipped "
+                  <<  bignum_counter << " bignum test case"
+                  << (bignum_counter == 1 ? "\n\n" : "s\n\n")
+                  << std::flush;
+    }
+
     return exit_status(status);
 }
 
 #ifdef HAVE_PTHREAD_H
 /*
- * The pthread section is for systems like AIX, which have a thread stack size
- * that is too small for std::thread.  std::thread does not allow to set the
- * stack size.
+ * The pthread section is for systems like AIX, which have a std::thread stack
+ * size that is too small for the bignum tests. std::thread does not allow to
+ * set the stack size.
  */
 #define THREAD_STACK_SIZE 1048576
 
@@ -2673,6 +2846,28 @@ struct thread_info {
     const std::string *filename;
     std::vector<std::string> *status;
 };
+
+static bool
+thread_stack_too_small_for_bignum()
+{
+    pthread_attr_t tattr;
+    size_t size;
+    int ret;
+
+    ret = pthread_attr_init(&tattr);
+    if (ret != 0) {
+        err_raise("thread attribute initialization failed");
+    }
+
+    ret = pthread_attr_getstacksize(&tattr, &size);
+    pthread_attr_destroy(&tattr);
+
+    if (ret != 0) {
+        err_raise("getting thread stack size failed");
+    }
+
+    return size < 524288;
+}
 
 static void *
 do_file_pthread(void *arg)
@@ -2929,9 +3124,6 @@ main(int argc, char *argv[])
             check_alloc = true;
         }
         else if (!thread && arg == "--thread") {
-        #ifdef _AIX
-            err_exit("AIX: thread stack (96K) is too small for std::thread: use --pthread");
-        #endif
             thread = true;
         }
         else if (!pthread && arg == "--pthread") {
@@ -2945,6 +3137,13 @@ main(int argc, char *argv[])
         usage();
     }
 
+    /* std::thread needs 300K stack size for the bignum tests. */
+    #ifdef HAVE_PTHREAD_H
+    if (thread && thread_stack_too_small_for_bignum()) {
+        skip_bignum = true;
+    }
+    #endif
+
     /* Initialize custom allocation functions */
     test::init_alloc(custom_alloc, check_alloc);
 
@@ -2957,12 +3156,13 @@ main(int argc, char *argv[])
     /* Initial tests */
     test_set_i32();
     test_set_i64();
+    test_copy_constructor();
 
 
     /* Read test cases from stdin */
     if (filename == "-") {
         try {
-            do_stream(std::cin, true);
+            do_stream(std::cin, /*extended=*/false);
         }
         catch (test::Failure& e) {
             std::cerr << "<stdin> ... " << e.what() << "\n" << std::flush;

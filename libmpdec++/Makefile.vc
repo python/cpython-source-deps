@@ -3,29 +3,33 @@
 #                Visual C (nmake) Makefile for libmpdec++
 # ======================================================================
 
-
 SRCDIR = ..\libmpdec
 
-LIBSTATIC = libmpdec-2.5.1.lib
-LIBIMPORT = libmpdec-2.5.1.dll.lib
-LIBSHARED = libmpdec-2.5.1.dll
+LIBSTATIC = libmpdec-4.0.0.lib
+LIBIMPORT = libmpdec-4.0.0.dll.lib
+LIBSHARED = libmpdec-4.0.0.dll
 
-LIBSTATIC_CXX = libmpdec++-2.5.1.lib
-LIBIMPORT_CXX = libmpdec++-2.5.1.dll.lib
-LIBSHARED_CXX = libmpdec++-2.5.1.dll
+LIBSTATIC_CXX = libmpdec++-4.0.0.lib
+LIBIMPORT_CXX = libmpdec++-4.0.0.dll.lib
+LIBSHARED_CXX = libmpdec++-4.0.0.dll
 
 !if "$(DEBUG)" == "1"
 OPT = /MTd /Od /Zi /EHsc
 OPT_SHARED = /MDd /Od /Zi /EHsc
 !else
-OPT = /MT /Ox /GS /EHsc
-OPT_SHARED = /MD /Ox /GS /EHsc
+OPT = /MT /O2 /GS /EHsc /DNDEBUG
+OPT_SHARED = /MD /O2 /GS /EHsc /DNDEBUG
 !endif
 
+!if "$(CC)" == "clang-cl"
+WARN = /W4 -Wno-undefined-inline
+!else
+WARN = /W4
+!endif
 
-MPD_CXXFLAGS = /W4 /nologo $(OPT)
-MPD_CXXFLAGS_SHARED = /DBUILD_LIBMPDECXX /W4 /nologo $(OPT_SHARED) $(PGOFLAGS)
-MPD_BIN_CXXFLAGS_SHARED = /W4 /nologo $(OPT_SHARED) $(PGOFLAGS)
+MPD_CXXFLAGS = $(WARN) /nologo $(OPT)
+MPD_CXXFLAGS_SHARED = /DBUILD_LIBMPDECXX $(WARN) /nologo $(OPT_SHARED) $(PGOFLAGS)
+MPD_BIN_CXXFLAGS_SHARED = $(WARN) /nologo $(OPT_SHARED) $(PGOFLAGS)
 
 MPD_LDXXFLAGS= /DLL /MANIFEST $(LDXXFLAGS)
 
@@ -49,25 +53,25 @@ $(LIBSHARED_CXX): Makefile $(SHARED_OBJS)
 
 
 decimal.obj:\
-Makefile decimal.cc decimal.hh
+Makefile decimal.cc ..\libmpdec\mpdecimal.h decimal.hh
 	$(CXX) "-I." "-I$(SRCDIR)" $(MPD_CXXFLAGS) -c decimal.cc
 
 .objs\decimal.obj:\
-Makefile decimal.cc decimal.hh
+Makefile decimal.cc ..\libmpdec\mpdecimal.h decimal.hh
 	$(CXX) "-I." "-I$(SRCDIR)" $(MPD_CXXFLAGS_SHARED) -c decimal.cc /Fo.objs\decimal.obj
 
 
 FORCE:
 
 bench: FORCE
-	$(CXX) "-I." "-I$(SRCDIR)" $(MPD_CXXFLAGS) /Ox /EHsc /Fo:bench bench.cc $(LIBSTATIC_CXX) $(SRCDIR)\$(LIBSTATIC)
+	$(CXX) "-I." "-I$(SRCDIR)" $(MPD_CXXFLAGS) /O2 /EHsc /Fo:bench bench.cc $(LIBSTATIC_CXX) $(SRCDIR)\$(LIBSTATIC)
 
 bench_shared: FORCE
-	$(CXX) "-I." "-I$(SRCDIR)" $(MPD_BIN_CXXFLAGS_SHARED) /Ox /EHsc /Fo:bench_shared bench.cc $(LIBIMPORT_CXX) $(SRCDIR)\$(LIBIMPORT)
+	$(CXX) "-I." "-I$(SRCDIR)" $(MPD_BIN_CXXFLAGS_SHARED) /O2 /EHsc /Fo:bench_shared bench.cc $(LIBIMPORT_CXX) $(SRCDIR)\$(LIBIMPORT)
 
 examples: FORCE
-	$(CXX) "-I." "-I$(SRCDIR)" $(MPD_CXXFLAGS) /Ox /EHsc /Fo:factorial examples/factorial.cc $(LIBSTATIC_CXX) $(SRCDIR)\$(LIBSTATIC)
-	$(CXX) "-I." "-I$(SRCDIR)" $(MPD_CXXFLAGS) /Ox /EHsc /Fo:pi examples/pi.cc $(LIBSTATIC_CXX) $(SRCDIR)\$(LIBSTATIC)
+	$(CXX) "-I." "-I$(SRCDIR)" $(MPD_CXXFLAGS) /O2 /EHsc /Fo:factorial examples/factorial.cc $(LIBSTATIC_CXX) $(SRCDIR)\$(LIBSTATIC)
+	$(CXX) "-I." "-I$(SRCDIR)" $(MPD_CXXFLAGS) /O2 /EHsc /Fo:pi examples/pi.cc $(LIBSTATIC_CXX) $(SRCDIR)\$(LIBSTATIC)
 
 
 clean: FORCE
@@ -92,5 +96,4 @@ distclean: FORCE
 	-@if exist Makefile del Makefile
 	-@cd ..\tests
 	-@if exist Makefile nmake distclean
-
 

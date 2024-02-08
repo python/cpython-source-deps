@@ -1,6 +1,7 @@
 @ECHO OFF
 
-rem Release or debug build.
+
+rem Choose release or debug build.
 set DBG=0
 if "%1%" == "/d" set DBG=1
 
@@ -9,6 +10,7 @@ cd ..\tests
 copy /y Makefile.vc Makefile
 nmake clean
 nmake DEBUG=%DBG%
+
 
 rem # Download the official test cases (text files).
 call gettests.bat

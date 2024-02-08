@@ -3,6 +3,156 @@
 Changelog
 =========
 
+Version 4.0.0
+-------------
+
+general
+~~~~~~~
+
+    **sync soversion and major_version**
+
+    - The added number formatting feature requires an ABI change, hence the
+      increase to SOVERSION=4.
+
+    - Packagers outside of the Linux distributions sometimes use the major
+      version number as the equivalent of SOVERSION on their platforms and
+      have an incorrect SOVERSION for 2.5.1, which requires SOVERSION=3.
+
+    - While SOVERSION is not required to match the major version number
+      (example: glibc), mpdecimal will from now on take the path of least
+      resistance and always use SOVERSION=MPD_MAJOR_VERSION.
+
+    - The jump to 4.0.0 should also remind users that a C++ library is
+      available.
+
+build/install
+~~~~~~~~~~~~~
+
+    **features**
+
+    - Support for out-of-tree build.
+
+    - Support for pkg-config.
+
+    - Unix: support for Loongson.
+
+    - Unix: support for CheriBSD.
+
+    - Compilers: support for icx, icpx, ibm-clang_r, ibm-clang++_r, CompCert,
+      clang-cl and emscripten.
+
+    - Windows: support for MSYS2/MinGW.
+
+    - MSVC: the build now uses /O2 /DNDEBUG.
+
+    - MSVC: new arm64/arm32 cross build scripts.
+
+    - AIX: the shared libraries are now installed as versioned objects, e.g.,
+      shr4.o, shr4_64.o.
+
+    - New ``./configure`` switches:
+
+      ``--enable-static``: enable/disable the build of the static libraries
+      (default: enabled).
+
+      ``--enable-pc``: enable/disable the install of the pkgconfig files
+      (default: enabled).
+
+      ``--enable-doc``: enable/disable the install of the documentation
+      (default: enabled).
+
+    - New ``./configure`` behavior:
+
+      On multilib platforms like AIX that default to 32-bit the 64-bit build can
+      be forced with a single ``./configure MACHINE=uint128`` (ibm-clang, gcc)
+      or ``./configure MACHINE=ansi64`` (xlc) rather than explicitly setting
+      ``CFLAGS``, ``LDFLAGS``, ``CXXFLAGS`` and ``LDXXFLAGS``.
+
+      Note that on most other (multilib) platforms the default is 64-bit and the
+      optimal configuration is chosen by just using ``./configure``.
+
+    - New man pages direct users to the mpdecimal-doc package or the online
+      HTML documentation.
+
+    **tests**
+
+    - The C++ tests now automatically skip a small number of bignum tests if
+      the std::thread stack size (which cannot be altered) is less than 512K.
+
+      For all other tests a thread stack size of roughly 50K is sufficient.
+
+    - Files in the tests/testdata_dist directory have been significantly
+      abbreviated in order to facilitate testing on slower platforms. The
+      tests take 5s on a modern x86_64 platform.
+
+      The previous tests have been moved to the separate mpdecimal-testdata
+      package (replace tests/testdata_dist with the renamed mpdecimal-testdata
+      directory).
+
+    **toolchain issues**
+
+    - AIX: The preferred C/C++ compilers are ibm-clang_r and ibm-clang_r++.
+      g++ has sporadic C++11 threading issues that only show up in long running
+      programs (or short ones with a sufficient number of repetitions):
+
+         https://gcc.gnu.org/bugzilla/show_bug.cgi?id=98390
+
+      If you only use libmpdec (``--disable-cxx``), gcc and xlc are very stable.
+
+    **changed**
+
+    - The ``--enable-profile`` configure option has been removed due to fragile
+      integration with a sequence like ``make && make install``. The new method
+      is ``make profile && make install``.
+
+    **removed**
+
+    - The prebuilt HTML documentation is now in the separate mpdecimal-doc
+      package, which gives distributions that reject prebuilt documentation
+      the option to disregard it and use the new man pages.
+
+libmpdec
+~~~~~~~~
+
+    **features**
+
+    - Add the "z" format specifier (coerce negative zeros to positive).
+
+    - In extremely rare cases the transcendental functions (exp, ln, log10) did
+      not set the Subnormal/Underflow flags. The reason is that in the case of
+      an exponent boundary the Ziv correction loop for correct rounding requires
+      very few iterations to arrive at the correctly rounded result, but may
+      need many more iterations to arrive at the correct flags.
+
+      In these cases, Subnormal/Underflow is not very informative, so the status
+      quo was to skip the extra iterations.
+
+      Version 4.0.0 now specializes exponent boundary cases and uses up to five
+      additional iterations to set Subnormal/Underflow. The refactored code has
+      no speed penalty on average;  in fact, in the deccheck tests (random tests
+      with a bias towards corner cases) it is slightly faster.
+
+      No cases have been found where more than two additional iterations are
+      required, but they may exist.
+
+    **reliability fixes**
+
+    - mpd_qset_string_exact(), mpd_qset_i64_exact() and mpd_qset_u64_exact()
+      can now be called with a nonzero status.  Previously, the functions
+      could return NaN/Invalid_operation in that case.
+
+      This is listed under "reliability fixes" since there is no possible
+      scenario under which these functions would legitimately be called with
+      a nonzero status.
+
+libmpdec++
+~~~~~~~~~~
+
+    **features**
+
+    - Add input validation for Decimal.shiftl(), Decimal.shiftr() and
+      Decimal::ln10().
+
 
 Version 2.5.1
 -------------

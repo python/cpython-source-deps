@@ -23,4 +23,3 @@ fi
 if [ ! -f testdata/baseconv.decTest ]; then
     cp testdata_dist/* testdata
 fi
-

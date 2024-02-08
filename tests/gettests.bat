@@ -14,5 +14,3 @@ powershell -Command "wget http://speleotrove.com/decimal/dectest.zip -outfile de
 powershell -Command "Expand-Archive dectest.zip -DestinationPath testdata"
 
 :OUT
-
-

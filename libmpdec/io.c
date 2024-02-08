@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2020 Stefan Krah. All rights reserved.
+ * Copyright (c) 2008-2024 Stefan Krah. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -7,12 +7,11 @@
  *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
- *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS "AS IS" AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
  * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
@@ -26,8 +25,6 @@
  */
 
 
-#include "mpdecimal.h"
-
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
@@ -38,6 +35,7 @@
 #include <string.h>
 
 #include "io.h"
+#include "mpdecimal.h"
 #include "typearith.h"
 
 
@@ -48,6 +46,7 @@
 #if defined(__GNUC__) && !defined(__INTEL_COMPILER) && __GNUC__ >= 7
   #pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
   #pragma GCC diagnostic ignored "-Wmisleading-indentation"
+  #pragma GCC diagnostic ignored "-Warray-bounds"
 #endif
 
 
@@ -331,15 +330,16 @@ void
 mpd_qset_string_exact(mpd_t *dec, const char *s, uint32_t *status)
 {
     mpd_context_t maxcontext;
+    uint32_t workstatus = 0;
 
     mpd_maxcontext(&maxcontext);
-    mpd_qset_string(dec, s, &maxcontext, status);
+    mpd_qset_string(dec, s, &maxcontext, &workstatus);
 
-    if (*status & (MPD_Inexact|MPD_Rounded|MPD_Clamped)) {
+    if (workstatus & (MPD_Inexact|MPD_Rounded|MPD_Clamped)) {
         /* we want exact results */
         mpd_seterror(dec, MPD_Invalid_operation, status);
     }
-    *status &= MPD_Errors;
+    *status |= (workstatus&MPD_Errors);
 }
 
 /* Print word x with n decimal digits to string s. dot is either NULL
@@ -435,15 +435,16 @@ coeff_to_string_dot(char *s, char *dot, const mpd_t *dec)
 }
 
 /* Format type */
-#define MPD_FMT_LOWER      0x00000000
-#define MPD_FMT_UPPER      0x00000001
-#define MPD_FMT_TOSCI      0x00000002
-#define MPD_FMT_TOENG      0x00000004
-#define MPD_FMT_EXP        0x00000008
-#define MPD_FMT_FIXED      0x00000010
-#define MPD_FMT_PERCENT    0x00000020
-#define MPD_FMT_SIGN_SPACE 0x00000040
-#define MPD_FMT_SIGN_PLUS  0x00000080
+#define MPD_FMT_LOWER       0x00000000
+#define MPD_FMT_UPPER       0x00000001
+#define MPD_FMT_TOSCI       0x00000002
+#define MPD_FMT_TOENG       0x00000004
+#define MPD_FMT_EXP         0x00000008
+#define MPD_FMT_FIXED       0x00000010
+#define MPD_FMT_PERCENT     0x00000020
+#define MPD_FMT_SIGN_SPACE  0x00000040
+#define MPD_FMT_SIGN_PLUS   0x00000080
+#define MPD_FMT_SIGN_COERCE 0x00000100
 
 /* Default place of the decimal point for MPD_FMT_TOSCI, MPD_FMT_EXP */
 #define MPD_DEFAULT_DOTPLACE 1
@@ -587,7 +588,7 @@ _mpd_to_string(char **result, const mpd_t *dec, int flags, mpd_ssize_t dplace)
         }
 
 
-        if (mpd_isnegative(dec)) {
+        if (mpd_isnegative(dec) && !(flags&MPD_FMT_SIGN_COERCE && mpd_iszero(dec))) {
             *cp++ = '-';
         }
         else if (flags&MPD_FMT_SIGN_SPACE) {
@@ -742,16 +743,16 @@ _mpd_copy_utf8(char dest[5], const char *s)
         goto error;
     }
 
-    dest[0] = *cp++;
+    dest[0] = (char)*cp++;
     if (*cp < lb || ub < *cp) {
         goto error;
     }
-    dest[1] = *cp++;
+    dest[1] = (char)*cp++;
     for (i = 2; i < count; i++) {
         if (*cp < 0x80 || 0xbf < *cp) {
             goto error;
         }
-        dest[i] = *cp++;
+        dest[i] = (char)*cp++;
     }
     dest[i] = '\0';
 
@@ -797,6 +798,7 @@ mpd_parse_fmt_str(mpd_spec_t *spec, const char *fmt, int caps)
     spec->type = caps ? 'G' : 'g';
     spec->align = '>';
     spec->sign = '-';
+    spec->sign_coerce = 0;
     spec->dot = "";
     spec->sep = "";
     spec->grouping = "";
@@ -828,6 +830,12 @@ mpd_parse_fmt_str(mpd_spec_t *spec, const char *fmt, int caps)
     /* sign formatting */
     if (*cp == '+' || *cp == '-' || *cp == ' ') {
         spec->sign = *cp++;
+    }
+
+    /* coerce to positive zero */
+    if (*cp == 'z') {
+        spec->sign_coerce = 1;
+        cp++;
     }
 
     /* zero padding */
@@ -1266,6 +1274,11 @@ mpd_qformat_spec(const mpd_t *dec, const mpd_spec_t *spec,
         type = (char)tolower((unsigned char)type);
         flags |= MPD_FMT_UPPER;
     }
+
+    if (spec->sign_coerce) {
+        flags |= MPD_FMT_SIGN_COERCE;
+    }
+
     if (spec->sign == ' ') {
         flags |= MPD_FMT_SIGN_SPACE;
     }
@@ -1281,7 +1294,6 @@ mpd_qformat_spec(const mpd_t *dec, const mpd_spec_t *spec,
             stackspec.align = '>';
             spec = &stackspec;
         }
-        assert(strlen(spec->fill) == 1); /* annotation for scan-build */
         if (type == '%') {
             flags |= MPD_FMT_PERCENT;
         }

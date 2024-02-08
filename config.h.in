@@ -1,5 +1,13 @@
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
+
+/*
+ * The generated config.h is only included in runtest.cc, and there are
+ * no plans to use it elsewhere.  All defines apart from HAVE_PTHREAD_H
+ * are purely informational.
+ */
+
+
 /* Define if we can use x64 gcc inline assembler. */
 #undef HAVE_GCC_ASM_FOR_X64
 

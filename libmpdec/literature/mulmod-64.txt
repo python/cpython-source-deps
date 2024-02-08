@@ -1,6 +1,6 @@
 
 
-(* Copyright (c) 2011-2020 Stefan Krah. All rights reserved. *)
+(* Copyright (c) 2011-2024 Stefan Krah. All rights reserved. *)
 
 
 ==========================================================================

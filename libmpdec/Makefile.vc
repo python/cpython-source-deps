@@ -1,13 +1,11 @@
 
 # ======================================================================
-#                Visual C (nmake) Makefile for libmpdec
+#                 Visual C (nmake) Makefile for libmpdec
 # ======================================================================
 
-
-LIBSTATIC = libmpdec-2.5.1.lib
-LIBIMPORT = libmpdec-2.5.1.dll.lib
-LIBSHARED = libmpdec-2.5.1.dll
-
+LIBSTATIC = libmpdec-4.0.0.lib
+LIBIMPORT = libmpdec-4.0.0.dll.lib
+LIBSHARED = libmpdec-4.0.0.dll
 
 MPD_HEADER = mpdecimal32vc.h
 MPD_PREC = 9
@@ -31,23 +29,26 @@ CONFIG = /DCONFIG_32 /DPPRO /DMASM
 !if "$(MACHINE)" == "ansi32"
 CONFIG = /DCONFIG_32 /DANSI
 !endif
-!if "$(MACHINE)" == "ansi-legacy"
-CONFIG = /DCONFIG_32 /DANSI /DLEGACY_COMPILER
-!endif
 
 !if "$(DEBUG)" == "1"
 OPT = /MTd /Od /Zi /EHsc
 OPT_SHARED = /MDd /Od /Zi /EHsc
 !else
-OPT = /MT /Ox /GS /EHsc
-OPT_SHARED = /MD /Ox /GS /EHsc
+OPT = /MT /O2 /GS /EHsc /DNDEBUG
+OPT_SHARED = /MD /O2 /GS /EHsc /DNDEBUG
 !endif
 
-MPD_CFLAGS = /W4 /wd4200 /wd4204 /wd4221 /D_CRT_SECURE_NO_WARNINGS /nologo $(CONFIG) $(OPT)
-MPD_CFLAGS_SHARED = /DBUILD_LIBMPDEC /W4 /wd4200 /wd4204 /wd4221 /D_CRT_SECURE_NO_WARNINGS /nologo $(CONFIG) $(OPT_SHARED) $(PGOFLAGS)
+!if "$(CC)" == "clang-cl"
+WARN = /W4 /wd4200 /wd4204 /wd4221 -Wno-unknown-pragmas -Wno-undefined-inline /D_CRT_SECURE_NO_WARNINGS
+!else
+WARN = /W4 /wd4200 /wd4204 /wd4221 /D_CRT_SECURE_NO_WARNINGS
+!endif
 
-MPD_BIN_CFLAGS = /W4 /wd4200 /wd4204 /wd4221 /D_CRT_SECURE_NO_WARNINGS /nologo $(OPT)
-MPD_BIN_CFLAGS_SHARED = /W4 /wd4200 /wd4204 /wd4221 /D_CRT_SECURE_NO_WARNINGS /nologo $(OPT_SHARED) $(PGOFLAGS)
+MPD_CFLAGS = $(WARN) /nologo $(CONFIG) $(OPT)
+MPD_CFLAGS_SHARED = /DBUILD_LIBMPDEC $(WARN) /nologo $(CONFIG) $(OPT_SHARED) $(PGOFLAGS)
+
+MPD_BIN_CFLAGS = $(WARN) /nologo $(OPT)
+MPD_BIN_CFLAGS_SHARED = $(WARN) /nologo $(OPT_SHARED) $(PGOFLAGS)
 
 MPD_LDFLAGS= /DLL /MANIFEST $(LDFLAGS)
 
@@ -96,11 +97,11 @@ Makefile basearith.c mpdecimal.h basearith.h typearith.h constants.h
 	$(CC) $(MPD_CFLAGS_SHARED) -c basearith.c /Fo.objs\basearith.obj
 
 constants.obj:\
-Makefile constants.c mpdecimal.h constants.h
+Makefile constants.c mpdecimal.h basearith.h typearith.h constants.h
 	$(CC) $(MPD_CFLAGS) -c constants.c
 
 .objs\constants.obj:\
-Makefile constants.c mpdecimal.h constants.h
+Makefile constants.c mpdecimal.h basearith.h typearith.h constants.h
 	$(CC) $(MPD_CFLAGS_SHARED) -c constants.c /Fo.objs\constants.obj
 
 context.obj:\
@@ -285,5 +286,3 @@ distclean: FORCE
 	-@if exist Makefile del Makefile
 	-@cd ..\tests
 	-@if exist Makefile nmake distclean
-
-

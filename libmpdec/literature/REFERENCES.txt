@@ -20,6 +20,10 @@ T. E. Hull, A. Abrham: Variable precision exponential function
 http://portal.acm.org/citation.cfm?id=6498
 
 
+T. Granlund, P. L. Montgomery: Division by Invariant Integers using Multiplication
+http://gmplib.org/~tege/divcnst-pldi94.pdf
+
+
 Roman E. Maeder: Storage allocation for the Karatsuba integer multiplication
 algorithm.  http://www.springerlink.com/content/w15058mj6v59t565/
 
