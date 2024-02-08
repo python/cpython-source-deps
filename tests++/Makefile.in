@@ -1,0 +1,76 @@
+
+SRCDIR = ../libmpdec
+
+ENABLE_SHARED = @ENABLE_SHARED@
+
+LIBSTATIC = @LIBSTATIC@
+LIBSHARED = @LIBSHARED@
+LINK_STATIC = @LINK_STATIC@
+LINK_DYNAMIC = @LINK_DYNAMIC@
+LINK_SHLIBS = @LINK_SHLIBS@
+LINK_SHLIBS_CXX = @LINK_SHLIBS_CXX@
+
+SRCDIR_CXX = ../libmpdec++
+LIBSTATIC_CXX = @LIBSTATIC_CXX@
+LIBSHARED_CXX = @LIBSHARED_CXX@
+
+CXX = @CXX@
+MPD_PTHREAD = @MPD_PTHREAD@
+MPD_CXX = $(strip $(CXX) $(MPD_PTHREAD))
+
+CONFIGURE_CXXFLAGS = @CONFIGURE_CXXFLAGS@
+MPD_CXXFLAGS = $(strip $(filter-out $(CXXFLAGS),$(CONFIGURE_CXXFLAGS)) $(CXXFLAGS))
+
+LINK_LIBSTATIC = $(strip $(LINK_STATIC) $(SRCDIR_CXX)/$(LIBSTATIC_CXX) $(SRCDIR)/$(LIBSTATIC) $(LINK_DYNAMIC))
+LINK_LIBSHARED = $(strip $(LINK_SHLIBS_CXX) $(LINK_SHLIBS))
+
+ifeq ($(ENABLE_SHARED), yes)
+default: runtest runtest_shared apitest apitest_shared
+else
+default: runtest apitest
+endif
+
+
+# Objects.
+test.o:\
+Makefile test.cc $(SRCDIR)/mpdecimal.h $(SRCDIR_CXX)/decimal.hh test.hh
+	$(MPD_CXX) -I$(SRCDIR) -I$(SRCDIR_CXX) $(MPD_CXXFLAGS) -c test.cc
+
+runtest.o:\
+Makefile runtest.cc $(SRCDIR)/mpdecimal.h $(SRCDIR_CXX)/decimal.hh test.hh vctest.hh
+	$(MPD_CXX) -I.. -I$(SRCDIR) -I$(SRCDIR_CXX) $(MPD_CXXFLAGS) -c runtest.cc
+
+apitest.o:\
+Makefile apitest.cc $(SRCDIR)/mpdecimal.h $(SRCDIR_CXX)/decimal.hh test.hh vctest.hh
+	$(MPD_CXX) -I$(SRCDIR) -I$(SRCDIR_CXX) $(MPD_CXXFLAGS) -c apitest.cc
+
+# Short test.
+runtest:\
+Makefile runtest.o test.o $(SRCDIR)/$(LIBSTATIC) $(SRCDIR_CXX)/$(LIBSTATIC_CXX)
+	$(MPD_CXX) -I$(SRCDIR) -I$(SRCDIR_CXX) $(MPD_CXXFLAGS) -o runtest runtest.o test.o $(LINK_LIBSTATIC) -lm
+
+runtest_shared:\
+Makefile runtest.o test.o $(SRCDIR)/$(LIBSHARED) $(SRCDIR_CXX)/$(LIBSTATIC_CXX)
+	$(MPD_CXX) -I$(SRCDIR) -I$(SRCDIR_CXX) $(MPD_CXXFLAGS) -o runtest_shared runtest.o test.o -L$(SRCDIR) -L$(SRCDIR_CXX) $(LINK_LIBSHARED) -lm
+
+# API test.
+apitest:\
+Makefile apitest.o test.o $(SRCDIR)/$(LIBSTATIC) $(SRCDIR_CXX)/$(LIBSTATIC_CXX)
+	$(MPD_CXX) -I$(SRCDIR) -I$(SRCDIR_CXX) $(MPD_CXXFLAGS) -o apitest apitest.o test.o $(LINK_LIBSTATIC) -lm
+
+apitest_shared:\
+Makefile apitest.o test.o $(SRCDIR)/$(LIBSHARED) $(SRCDIR_CXX)/$(LIBSTATIC_CXX)
+	$(MPD_CXX) -I$(SRCDIR) -I$(SRCDIR_CXX) $(MPD_CXXFLAGS) -o apitest_shared apitest.o test.o -L$(SRCDIR) -L$(SRCDIR_CXX) $(LINK_LIBSHARED) -lm
+
+
+FORCE:
+
+clean: FORCE
+	rm -f *.o *.gch *.gcda *.gcno *.gcov *.dyn *.dpi *.lock
+	rm -f runtest runtest_shared apitest apitest_shared
+
+distclean: FORCE
+	$(MAKE) clean
+	rm -rf Makefile dectest.zip testdata
+
+
