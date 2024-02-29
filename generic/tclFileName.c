@@ -5,7 +5,7 @@
  *	and network form.
  *
  * Copyright (c) 1995-1998 Sun Microsystems, Inc.
- * Copyright (c) 1998-1999 by Scriptics Corporation.
+ * Copyright (c) 1998-1999 Scriptics Corporation.
  *
  * See the file "license.terms" for information on usage and redistribution of
  * this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -89,7 +89,7 @@ SetResultLength(
  * Results:
  *	Returns the position in the path immediately after the root including
  *	any trailing slashes. Appends a cleaned up version of the root to the
- *	Tcl_DString at the specified offest.
+ *	Tcl_DString at the specified offset.
  *
  * Side effects:
  *	Modifies the specified Tcl_DString.
@@ -422,22 +422,11 @@ TclpGetNativePathType(
 		    while (*path && *path != '/') {
 			++path;
 		    }
-#if defined(__CYGWIN__)
-		    /* UNC paths need to be followed by a share name */
-		    if (*path++ && (*path && *path != '/')) {
-			++path;
-			while (*path && *path != '/') {
-			    ++path;
-			}
-		    } else {
-			path = origPath + 1;
-		    }
-#endif
 		}
 #endif
 		if (driveNameLengthPtr != NULL) {
 		    /*
-		     * We need this addition in case the QNX or Cygwin code was used.
+		     * We need this addition in case the "//" code was used.
 		     */
 
 		    *driveNameLengthPtr = (path - origPath);
@@ -664,17 +653,6 @@ SplitUnixPath(
 	    while (*path && *path != '/') {
 		++path;
 	    }
-#if defined(__CYGWIN__)
-	    /* UNC paths need to be followed by a share name */
-	    if (*path++ && (*path && *path != '/')) {
-		++path;
-		while (*path && *path != '/') {
-		    ++path;
-		}
-	    } else {
-		path = origPath + 1;
-	    }
-#endif
 	}
 #endif
 	rootElt = Tcl_NewStringObj(origPath, path - origPath);
@@ -1889,7 +1867,11 @@ TclGlob(
 	separators = "/\\";
 
     } else if (tclPlatform == TCL_PLATFORM_UNIX) {
-	if (pathPrefix == NULL && tail[0] == '/') {
+	if (pathPrefix == NULL && tail[0] == '/'
+#if defined(__CYGWIN__) || defined(__QNX__)
+		&& tail[1] != '/'
+#endif
+	) {
 	    pathPrefix = Tcl_NewStringObj(tail, 1);
 	    tail++;
 	    Tcl_IncrRefCount(pathPrefix);
@@ -1915,7 +1897,7 @@ TclGlob(
      * To process a [glob] invocation, this function may be called multiple
      * times. Each time, the previously discovered filenames are in the
      * interpreter result. We stash that away here so the result is free for
-     * error messsages.
+     * error messages.
      */
 
     savedResultObj = Tcl_GetObjResult(interp);
@@ -2156,7 +2138,7 @@ DoGlob(
     Tcl_GlobTypeData *types)	/* List object containing list of acceptable
 				 * types. May be NULL. */
 {
-    int baseLength, quoted, count;
+    int baseLength, quoted;
     int result = TCL_OK;
     char *name, *p, *openBrace, *closeBrace, *firstSpecialChar;
     Tcl_Obj *joinedPtr;
@@ -2166,7 +2148,6 @@ DoGlob(
      * past the last initial separator.
      */
 
-    count = 0;
     name = pattern;
     for (; *pattern != '\0'; pattern++) {
 	if (*pattern == '\\') {
@@ -2186,7 +2167,6 @@ DoGlob(
 	} else if (strchr(separators, *pattern) == NULL) {
 	    break;
 	}
-	count++;
     }
 
     /*

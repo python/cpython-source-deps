@@ -84,10 +84,8 @@ static TclOOStubs stubsCopy = {
     NULL, NULL, NULL, NULL, NULL, NULL, NULL,
     NULL, NULL, NULL, NULL, NULL, NULL, NULL,
     NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL
-#ifdef Tcl_MethodIsPrivate
-    ,NULL
-#endif
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL, NULL, NULL
 };
 
 DLLEXPORT int
@@ -105,23 +103,23 @@ Pkgooa_Init(
      * This worked in Tcl 8.6.0, and is expected
      * to keep working in all future Tcl 8.x releases.
      */
-    if (Tcl_InitStubs(interp, "8.5", 0) == NULL) {
+    if (Tcl_InitStubs(interp, "8.5-", 0) == NULL) {
 	return TCL_ERROR;
     }
     if (tclStubsPtr == NULL) {
 	Tcl_AppendResult(interp, "Tcl stubs are not initialized, "
-		"did you compile using -DUSE_TCL_STUBS? ");
+		"did you compile using -DUSE_TCL_STUBS? ", (void *)NULL);
 	return TCL_ERROR;
     }
     if (Tcl_OOInitStubs(interp) == NULL) {
 	return TCL_ERROR;
     }
     if (tclOOStubsPtr == NULL) {
-	Tcl_AppendResult(interp, "TclOO stubs are not initialized");
+	Tcl_AppendResult(interp, "TclOO stubs are not initialized", (void *)NULL);
 	return TCL_ERROR;
     }
     if (tclOOIntStubsPtr == NULL) {
-	Tcl_AppendResult(interp, "TclOO internal stubs are not initialized");
+	Tcl_AppendResult(interp, "TclOO internal stubs are not initialized", (void *)NULL);
 	return TCL_ERROR;
     }
 

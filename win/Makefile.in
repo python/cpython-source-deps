@@ -350,6 +350,8 @@ TOMMATH_OBJS = \
 	bn_mp_mul_d.${OBJEXT} \
 	bn_mp_neg.${OBJEXT} \
 	bn_mp_or.${OBJEXT} \
+	bn_mp_pack.${OBJEXT} \
+	bn_mp_pack_count.${OBJEXT} \
 	bn_mp_radix_size.${OBJEXT} \
 	bn_mp_radix_smap.${OBJEXT} \
 	bn_mp_read_radix.${OBJEXT} \
@@ -364,6 +366,7 @@ TOMMATH_OBJS = \
 	bn_mp_to_ubin.${OBJEXT} \
 	bn_mp_to_radix.${OBJEXT} \
 	bn_mp_ubin_size.${OBJEXT} \
+	bn_mp_unpack.${OBJEXT} \
 	bn_mp_xor.${OBJEXT} \
 	bn_mp_zero.${OBJEXT} \
 	bn_s_mp_add.${OBJEXT} \
@@ -515,7 +518,7 @@ ${TEST_EXE_FILE}: ${TCL_STUB_LIB_FILE} ${TCLTEST_OBJS} tclTestMain.${OBJEXT}
         tclsh.$(RES) $(CC_EXENAME) $(LDFLAGS_CONSOLE)
 	$(COPY) tclsh.exe.manifest ${TEST_EXE_FILE}.manifest
 
-# use pre-built zlib1.dll
+# use prebuilt zlib1.dll
 ${ZLIB_DLL_FILE}: ${TCL_STUB_LIB_FILE}
 	@if test "@ZLIB_LIBS@set" = "${ZLIB_DIR_NATIVE}/win64-arm/zdll.libset" ; then \
 		$(COPY) $(ZLIB_DIR)/win64-arm/${ZLIB_DLL_FILE} ${ZLIB_DLL_FILE}; \
@@ -744,8 +747,8 @@ install-libraries: libraries install-tzdata install-msgs
 	    done;
 	@echo "Installing package msgcat 1.6.1 as a Tcl Module";
 	@$(COPY) $(ROOT_DIR)/library/msgcat/msgcat.tcl "$(MODULE_INSTALL_DIR)/8.5/msgcat-1.6.1.tm";
-	@echo "Installing package tcltest 2.5.5 as a Tcl Module";
-	@$(COPY) $(ROOT_DIR)/library/tcltest/tcltest.tcl "$(MODULE_INSTALL_DIR)/8.5/tcltest-2.5.5.tm";
+	@echo "Installing package tcltest 2.5.7 as a Tcl Module";
+	@$(COPY) $(ROOT_DIR)/library/tcltest/tcltest.tcl "$(MODULE_INSTALL_DIR)/8.5/tcltest-2.5.7.tm";
 	@echo "Installing package platform 1.0.19 as a Tcl Module";
 	@$(COPY) $(ROOT_DIR)/library/platform/platform.tcl "$(MODULE_INSTALL_DIR)/8.4/platform-1.0.19.tm";
 	@echo "Installing package platform::shell 1.1.4 as a Tcl Module";
