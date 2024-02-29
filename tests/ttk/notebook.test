@@ -409,7 +409,7 @@ test notebook-7.7d "insert - current tab undisturbed" -body {
 test notebook-7.8a "move tabs - current tab undisturbed - exhaustive" -body {
     .nb select .nb.f0
     foreach i {0 1 2 3 4} {
-    	.nb insert $i .nb.f$i
+	.nb insert $i .nb.f$i
     }
 
     foreach i {0 1 2 3 4} {
@@ -466,7 +466,7 @@ test notebook-1817596-2 "error in insert should have no effect" -body {
     .nb insert end [ttk::label .nb.l1]
     .nb insert end [ttk::label .nb.l2]
     list \
-    	[catch { .nb insert .l2 0 -badoption badvalue } err] \
+	[catch { .nb insert .l2 0 -badoption badvalue } err] \
 	[.nb tabs] \
 } -result [list 1 [list .nb.l1 .nb.l2]] -cleanup { destroy .nb }
 
@@ -523,5 +523,19 @@ test notebook-1343984-2 "don't autoselect on destroy" -body {
     update
     set ::history
 } -result [list DESTROY .nb.frame1 DESTROY .nb.frame2 DESTROY .nb.frame3]
+
+test notebook-198376af5a {moving tab position to a different edge} -body {
+    destroy .nb
+    ttk::notebook .nb -width 200 -height 100 -padding 0
+    ttk::frame .nb.f1
+    ttk::frame .nb.f2
+    .nb add .nb.f1 -text "One"
+    .nb add .nb.f2 -text "Two"
+    pack .nb
+    update
+    ttk::style configure TNotebook -tabposition s
+    update
+    expr {[winfo y .nb.f1] < 10}
+} -result 1
 
 tcltest::cleanupTests

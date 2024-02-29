@@ -693,6 +693,8 @@ typedef struct TkMainInfo {
 				/* Saved Tcl [update] command, used to restore
 				 * Tcl's version of [update] after Tk is shut
 				 * down */
+    unsigned int ttkNbTabsStickBit;
+    				/* Information used by ttk::notebook. */
 } TkMainInfo;
 
 /*
@@ -1336,6 +1338,8 @@ MODULE_SCOPE Status TkParseColor (Display * display,
 #ifdef HAVE_XFT
 MODULE_SCOPE void	TkUnixSetXftClipRegion(TkRegion clipRegion);
 #endif
+
+MODULE_SCOPE void	TkpCopyRegion(TkRegion dst, TkRegion src);
 
 #if !defined(__cplusplus) && !defined(c_plusplus)
 # define c_class class

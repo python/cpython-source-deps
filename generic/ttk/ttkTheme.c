@@ -403,8 +403,6 @@ typedef struct
     int themeChangePending;		/* scheduled ThemeChangedProc call? */
 } StylePackageData;
 
-static void ThemeChangedProc(void *);	/* Forward */
-
 /* Ttk_StylePkgFree --
  *	Cleanup procedure for StylePackageData.
  */
@@ -479,7 +477,7 @@ static StylePackageData *GetStylePackageData(Tcl_Interp *interp)
 void Ttk_RegisterCleanup(
     Tcl_Interp *interp, ClientData clientData, Ttk_CleanupProc *cleanupProc)
 {
-    StylePackageData *pkgPtr = (StylePackageData *)GetStylePackageData(interp);
+    StylePackageData *pkgPtr = GetStylePackageData(interp);
     Cleanup *cleanup = (Cleanup *)ckalloc(sizeof(*cleanup));
 
     cleanup->clientData = clientData;

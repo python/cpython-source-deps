@@ -8,6 +8,12 @@
 #include "ttkTheme.h"
 #include "ttkWidget.h"
 
+#ifdef _WIN32
+#include "tkWinInt.h"
+#endif
+
+#define MAX(a,b) ((a) > (b) ? (a) : (b))
+
 #define DEF_TREE_ROWS		"10"
 #define DEF_COLWIDTH		"200"
 #define DEF_MINWIDTH		"20"
@@ -1586,12 +1592,12 @@ static Ttk_Layout TreeviewGetLayout(
     Ttk_LayoutSize(tv->tree.headingLayout, 0, &unused, &tv->tree.headingHeight);
 
     /* Get item height, indent from style:
-     * @@@ TODO: sanity-check.
      */
     tv->tree.rowHeight = DEFAULT_ROWHEIGHT;
     tv->tree.indent = DEFAULT_INDENT;
     if ((objPtr = Ttk_QueryOption(treeLayout, "-rowheight", 0))) {
 	(void)Tcl_GetIntFromObj(NULL, objPtr, &tv->tree.rowHeight);
+	tv->tree.rowHeight = MAX(tv->tree.rowHeight, 1);
     }
     if ((objPtr = Ttk_QueryOption(treeLayout, "-indent", 0))) {
 	(void)Tcl_GetIntFromObj(NULL, objPtr, &tv->tree.indent);
@@ -1611,7 +1617,7 @@ static Ttk_Layout TreeviewGetLayout(
 static void TreeviewDoLayout(void *clientData)
 {
     Treeview *tv = clientData;
-    int visibleRows;
+    int totalRows, visibleRows;
 
     Ttk_PlaceLayout(tv->core.layout,tv->core.state,Ttk_WinBox(tv->core.tkwin));
     tv->tree.treeArea = Ttk_ClientRegion(tv->core.layout, "treearea");
@@ -1630,12 +1636,22 @@ static void TreeviewDoLayout(void *clientData)
 	tv->tree.headingArea = Ttk_MakeBox(0,0,0,0);
     }
 
-    visibleRows = tv->tree.treeArea.height / tv->tree.rowHeight;
     tv->tree.root->state |= TTK_STATE_OPEN;
+    totalRows = CountRows(tv->tree.root) - 1;
+    visibleRows = tv->tree.treeArea.height / tv->tree.rowHeight;
+    if (tv->tree.treeArea.height % tv->tree.rowHeight) {
+        /* When the treeview height doesn't correspond to an exact number
+         * of rows, the visible row count must be incremented to draw a
+         * partial row at the bottom. The total row count must also be
+         * incremented to be able to scroll all the way to the bottom.
+         */
+        visibleRows++;
+        totalRows++;
+    }
     TtkScrolled(tv->tree.yscrollHandle,
 	    tv->tree.yscroll.first,
 	    tv->tree.yscroll.first + visibleRows,
-	    CountRows(tv->tree.root) - 1);
+	    totalRows);
 }
 
 /* + TreeviewSize --
@@ -2207,7 +2223,7 @@ static int TreeviewHorribleIdentify(
     if (dColumnNumber < 0) {
 	goto done;
     }
-    sprintf(dcolbuf, "#%d", dColumnNumber);
+    snprintf(dcolbuf, sizeof(dcolbuf), "#%d", dColumnNumber);
 
     if (Ttk_BoxContains(tv->tree.headingArea,x,y)) {
 	if (-HALO <= x1 - x  && x1 - x <= HALO) {
@@ -2596,7 +2612,7 @@ static int TreeviewInsertCommand(
 	char idbuf[16];
 	do {
 	    ++tv->tree.serial;
-	    sprintf(idbuf, "I%03X", tv->tree.serial);
+	    snprintf(idbuf, sizeof(idbuf), "I%03X", tv->tree.serial);
 	    entryPtr = Tcl_CreateHashEntry(&tv->tree.items, idbuf, &isNew);
 	} while (!isNew);
     }

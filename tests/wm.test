@@ -36,9 +36,9 @@ testConstraint failsOnXQuarz [expr {$tcl_platform(os) ne "Darwin" || [tk windowi
 #
 
 proc raiseDelay {} {
-    after 100;
-    update
+    after 250;
     update idletasks
+    update
 }
 
 # How to carry out a small delay while processing events
@@ -881,6 +881,7 @@ test wm-iconphoto-1.5.2 {usage} -constraints x11 -body {
     wm iconphoto . -default [image create photo -file {}]
 } -result {}
 
+
 # All other iconphoto tests are platform specific
 
 
@@ -1361,8 +1362,10 @@ test wm-stackorder-2.2 {stacking order} -body {
     destroy .t
 } -result {.t .}
 test wm-stackorder-2.3 {stacking order} -body {
-    toplevel .t ; update
-    toplevel .t2 ; update
+    toplevel .t
+    tkwait visibility .t
+    toplevel .t2
+    tkwait visibility .t2
     raise .
     raiseDelay
     raise .t2
@@ -1459,9 +1462,12 @@ test wm-stackorder-3.5 {unmapped toplevel} -body {
     destroy .t1
 } -result {.t1.t2}
 test wm-stackorder-3.6 {unmapped toplevel} -body {
-    toplevel .t1 ; update
-    toplevel .t1.t2 ; update
-    toplevel .t1.t2.t3 ; update
+    toplevel .t1
+    tkwait visibility .t1
+    toplevel .t1.t2
+    tkwait visibility .t1.t2
+    toplevel .t1.t2.t3
+    tkwait visibility .t1.t2.t3
     wm withdraw .t1.t2
     raiseDelay
     wm stackorder .t1
@@ -1490,22 +1496,23 @@ test wm-stackorder-4.1 {wm stackorder isabove|isbelow} -body {
     wm stackorder . isabove .t
 } -cleanup {
     destroy .t
-} -result {0}
+} -result 0
 test wm-stackorder-4.2 {wm stackorder isabove|isbelow} -body {
     toplevel .t ; update
     raise .t
     wm stackorder . isbelow .t
 } -cleanup {
     destroy .t
-} -result {1}
+} -result 1
 test wm-stackorder-4.3 {wm stackorder isabove|isbelow} -body {
-    toplevel .t ; update
+    toplevel .t
+    tkwait visibility .t
     raise .
     raiseDelay
-    wm stackorder .t isa .
+    wm stackorder .t isabove .
 } -cleanup {
     destroy .t
-} -result {0}
+} -result 0
 test wm-stackorder-4.4 {wm stackorder isabove|isbelow} -body {
     toplevel .t ; update
     raise .
@@ -1513,7 +1520,7 @@ test wm-stackorder-4.4 {wm stackorder isabove|isbelow} -body {
     wm stackorder .t isb .
 } -cleanup {
     destroy .t
-} -result {1}
+} -result 1
 deleteWindows
 
 test wm-stackorder-5.1 {a menu is not a toplevel} -body {
@@ -1531,8 +1538,8 @@ test wm-stackorder-5.1 {a menu is not a toplevel} -body {
 test wm-stackorder-5.2 {A normal toplevel can't be raised above an \
     overrideredirect toplevel on unix} -constraints {x11 failsOnUbuntu failsOnXQuarz} -body {
     toplevel .t
-    tkwait visibility .t
     wm overrideredirect .t 1
+    tkwait visibility .t
     raise .
     update
     raiseDelay
@@ -1543,8 +1550,8 @@ test wm-stackorder-5.2 {A normal toplevel can't be raised above an \
 test wm-stackorder-5.2.1 {A normal toplevel can be raised above an \
     overrideredirect toplevel on macOS or win} -constraints aquaOrWin32 -body {
     toplevel .t
-    tkwait visibility .t
     wm overrideredirect .t 1
+    tkwait visibility .t
     raise .
     update
     raiseDelay
@@ -1553,10 +1560,10 @@ test wm-stackorder-5.2.1 {A normal toplevel can be raised above an \
     destroy .t
 } -result 1
 test wm-stackorder-5.3 {An overrideredirect window\
-        can be explicitly lowered} -constraints failsOnXQuarz -body {
+        can be explicitly lowered} -body {
     toplevel .t
-    tkwait visibility .t
     wm overrideredirect .t 1
+    tkwait visibility .t
     lower .t
     update
     raiseDelay
@@ -2284,7 +2291,7 @@ test wm-forget-1.1 "bug #2009788: forget toplevel can cause crash" -body {
     winfo exists .parent.child
 } -cleanup {
     deleteWindows
-}  -result {1}
+}  -result 1
 test wm-forget-1.2 "bug #2009788: forget toplevel can cause crash" -body {
     toplevel .parent
     update
@@ -2293,7 +2300,7 @@ test wm-forget-1.2 "bug #2009788: forget toplevel can cause crash" -body {
     winfo exists .parent.child
 } -cleanup {
     deleteWindows
-}  -result {1}
+}  -result 1
 test wm-forget-1.3 "bug #2009788: forget toplevel can cause crash" -body {
     toplevel .parent
     toplevel .parent.child
@@ -2302,7 +2309,7 @@ test wm-forget-1.3 "bug #2009788: forget toplevel can cause crash" -body {
     winfo exists .parent.child
 } -cleanup {
     deleteWindows
-}  -result {1}
+}  -result 1
 test wm-forget-1.4 "pack into unmapped toplevel causes crash" -body {
     toplevel .parent
     toplevel .parent.child
@@ -2317,11 +2324,6 @@ test wm-forget-1.4 "pack into unmapped toplevel causes crash" -body {
 test wm-forget-2 {bug [e9112ef96e] - [wm forget] doesn't completely} -setup {
     catch {destroy .l .f.b .f}
     set res {}
-    if {[tk windowingsystem] eq "aqua"} {
-	proc doUpdate {} {update idletasks}
-    } else {
-	proc doUpdate {} {update}
-    }
 } -body {
     label .l -text "Top Dot"
     frame .f
@@ -2331,13 +2333,13 @@ test wm-forget-2 {bug [e9112ef96e] - [wm forget] doesn't completely} -setup {
     pack .f -side bottom
     set res [winfo manager .f]
     pack forget .f
-    doUpdate
+    update
     lappend res [winfo manager .f]
     wm manage .f
-    doUpdate
+    update
     lappend res [winfo manager .f]
     wm forget .f
-    doUpdate
+    update
     lappend res [winfo manager .f]
 } -cleanup {
     destroy .l .f.b .f
