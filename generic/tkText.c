@@ -542,6 +542,7 @@ CreateWidget(
 	sharedPtr->autoSeparators = 1;
 	sharedPtr->lastEditMode = TK_TEXT_EDIT_OTHER;
 	sharedPtr->stateEpoch = 0;
+	sharedPtr->imageCount = 0;
     }
 
     /*
@@ -6836,7 +6837,7 @@ TkpTesttextCmd(
     size_t len;
     int lineIndex, byteIndex, byteOffset;
     TkTextIndex index;
-    char buf[64];
+    char buf[TK_POS_CHARS];
     Tcl_CmdInfo info;
 
     if (objc < 3) {
