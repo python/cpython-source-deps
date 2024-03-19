@@ -3,7 +3,7 @@
  *
  *	This file contains the initializers for the Tcl stub vectors.
  *
- * Copyright (c) 1998-1999 by Scriptics Corporation.
+ * Copyright (c) 1998-1999 Scriptics Corporation.
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -59,6 +59,7 @@
 #define TclBN_mp_tc_or TclBN_mp_or
 #define TclBN_mp_tc_xor TclBN_mp_xor
 #define TclStaticPackage Tcl_StaticPackage
+#define TclMacOSXNotifierAddRunLoopMode_ TclMacOSXNotifierAddRunLoopMode
 #define TclUnusedStubEntry 0
 
 /* See bug 510001: TclSockMinimumBuffers needs plat imp */
@@ -144,6 +145,12 @@ static const char *TclGetStartupScriptFileName(void)
 static unsigned short TclWinNToHS(unsigned short ns) {
 	return ntohs(ns);
 }
+#define TclWinConvertError_ winConvertError
+static void
+TclWinConvertError_(unsigned errCode) {
+    TclWinConvertError(errCode);
+}
+
 #endif
 
 #define TclpCreateTempFile_ TclpCreateTempFile
@@ -364,7 +371,7 @@ Tcl_WinTCharToUtf(
  * signature. Tcl 9 must find a better solution, but that cannot be done
  * without introducing a binary incompatibility.
  */
-#define Tcl_DbNewLongObj ((Tcl_Obj*(*)(long,const char*,int))(void *)dbNewLongObj)
+#define Tcl_DbNewLongObj (Tcl_Obj*(*)(long,const char*,int))(void *)dbNewLongObj
 static Tcl_Obj *dbNewLongObj(
     int intValue,
     const char *file,
@@ -401,7 +408,7 @@ static int exprInt(Tcl_Interp *interp, const char *expr, int *ptr){
     }
     return result;
 }
-#define Tcl_ExprLong (int(*)(Tcl_Interp*,const char*,long*))exprInt
+#define Tcl_ExprLong (int(*)(Tcl_Interp*,const char*,long*))(void *)exprInt
 static int exprIntObj(Tcl_Interp *interp, Tcl_Obj*expr, int *ptr){
     long longValue;
     int result = Tcl_ExprLongObj(interp, expr, &longValue);
@@ -417,7 +424,7 @@ static int exprIntObj(Tcl_Interp *interp, Tcl_Obj*expr, int *ptr){
     }
     return result;
 }
-#define Tcl_ExprLongObj (int(*)(Tcl_Interp*,Tcl_Obj*,long*))exprIntObj
+#define Tcl_ExprLongObj (int(*)(Tcl_Interp*,Tcl_Obj*,long*))(void *)exprIntObj
 static int uniCharNcmp(const Tcl_UniChar *ucs, const Tcl_UniChar *uct, unsigned int n){
    return Tcl_UniCharNcmp(ucs, uct, (unsigned long)n);
 }
@@ -713,7 +720,7 @@ static const TclIntStubs tclIntStubs = {
     0, /* 220 */
     0, /* 221 */
     0, /* 222 */
-    0, /* 223 */
+    TclGetCStackPtr, /* 223 */
     TclGetPlatform, /* 224 */
     TclTraceDictPath, /* 225 */
     TclObjBeingDeleted, /* 226 */
@@ -865,12 +872,12 @@ static const TclPlatStubs tclPlatStubs = {
     Tcl_WinUtfToTChar, /* 0 */
     Tcl_WinTCharToUtf, /* 1 */
     0, /* 2 */
-    TclUnusedStubEntry, /* 3 */
+    TclWinConvertError_, /* 3 */
 #endif /* WIN */
 #ifdef MAC_OSX_TCL /* MACOSX */
     Tcl_MacOSXOpenBundleResources, /* 0 */
     Tcl_MacOSXOpenVersionedBundleResources, /* 1 */
-    TclUnusedStubEntry, /* 2 */
+    TclMacOSXNotifierAddRunLoopMode_, /* 2 */
 #endif /* MACOSX */
 };
 
@@ -948,13 +955,13 @@ const TclTomMathStubs tclTomMathStubs = {
     TclBN_mp_set_ull, /* 68 */
     TclBN_mp_get_mag_ull, /* 69 */
     TclBN_mp_set_ll, /* 70 */
-    0, /* 71 */
-    0, /* 72 */
+    TclBN_mp_unpack, /* 71 */
+    TclBN_mp_pack, /* 72 */
     TclBN_mp_tc_and, /* 73 */
     TclBN_mp_tc_or, /* 74 */
     TclBN_mp_tc_xor, /* 75 */
     TclBN_mp_signed_rsh, /* 76 */
-    0, /* 77 */
+    TclBN_mp_pack_count, /* 77 */
     TclBN_mp_to_ubin, /* 78 */
     TclBN_mp_div_ld, /* 79 */
     TclBN_mp_to_radix, /* 80 */
@@ -1676,7 +1683,12 @@ const TclStubs tclStubs = {
     0, /* 680 */
     0, /* 681 */
     0, /* 682 */
-    TclUnusedStubEntry, /* 683 */
+    0, /* 683 */
+    0, /* 684 */
+    0, /* 685 */
+    0, /* 686 */
+    0, /* 687 */
+    TclUnusedStubEntry, /* 688 */
 };
 
 /* !END!: Do not edit above this line. */

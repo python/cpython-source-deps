@@ -39,7 +39,6 @@ TclpFindExecutable(
     const char *argv0)		/* The value of the application's argv[0]
 				 * (native). */
 {
-    Tcl_Encoding encoding;
 #ifdef __CYGWIN__
     int length;
     wchar_t buf[PATH_MAX] = L"";
@@ -52,10 +51,10 @@ TclpFindExecutable(
 	/* Strip '.exe' part. */
 	length -= 4;
     }
-    encoding = Tcl_GetEncoding(NULL, NULL);
     TclSetObjNameOfExecutable(
-	    Tcl_NewStringObj(name, length), encoding);
+	    Tcl_NewStringObj(name, length), NULL);
 #else
+    Tcl_Encoding encoding;
     const char *name, *p;
     Tcl_StatBuf statBuf;
     Tcl_DString buffer, nameString, cwd, utfName;
@@ -694,7 +693,7 @@ TclpObjLstat(
  *	is either the given clientData, if the working directory hasn't
  *	changed, or a new clientData (owned by our caller), giving the new
  *	native path, or NULL if the current directory could not be determined.
- *	If NULL is returned, the caller can examine the standard posix error
+ *	If NULL is returned, the caller can examine the standard Posix error
  *	codes to determine the cause of the problem.
  *
  * Side effects:

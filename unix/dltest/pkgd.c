@@ -15,15 +15,6 @@
 #include "tcl.h"
 
 /*
- * Prototypes for procedures defined later in this file:
- */
-
-static int    Pkgd_SubObjCmd(ClientData clientData,
-		Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
-static int    Pkgd_UnsafeObjCmd(ClientData clientData,
-		Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
-
-/*
  *----------------------------------------------------------------------
  *
  * Pkgd_SubObjCmd --
@@ -118,7 +109,7 @@ Pkgd_Init(
 {
     int code;
 
-    if (Tcl_InitStubs(interp, "8.5", 0) == NULL) {
+    if (Tcl_InitStubs(interp, "8.5-", 0) == NULL) {
 	return TCL_ERROR;
     }
     code = Tcl_PkgProvide(interp, "pkgd", "7.3");
@@ -155,7 +146,7 @@ Pkgd_SafeInit(
 {
     int code;
 
-    if (Tcl_InitStubs(interp, "8.5", 0) == NULL) {
+    if (Tcl_InitStubs(interp, "8.5-", 0) == NULL) {
 	return TCL_ERROR;
     }
     code = Tcl_PkgProvide(interp, "pkgd", "7.3");
