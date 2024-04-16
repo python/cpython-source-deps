@@ -3,6 +3,7 @@ name: Close Pull Requests
 on:
   pull_request_target:
     types: [opened]
+    branches: [*]
 
 jobs:
   run:
