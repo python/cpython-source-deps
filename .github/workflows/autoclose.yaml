@@ -14,10 +14,12 @@ jobs:
     steps:
     - name: Close Pull Requests
       run: >
-        gh pr list --json number --jq .[].number
-        | xargs -L1 gh pr close --comment "$COMMENT"
+        for pr in $(gh pr list --repo $REPO_NAME --json number --jq .[].number); do
+            gh pr close --repo $REPO_NAME --comment "$COMMENT" $pr;
+        done
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        REPO_NAME: python/cpython-source-deps
         COMMENT: >
             We do not accept PRs on this repository. Please file an issue at
             https://github.com/python/cpython requesting an update to the
