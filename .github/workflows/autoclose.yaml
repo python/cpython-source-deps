@@ -4,16 +4,17 @@ on:
   pull_request_target:
     types: [opened]
     branches:
-    - '**'
+    - '**/*'
 
 jobs:
   run:
     runs-on: ubuntu-latest
     steps:
-    # Pin to commit hash to avoid surprises via the action
-    - uses: superbrothers/close-pull-request@9c18513d320d7b2c7185fb93396d0c664d5d8448
-      with:
-        comment: |
+    - name: Close Pull
+      run: gh pr close --comment "$COMMENT"
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        COMMENT: >
             We do not accept PRs on this repository. Please file an issue at
             https://github.com/python/cpython requesting an update to the
             source packages in this repository.
