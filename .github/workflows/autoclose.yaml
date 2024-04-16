@@ -4,15 +4,17 @@ permissions:
   pull-requests: write
 
 on:
-  pull_request_target:
-    types: [opened, synchronize, reopened]
+  schedule:
+    - cron: '0 * * * *'
 
 jobs:
   run:
     runs-on: ubuntu-latest
     steps:
-    - name: Close Pull
-      run: gh pr close --comment "$COMMENT"
+    - name: Close Pull Requests
+      run: >
+        gh pr list --json number --jq .[].number
+        | xargs -L1 gh pr close --comment "$COMMENT"
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         COMMENT: >
