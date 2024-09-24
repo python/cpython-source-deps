@@ -5,7 +5,7 @@
  *
  * Copyright (c) 1991-1994 The Regents of the University of California.
  * Copyright (c) 1994-1997 Sun Microsystems, Inc.
- * Copyright (c) 1998-1999 by Scriptics Corporation.
+ * Copyright (c) 1998-1999 Scriptics Corporation.
  *
  * See the file "license.terms" for information on usage and redistribution of
  * this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -700,10 +700,10 @@ ComputeLineBbox(
 	width = 1.0;
     }
     if (linePtr->arrow != ARROWS_NONE) {
-	if (linePtr->arrow != ARROWS_LAST) {
+	if (linePtr->arrow != ARROWS_LAST && linePtr->firstArrowPtr) {
 	    TkIncludePoint((Tk_Item *) linePtr, linePtr->firstArrowPtr);
 	}
-	if (linePtr->arrow != ARROWS_FIRST) {
+	if (linePtr->arrow != ARROWS_FIRST && linePtr->lastArrowPtr) {
 	    TkIncludePoint((Tk_Item *) linePtr, linePtr->lastArrowPtr);
 	}
     }
@@ -1014,7 +1014,7 @@ LineInsert(
 	newCoordPtr[i+objc] = linePtr->coordPtr[i];
     }
     if (linePtr->coordPtr) {
-        ckfree(linePtr->coordPtr);
+	ckfree(linePtr->coordPtr);
     }
     linePtr->coordPtr = newCoordPtr;
     length += objc ;

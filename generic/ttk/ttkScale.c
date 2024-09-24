@@ -57,7 +57,7 @@ static Tk_OptionSpec ScaleOptionSpecs[] =
 	TK_OPTION_NULL_OK,0,0},
     {TK_OPTION_STRING, "-variable", "variable", "Variable", "",
 	Tk_Offset(Scale,scale.variableObj), -1,
-	0,0,0},
+	0, 0, 0},
     {TK_OPTION_STRING_TABLE, "-orient", "orient", "Orient", "horizontal",
 	Tk_Offset(Scale,scale.orientObj),
 	Tk_Offset(Scale,scale.orient),
@@ -75,7 +75,7 @@ static Tk_OptionSpec ScaleOptionSpecs[] =
 
     {TK_OPTION_STRING, "-state", "state", "State",
 	"normal", Tk_Offset(Scale,scale.stateObj), -1,
-        0,0,STATE_CHANGED},
+        0, 0, STATE_CHANGED},
 
     WIDGET_TAKEFOCUS_TRUE,
     WIDGET_INHERIT_OPTIONS(ttkCoreOptionSpecs)
@@ -110,10 +110,11 @@ static void ScaleVariableChanged(void *recordPtr, const char *value)
 /* ScaleInitialize --
  * 	Scale widget initialization hook.
  */
-static void ScaleInitialize(Tcl_Interp *dummy, void *recordPtr)
+static void ScaleInitialize(
+    TCL_UNUSED(Tcl_Interp *),
+    void *recordPtr)
 {
     Scale *scalePtr = (Scale *)recordPtr;
-    (void)dummy;
 
     TtkTrackElementState(&scalePtr->core);
 }
@@ -163,12 +164,12 @@ static int ScaleConfigure(Tcl_Interp *interp, void *recordPtr, int mask)
  * 	Post-configuration hook.
  */
 static int ScalePostConfigure(
-    Tcl_Interp *dummy, void *recordPtr, int mask)
+    TCL_UNUSED(Tcl_Interp *),
+    void *recordPtr,
+    TCL_UNUSED(int))
 {
     Scale *scale = (Scale *)recordPtr;
     int status = TCL_OK;
-    (void)dummy;
-    (void)mask;
 
     if (scale->scale.variableTrace) {
 	status = Ttk_FireTrace(scale->scale.variableTrace);
@@ -509,20 +510,25 @@ static WidgetSpec ScaleWidgetSpec =
 };
 
 TTK_BEGIN_LAYOUT(VerticalScaleLayout)
-    TTK_GROUP("Vertical.Scale.trough", TTK_FILL_BOTH,
-	TTK_NODE("Vertical.Scale.slider", TTK_PACK_TOP) )
+    TTK_GROUP("Vertical.Scale.focus", TTK_FILL_BOTH,
+	TTK_GROUP("Vertical.Scale.padding", TTK_FILL_BOTH,
+	    TTK_GROUP("Vertical.Scale.trough", TTK_FILL_BOTH,
+		TTK_NODE("Vertical.Scale.slider", TTK_PACK_TOP))))
 TTK_END_LAYOUT
 
 TTK_BEGIN_LAYOUT(HorizontalScaleLayout)
-    TTK_GROUP("Horizontal.Scale.trough", TTK_FILL_BOTH,
-	TTK_NODE("Horizontal.Scale.slider", TTK_PACK_LEFT) )
+    TTK_GROUP("Horizontal.Scale.focus", TTK_FILL_BOTH,
+	TTK_GROUP("Horizontal.Scale.padding", TTK_FILL_BOTH,
+	    TTK_GROUP("Horizontal.Scale.trough", TTK_FILL_BOTH,
+		TTK_NODE("Horizontal.Scale.slider", TTK_PACK_LEFT))))
 TTK_END_LAYOUT
 
 /*
  * Initialization.
  */
-MODULE_SCOPE
-void TtkScale_Init(Tcl_Interp *interp)
+
+MODULE_SCOPE void
+TtkScale_Init(Tcl_Interp *interp)
 {
     Ttk_Theme theme = Ttk_GetDefaultTheme(interp);
 

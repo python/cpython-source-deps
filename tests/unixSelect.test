@@ -4,7 +4,7 @@
 # built-in commands.  Sourcing this file into Tcl runs the tests and
 # generates output for errors.  No output means no errors were found.
 #
-# Copyright (c) 1999 by Scriptics Corporation.
+# Copyright (c) 1999 Scriptics Corporation.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -13,6 +13,8 @@ package require tcltest 2.2
 namespace import ::tcltest::*
 tcltest::configure {*}$argv
 tcltest::loadTestedCommands
+
+testConstraint failsOnXQuarz [expr {$tcl_platform(os) ne "Darwin" || [tk windowingsystem] ne "x11" }]
 
 global longValue selValue selInfo
 
@@ -124,7 +126,7 @@ test unixSelect-1.1 {TkSelGetSelection procedure: simple i18n text} -constraints
 } -result 4
 
 test unixSelect-1.2 {TkSelGetSelection procedure: simple i18n text, iso8859-1} -constraints {
-    x11
+    x11 failsOnXQuarz
 } -setup {
     setupbg
 } -body {
@@ -318,7 +320,7 @@ test unixSelect-1.12 {TkSelGetSelection procedure: INCR i18n text, utf-8} -const
 } -result [string repeat x 3999]\u00fc[string repeat x 4000]
 
 test unixSelect-1.13 {TkSelGetSelection procedure: simple i18n text, utf-8} -constraints {
-    x11
+    x11 failsOnXQuarz
 } -setup {
     destroy .e
     setupbg
@@ -334,7 +336,7 @@ test unixSelect-1.13 {TkSelGetSelection procedure: simple i18n text, utf-8} -con
 } -result 5
 
 test unixSelect-1.14 {TkSelGetSelection procedure: simple i18n text, utf-8} -constraints {
-    x11
+    x11 failsOnXQuarz
 } -setup {
     setupbg
 } -body {

@@ -6,7 +6,7 @@
  *
  * Copyright (c) 1990-1994 The Regents of the University of California.
  * Copyright (c) 1994-1997 Sun Microsystems, Inc.
- * Copyright (c) 1998 by Scriptics Corporation.
+ * Copyright (c) 1998 Scriptics Corporation.
  *
  * See the file "license.terms" for information on usage and redistribution of
  * this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -694,7 +694,7 @@ typedef struct TkMainInfo {
 				 * Tcl's version of [update] after Tk is shut
 				 * down */
     unsigned int ttkNbTabsStickBit;
-    				/* Information used by ttk::notebook. */
+				/* Information used by ttk::notebook. */
 } TkMainInfo;
 
 /*
@@ -707,7 +707,7 @@ typedef struct {
     const void *source;		/* Bits for bitmap. */
     int width, height;		/* Dimensions of bitmap. */
     int native;			/* 0 means generic (X style) bitmap, 1 means
-    				 * native style bitmap. */
+				 * native style bitmap. */
 } TkPredefBitmap;
 
 /*
@@ -1315,6 +1315,8 @@ MODULE_SCOPE int	TkBackgroundEvalObjv(Tcl_Interp *interp,
 			    int objc, Tcl_Obj *const *objv, int flags);
 MODULE_SCOPE void	TkSendVirtualEvent(Tk_Window tgtWin,
 			    const char *eventName, Tcl_Obj *detail);
+MODULE_SCOPE void	TkDrawDottedRect(Display *disp, Drawable d, GC gc,
+			    int x, int y, int width, int height);
 MODULE_SCOPE Tcl_Command TkMakeEnsemble(Tcl_Interp *interp,
 			    const char *nsname, const char *name,
 			    ClientData clientData, const TkEnsemble *map);

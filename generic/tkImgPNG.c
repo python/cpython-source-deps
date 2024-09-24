@@ -196,7 +196,8 @@ static void		CleanupPNGImage(PNGImage *pngPtr);
 static int		DecodeLine(Tcl_Interp *interp, PNGImage *pngPtr);
 static int		DecodePNG(Tcl_Interp *interp, PNGImage *pngPtr,
 			    Tcl_Obj *fmtObj, Tk_PhotoHandle imageHandle,
-			    int destX, int destY);
+			    int destX, int destY, int width, int height,
+			    int srcX, int srcY);
 static int		EncodePNG(Tcl_Interp *interp,
 			    Tk_PhotoImageBlock *blockPtr, PNGImage *pngPtr);
 static int		FileMatchPNG(Tcl_Channel chan, const char *fileName,
@@ -2374,14 +2375,19 @@ ParseFormat(
 
 static int
 DecodePNG(
-    Tcl_Interp *interp,
-    PNGImage *pngPtr,
-    Tcl_Obj *fmtObj,
-    Tk_PhotoHandle imageHandle,
-    int destX,
-    int destY)
+    Tcl_Interp *interp,		/* Interpreter to use for reporting errors. */
+    PNGImage *pngPtr,		/* PNG image information record. */
+    Tcl_Obj *fmtObj,		/* User-specified format object, or NULL. */
+    Tk_PhotoHandle imageHandle,	/* The photo image to write into. */
+    int destX, int destY,	/* Coordinates of top-left pixel in photo
+				 * image to be written to. */
+    int width, int height,	/* Dimensions of block of photo image to be
+				 * written to. */
+    int srcX, int srcY)		/* Coordinates of top-left pixel to be used in
+				 * image being read. */
 {
     unsigned long chunkType;
+    int result;
     int chunkSz;
     unsigned long crc;
 
@@ -2483,8 +2489,8 @@ DecodePNG(
      * to negative here: Tk will not shrink the image.
      */
 
-    if (Tk_PhotoExpand(interp, imageHandle, destX + pngPtr->block.width,
-	    destY + pngPtr->block.height) == TCL_ERROR) {
+    if (Tk_PhotoExpand(interp, imageHandle, destX + width,
+	    destY + height) == TCL_ERROR) {
 	return TCL_ERROR;
     }
 
@@ -2520,11 +2526,11 @@ DecodePNG(
     pngPtr->thisLineObj = Tcl_NewObj();
     Tcl_IncrRefCount(pngPtr->thisLineObj);
 
-    pngPtr->block.pixelPtr = attemptckalloc(pngPtr->blockLen);
+    pngPtr->block.pixelPtr = (unsigned char *)attemptckalloc(pngPtr->blockLen);
     if (!pngPtr->block.pixelPtr) {
 	Tcl_SetObjResult(interp, Tcl_NewStringObj(
 		"memory allocation failed", -1));
-	Tcl_SetErrorCode(interp, "TK", "MALLOC", NULL);
+	Tcl_SetErrorCode(interp, "TK", "MALLOC", (char *)NULL);
 	return TCL_ERROR;
     }
 
@@ -2638,13 +2644,12 @@ DecodePNG(
      * Copy the decoded image block into the Tk photo image.
      */
 
-    if (Tk_PhotoPutBlock(interp, imageHandle, &pngPtr->block, destX, destY,
-	    pngPtr->block.width, pngPtr->block.height,
-	    TK_PHOTO_COMPOSITE_SET) == TCL_ERROR) {
-	return TCL_ERROR;
-    }
+    pngPtr->block.pixelPtr += srcX * pngPtr->block.pixelSize + srcY * pngPtr->block.pitch;
+    result = Tk_PhotoPutBlock(interp, imageHandle, &pngPtr->block, destX, destY,
+	    width, height, TK_PHOTO_COMPOSITE_SET);
+    pngPtr->block.pixelPtr -= srcX * pngPtr->block.pixelSize + srcY * pngPtr->block.pitch;
 
-    return TCL_OK;
+    return result;
 }
 
 /*
@@ -2711,17 +2716,17 @@ FileMatchPNG(
 
 static int
 FileReadPNG(
-    Tcl_Interp *interp,
-    Tcl_Channel chan,
-    const char *fileName,
-    Tcl_Obj *fmtObj,
-    Tk_PhotoHandle imageHandle,
-    int destX,
-    int destY,
-    int width,
-    int height,
-    int srcX,
-    int srcY)
+    Tcl_Interp* interp,		/* Interpreter to use for reporting errors. */
+    Tcl_Channel chan,		/* The image file, open for reading. */
+    const char* fileName,	/* The name of the image file. */
+    Tcl_Obj *fmtObj,		/* User-specified format object, or NULL. */
+    Tk_PhotoHandle imageHandle,	/* The photo image to write into. */
+    int destX, int destY,	/* Coordinates of top-left pixel in photo
+				 * image to be written to. */
+    int width, int height,	/* Dimensions of block of photo image to be
+				 * written to. */
+    int srcX, int srcY)		/* Coordinates of top-left pixel to be used in
+				 * image being read. */
 {
     PNGImage png;
     int result = TCL_ERROR;
@@ -2729,7 +2734,7 @@ FileReadPNG(
     result = InitPNGImage(interp, &png, chan, NULL, TCL_ZLIB_STREAM_INFLATE);
 
     if (TCL_OK == result) {
-	result = DecodePNG(interp, &png, fmtObj, imageHandle, destX, destY);
+	result = DecodePNG(interp, &png, fmtObj, imageHandle, destX, destY, width, height, srcX, srcY);
     }
 
     CleanupPNGImage(&png);
@@ -2799,16 +2804,16 @@ StringMatchPNG(
 
 static int
 StringReadPNG(
-    Tcl_Interp *interp,
+    Tcl_Interp* interp,		/* Interpreter to use for reporting errors. */
     Tcl_Obj *pObjData,
-    Tcl_Obj *fmtObj,
-    Tk_PhotoHandle imageHandle,
-    int destX,
-    int destY,
-    int width,
-    int height,
-    int srcX,
-    int srcY)
+    Tcl_Obj *fmtObj,		/* User-specified format object, or NULL. */
+    Tk_PhotoHandle imageHandle,	/* The photo image to write into. */
+    int destX, int destY,	/* Coordinates of top-left pixel in photo
+				 * image to be written to. */
+    int width, int height,	/* Dimensions of block of photo image to be
+				 * written to. */
+    int srcX, int srcY)		/* Coordinates of top-left pixel to be used in
+				 * image being read. */
 {
     PNGImage png;
     int result = TCL_ERROR;
@@ -2817,7 +2822,7 @@ StringReadPNG(
 	    TCL_ZLIB_STREAM_INFLATE);
 
     if (TCL_OK == result) {
-	result = DecodePNG(interp, &png, fmtObj, imageHandle, destX, destY);
+	result = DecodePNG(interp, &png, fmtObj, imageHandle, destX, destY, width, height, srcX, srcY);
     }
 
     CleanupPNGImage(&png);
@@ -2848,7 +2853,7 @@ WriteData(
     int srcSz,
     unsigned long *crcPtr)
 {
-    if (!srcPtr || !srcSz) {
+    if (!srcPtr || srcSz <= 0) {
 	return TCL_OK;
     }
 
@@ -3131,9 +3136,10 @@ WriteIDAT(
     PNGImage *pngPtr,
     Tk_PhotoImageBlock *blockPtr)
 {
-    int rowNum, flush = TCL_ZLIB_NO_FLUSH, outputSize, result;
+    int rowNum, flush = TCL_ZLIB_NO_FLUSH, result;
     Tcl_Obj *outputObj;
     unsigned char *outputBytes;
+    int outputSize;
 
     /*
      * Filter and compress each row one at a time.
@@ -3479,13 +3485,8 @@ FileWritePNG(
 	goto cleanup;
     }
 
-    /*
-     * Set the translation mode to binary so that CR and LF are not to the
-     * platform's EOL sequence.
-     */
-
-    if (Tcl_SetChannelOption(interp, chan, "-translation",
-	    "binary") != TCL_OK) {
+    if (Tcl_SetChannelOption(interp, chan, "-translation", "binary")
+	    != TCL_OK) {
 	goto cleanup;
     }
 

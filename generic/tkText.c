@@ -159,7 +159,7 @@ static const Tk_OptionSpec optionSpecs[] = {
 	Tk_Offset(TkText, highlightWidth), 0, 0, TK_TEXT_LINE_GEOMETRY},
     {TK_OPTION_BORDER, "-inactiveselectbackground","inactiveSelectBackground",
 	"Foreground",
-	DEF_TEXT_INACTIVE_SELECT_COLOR,
+	DEF_TEXT_INACTIVE_SELECT_BG_COLOR,
 	-1, Tk_Offset(TkText, inactiveSelBorder),
 	TK_OPTION_NULL_OK, DEF_TEXT_SELECT_MONO, 0},
     {TK_OPTION_BORDER, "-insertbackground", "insertBackground", "Foreground",
@@ -5059,6 +5059,10 @@ TextEditUndo(
 	return TCL_OK;
     }
 
+    if (textPtr->sharedTextPtr->autoSeparators) {
+	TkUndoInsertUndoSeparator(textPtr->sharedTextPtr->undoStack);
+    }
+
     /*
      * Turn off the undo feature while we revert a compound action, setting
      * the dirty handling mode to undo for the duration (unless it is
@@ -5076,6 +5080,10 @@ TextEditUndo(
 	textPtr->sharedTextPtr->dirtyMode = TK_TEXT_DIRTY_NORMAL;
     }
     textPtr->sharedTextPtr->undo = 1;
+
+    if (textPtr->sharedTextPtr->autoSeparators) {
+	TkUndoInsertUndoSeparator(textPtr->sharedTextPtr->undoStack);
+    }
 
     return status;
 }

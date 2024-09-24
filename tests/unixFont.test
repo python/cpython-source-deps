@@ -9,7 +9,7 @@
 # at all sites.
 #
 # Copyright (c) 1996 Sun Microsystems, Inc.
-# Copyright (c) 1998-1999 by Scriptics Corporation.
+# Copyright (c) 1998-1999 Scriptics Corporation.
 # All rights reserved.
 
 package require tcltest 2.2
@@ -88,14 +88,14 @@ test unixfont-2.2 {TkpGetFontFromAttributes procedure: Times relatives} \
     lappend x [lindex [font actual {-family "Times"}] 1]
 } {times times times}
 test unixfont-2.3 {TkpGetFontFromAttributes procedure: Courier relatives} \
-	{x11 noExceed hasCourierNew failsOnUbuntu} {
+	{x11 noExceed hasCourierNew failsOnUbuntu failsOnXQuarz} {
     set x {}
     lappend x [lindex [font actual {-family "Courier New"}] 1]
     lappend x [lindex [font actual {-family "Monaco"}] 1]
     lappend x [lindex [font actual {-family "Courier"}] 1]
 } {courier courier courier}
 test unixfont-2.4 {TkpGetFontFromAttributes procedure: Helvetica relatives} \
-	{x11 noExceed hasArial failsOnUbuntu} {
+	{x11 noExceed hasArial failsOnUbuntu failsOnXQuarz} {
     set x {}
     lappend x [lindex [font actual {-family "Arial"}] 1]
     lappend x [lindex [font actual {-family "Geneva"}] 1]

@@ -4,10 +4,10 @@
  *	This file defines the defaults for all options for all of
  *	the Tk widgets.
  *
- * Copyright (c) 1991-1994 The Regents of the University of California.
- * Copyright (c) 1994-1997 Sun Microsystems, Inc.
- * Copyright 2001-2009, Apple Inc.
- * Copyright (c) 2006-2009 Daniel A. Steffen <das@users.sourceforge.net>
+ * Copyright © 1991-1994 The Regents of the University of California.
+ * Copyright © 1994-1997 Sun Microsystems, Inc.
+ * Copyright © 2001-2009 Apple Inc.
+ * Copyright © 2006-2009 Daniel A. Steffen <das@users.sourceforge.net>
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -515,7 +515,7 @@
 #define DEF_TEXT_PADX			"1"
 #define DEF_TEXT_PADY			"1"
 #define DEF_TEXT_RELIEF			"flat"
-#define DEF_TEXT_INACTIVE_SELECT_COLOR	INACTIVE_SELECT_BG
+#define DEF_TEXT_INACTIVE_SELECT_BG_COLOR	INACTIVE_SELECT_BG
 #define DEF_TEXT_SELECT_COLOR		SELECT_BG
 #define DEF_TEXT_SELECT_MONO		BLACK
 #define DEF_TEXT_SELECT_BD_COLOR	"1"
