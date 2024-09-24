@@ -36083,11 +36083,18 @@ test clock-44.1 {regression test - time zone name containing hyphen } \
     } \
     -result {12:34:56-0500}
 
-test clock-45.1 {regression test - time zone containing only two digits} \
+test clock-44.2 {regression test - time zone containing only two digits} \
     -body {
 	clock scan 1985-04-12T10:15:30+04 -format %Y-%m-%dT%H:%M:%S%Z
     } \
     -result 482134530
+
+test clock-44.3 {regression test - spaces between some scan tokens are optional} \
+    -body {
+	list [clock scan {9 Apr 2024} -format {%d %b%Y} -gmt 1] \
+	     [clock scan {Tue, 9 Apr 2024 00:00:00 +0000} -format {%a, %d %b%Y %H:%M:%S %Z} -gmt 1]
+    } \
+    -result {1712620800 1712620800}
 
 test clock-46.1 {regression test - month zero} \
     -body {
@@ -36105,6 +36112,25 @@ test clock-46.4 {regression test - month thirteen} \
     -body {
 	clock scan 20041301
     } -result [clock scan 2005-01-01 -format %Y-%m-%d]
+
+test clock-46.5 {regression test - good time} \
+    -body {
+	# 12:01 apm are valid input strings...
+	list [clock scan "12:01 am" -base 0 -gmt 1] \
+	     [clock scan "12:01 pm" -base 0 -gmt 1]
+    } -result {60 43260}
+test clock-46.6 {freescan: regression test - bad time} \
+    -body {
+	# 13:00 am/pm are invalid input strings...
+	list [clock scan "13:00 am" -base 0 -gmt 1] \
+	     [clock scan "13:00 pm" -base 0 -gmt 1]
+    } -result {-1 -1}
+
+test clock-46.7 {regression test - switch day by large not-valid time, see bug [3ee8f1c2a785f4d8]} {
+    list [clock scan 23:59:59 -base 0 -gmt 1 -format %H:%M:%S] \
+	 [clock scan 24:00:00 -base 0 -gmt 1 -format %H:%M:%S] \
+	 [clock scan 48:00:00 -base 0 -gmt 1 -format %H:%M:%S]
+} {86399 86400 172800}
 
 test clock-47.1 {regression test - four-digit time} {
     clock scan 0012
