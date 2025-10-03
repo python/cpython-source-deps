@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2021-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -1355,7 +1355,7 @@ static int fix_rsa_padding_mode(enum state state,
         if (i == OSSL_NELEM(str_value_map)) {
             ERR_raise_data(ERR_LIB_RSA, RSA_R_UNKNOWN_PADDING_TYPE,
                            "[action:%d, state:%d] padding name %s",
-                           ctx->action_type, state, ctx->p1);
+                           ctx->action_type, state, (const char *)ctx->p2);
             ctx->p1 = ret = -2;
         } else if (state == POST_CTRL_TO_PARAMS) {
             /* EVP_PKEY_CTRL_GET_RSA_PADDING weirdness explained further up */
@@ -2827,11 +2827,15 @@ static int evp_pkey_ctx_setget_params_to_ctrl(EVP_PKEY_CTX *pctx,
 
 int evp_pkey_ctx_set_params_to_ctrl(EVP_PKEY_CTX *ctx, const OSSL_PARAM *params)
 {
+    if (ctx->keymgmt != NULL)
+        return 0;
     return evp_pkey_ctx_setget_params_to_ctrl(ctx, SET, (OSSL_PARAM *)params);
 }
 
 int evp_pkey_ctx_get_params_to_ctrl(EVP_PKEY_CTX *ctx, OSSL_PARAM *params)
 {
+    if (ctx->keymgmt != NULL)
+        return 0;
     return evp_pkey_ctx_setget_params_to_ctrl(ctx, GET, params);
 }
 

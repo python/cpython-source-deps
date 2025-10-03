@@ -983,7 +983,7 @@ int cms_main(int argc, char **argv)
                 goto end;
 
             pctx = CMS_RecipientInfo_get0_pkey_ctx(ri);
-            if (kparam != NULL) {
+            if (pctx != NULL && kparam != NULL) {
                 if (!cms_set_pkey_param(pctx, kparam->param))
                     goto end;
             }
@@ -1246,6 +1246,7 @@ int cms_main(int argc, char **argv)
             goto end;
         }
         if (ret <= 0) {
+            BIO_printf(bio_err, "Error writing CMS output\n");
             ret = 6;
             goto end;
         }
