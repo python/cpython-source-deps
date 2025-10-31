@@ -1,11 +1,9 @@
 #!/bin/sh
+# SPDX-License-Identifier: 0BSD
 
 ###############################################################################
 #
 # Author: Lasse Collin
-#
-# This file has been put into the public domain.
-# You can do whatever you want with this file.
 #
 ###############################################################################
 
@@ -21,13 +19,24 @@ ${AUTOMAKE:-automake} -acf --foreign
 
 # Generate the translated man pages if the "po4a" tool is available.
 # This is *NOT* done by "autoreconf -fi" or when "make" is run.
-#
-# Pass --no-po4a to this script to skip this step. It can be useful when
-# you know that po4a isn't available and don't want autogen.sh to exit
-# with non-zero exit status.
-if test "x$1" != "x--no-po4a"; then
+# Pass --no-po4a to this script to skip this step.
+# It can be useful when you know that po4a isn't available and
+# don't want autogen.sh to exit with non-zero exit status.
+generate_po4a="y"
+
+for arg in "$@"
+do
+	case $arg in
+		"--no-po4a")
+			generate_po4a="n"
+			;;
+	esac
+done
+
+if test "$generate_po4a" != "n"; then
 	cd po4a
 	sh update-po
+	cd ..
 fi
 
 exit 0

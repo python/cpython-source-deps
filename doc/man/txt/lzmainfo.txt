@@ -1,7 +1,5 @@
 LZMAINFO(1)                        XZ Utils                        LZMAINFO(1)
 
-
-
 NAME
        lzmainfo - show information stored in the .lzma file header
 
@@ -14,9 +12,9 @@ DESCRIPTION
        prints it to standard output in human readable format.  If no files are
        given or file is -, standard input is read.
 
-       Usually the most interesting information is the uncompressed  size  and
-       the  dictionary  size.  Uncompressed size can be shown only if the file
-       is in the non-streamed .lzma format variant.  The amount of memory  re-
+       Usually  the  most interesting information is the uncompressed size and
+       the dictionary size.  Uncompressed size can be shown only if  the  file
+       is  in the non-streamed .lzma format variant.  The amount of memory re-
        quired to decompress the file is a few dozen kilobytes plus the dictio-
        nary size.
 
@@ -34,7 +32,5 @@ BUGS
 
 SEE ALSO
        xz(1)
-
-
 
 Tukaani                           2013-06-30                       LZMAINFO(1)

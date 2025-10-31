@@ -1,39 +1,70 @@
 XZGREP(1)                          XZ Utils                          XZGREP(1)
 
-
-
 NAME
-       xzgrep - search compressed files for a regular expression
+       xzgrep - search possibly-compressed files for patterns
 
 SYNOPSIS
-       xzgrep [grep_options] [-e] pattern file...
+       xzgrep [option...]  [pattern_list] [file...]
        xzegrep ...
        xzfgrep ...
-       lzgrep ...
-       lzegrep ...
-       lzfgrep ...
+       lzgrep ...  (DEPRECATED)
+       lzegrep ...  (DEPRECATED)
+       lzfgrep ...  (DEPRECATED)
 
 DESCRIPTION
-       xzgrep  invokes  grep(1)  on  files which may be either uncompressed or
-       compressed with xz(1), lzma(1), gzip(1), bzip2(1), or lzop(1).  All op-
-       tions specified are passed directly to grep(1).
+       xzgrep  invokes grep(1) on uncompressed contents of files.  The formats
+       of the files are determined from the filename suffixes.  Any file  with
+       a  suffix  supported  by xz(1), gzip(1), bzip2(1), lzop(1), zstd(1), or
+       lz4(1) will be decompressed; all other files are assumed to  be  uncom-
+       pressed.
 
-       If  no file is specified, then standard input is decompressed if neces-
-       sary and fed to grep(1).  When reading from  standard  input,  gzip(1),
-       bzip2(1), and lzop(1) compressed files are not supported.
+       If  no  files  are  specified or file is - then standard input is read.
+       When reading from standard input, only files supported by xz(1) are de-
+       compressed.  Other files are assumed to be  in  uncompressed  form  al-
+       ready.
 
-       If xzgrep is invoked as xzegrep or xzfgrep then egrep(1) or fgrep(1) is
-       used instead of grep(1).  The same applies to  names  lzgrep,  lzegrep,
-       and  lzfgrep,  which  are provided for backward compatibility with LZMA
-       Utils.
+       Most  options of grep(1) are supported.  However, the following options
+       are not supported:
+
+           -r, --recursive
+
+           -R, --dereference-recursive
+
+           -d, --directories=action
+
+           -Z, --null
+
+           -z, --null-data
+
+           --include=glob
+
+           --exclude=glob
+
+           --exclude-from=file
+
+           --exclude-dir=glob
+
+       xzegrep is an alias for xzgrep -E.  xzfgrep is an alias for xzgrep -F.
+
+       The commands lzgrep, lzegrep, and lzfgrep  are  provided  for  backward
+       compatibility with LZMA Utils.  They are deprecated and will be removed
+       in a future version.
+
+EXIT STATUS
+       0      At  least  one  match  was  found from at least one of the input
+              files.  No errors occurred.
+
+       1      No matches were found from any of the input  files.   No  errors
+              occurred.
+
+       >1     One  or  more  errors  occurred.   It is unknown if matches were
+              found.
 
 ENVIRONMENT
-       GREP   If the GREP environment variable is set, xzgrep uses it  instead
-              of grep(1), egrep(1), or fgrep(1).
+       GREP   If GREP is set to a non-empty value, it is used instead of grep,
+              grep -E, or grep -F.
 
 SEE ALSO
-       grep(1), xz(1), gzip(1), bzip2(1), lzop(1), zgrep(1)
+       grep(1), xz(1), gzip(1), bzip2(1), lzop(1), zstd(1), lz4(1), zgrep(1)
 
-
-
-Tukaani                           2011-03-19                         XZGREP(1)
+Tukaani                           2025-03-06                         XZGREP(1)
