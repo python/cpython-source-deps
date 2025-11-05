@@ -49,7 +49,6 @@ This is used by CPython, and is not part of the regular xz release.
 #define HAVE__BOOL 1
 
 #define HAVE_INTTYPES_H 1
-#define HAVE_LZIP_DECODER 1
 #define HAVE_MF_BT2 1
 #define HAVE_MF_BT3 1
 #define HAVE_MF_BT4 1
