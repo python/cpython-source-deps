@@ -429,7 +429,9 @@ static int execute_HDR_init_test(CMP_HDR_TEST_FIXTURE *fixture)
     if (!TEST_int_eq(0, ASN1_OCTET_STRING_cmp(header_nonce, fixture->cmp_ctx->senderNonce)))
         return 0;
     header_transactionID = OSSL_CMP_HDR_get0_transactionID(fixture->hdr);
-    if (!TEST_true(0 == ASN1_OCTET_STRING_cmp(header_transactionID, fixture->cmp_ctx->transactionID)))
+    if (!TEST_true(ASN1_OCTET_STRING_cmp(header_transactionID,
+                       fixture->cmp_ctx->transactionID)
+            == 0))
         return 0;
 
     header_nonce = OSSL_CMP_HDR_get0_recipNonce(fixture->hdr);

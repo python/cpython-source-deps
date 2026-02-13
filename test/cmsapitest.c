@@ -13,6 +13,7 @@
 #include <openssl/cms.h>
 #include <openssl/bio.h>
 #include <openssl/x509.h>
+#include "../crypto/cms/cms_local.h" /* for d.signedData and d.envelopedData */
 
 #include "testutil.h"
 
@@ -29,6 +30,7 @@ static int test_encrypt_decrypt(const EVP_CIPHER *cipher)
     BIO *msgbio = BIO_new_mem_buf(msg, strlen(msg));
     BIO *outmsgbio = BIO_new(BIO_s_mem());
     CMS_ContentInfo *content = NULL;
+    BIO *contentbio = NULL;
     char buf[80];
 
     if (!TEST_ptr(certstack) || !TEST_ptr(msgbio) || !TEST_ptr(outmsgbio))
@@ -45,6 +47,12 @@ static int test_encrypt_decrypt(const EVP_CIPHER *cipher)
             CMS_TEXT)))
         goto end;
 
+    if (!(EVP_CIPHER_get_flags(cipher) & EVP_CIPH_FLAG_AEAD_CIPHER)
+        && !TEST_ptr(contentbio = CMS_EnvelopedData_decrypt(content->d.envelopedData,
+                         NULL, privkey, cert, NULL,
+                         CMS_TEXT, NULL, NULL)))
+        goto end;
+
     /* Check we got the message we first started with */
     if (!TEST_int_eq(BIO_gets(outmsgbio, buf, sizeof(buf)), strlen(msg))
         || !TEST_int_eq(strcmp(buf, msg), 0))
@@ -52,6 +60,7 @@ static int test_encrypt_decrypt(const EVP_CIPHER *cipher)
 
     testresult = 1;
 end:
+    BIO_free(contentbio);
     sk_X509_free(certstack);
     BIO_free(msgbio);
     BIO_free(outmsgbio);
@@ -80,10 +89,24 @@ static int test_encrypt_decrypt_aes_256_gcm(void)
     return test_encrypt_decrypt(EVP_aes_256_gcm());
 }
 
+static int test_CMS_add1_cert(void)
+{
+    CMS_ContentInfo *cms = NULL;
+    int ret = 0;
+
+    ret = TEST_ptr(cms = CMS_ContentInfo_new())
+        && TEST_ptr(CMS_add1_signer(cms, cert, privkey, NULL, 0))
+        && TEST_true(CMS_add1_cert(cms, cert)); /* add cert again */
+
+    CMS_ContentInfo_free(cms);
+    return ret;
+}
+
 static int test_d2i_CMS_bio_NULL(void)
 {
-    BIO *bio;
+    BIO *bio, *content = NULL;
     CMS_ContentInfo *cms = NULL;
+    unsigned int flags = CMS_NO_SIGNER_CERT_VERIFY;
     int ret = 0;
 
     /*
@@ -283,8 +306,10 @@ static int test_d2i_CMS_bio_NULL(void)
 
     ret = TEST_ptr(bio = BIO_new_mem_buf(cms_data, sizeof(cms_data)))
         && TEST_ptr(cms = d2i_CMS_bio(bio, NULL))
-        && TEST_true(CMS_verify(cms, NULL, NULL, NULL, NULL,
-            CMS_NO_SIGNER_CERT_VERIFY));
+        && TEST_true(CMS_verify(cms, NULL, NULL, NULL, NULL, flags))
+        && TEST_ptr(content = CMS_SignedData_verify(cms->d.signedData, NULL, NULL, NULL,
+                        NULL, NULL, flags, NULL, NULL));
+    BIO_free(content);
     CMS_ContentInfo_free(cms);
     BIO_free(bio);
     return ret && TEST_int_eq(ERR_peek_error(), 0);
@@ -305,6 +330,9 @@ static unsigned char *read_all(BIO *bio, long *p_len)
         buf = tmp;
         ret = BIO_read(bio, buf + *p_len, step);
         if (ret < 0)
+            break;
+
+        if (LONG_MAX - ret < *p_len)
             break;
 
         *p_len += ret;
@@ -529,6 +557,7 @@ int setup_tests(void)
     ADD_TEST(test_encrypt_decrypt_aes_128_gcm);
     ADD_TEST(test_encrypt_decrypt_aes_192_gcm);
     ADD_TEST(test_encrypt_decrypt_aes_256_gcm);
+    ADD_TEST(test_CMS_add1_cert);
     ADD_TEST(test_d2i_CMS_bio_NULL);
     ADD_TEST(test_CMS_set1_key_mem_leak);
     ADD_TEST(test_encrypted_data);

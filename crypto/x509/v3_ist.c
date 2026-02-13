@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2026 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -38,7 +38,7 @@ static ISSUER_SIGN_TOOL *v2i_issuer_sign_tool(X509V3_EXT_METHOD *method, X509V3_
     int i;
 
     if (ist == NULL) {
-        ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
         return NULL;
     }
     for (i = 0; i < sk_CONF_VALUE_num(nval); ++i) {
@@ -52,7 +52,7 @@ static ISSUER_SIGN_TOOL *v2i_issuer_sign_tool(X509V3_EXT_METHOD *method, X509V3_
             if (ist->signTool == NULL
                 || cnf->value == NULL
                 || !ASN1_STRING_set(ist->signTool, cnf->value, strlen(cnf->value))) {
-                ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
+                ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
                 goto err;
             }
         } else if (strcmp(cnf->name, "cATool") == 0) {
@@ -60,7 +60,7 @@ static ISSUER_SIGN_TOOL *v2i_issuer_sign_tool(X509V3_EXT_METHOD *method, X509V3_
             if (ist->cATool == NULL
                 || cnf->value == NULL
                 || !ASN1_STRING_set(ist->cATool, cnf->value, strlen(cnf->value))) {
-                ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
+                ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
                 goto err;
             }
         } else if (strcmp(cnf->name, "signToolCert") == 0) {
@@ -68,7 +68,7 @@ static ISSUER_SIGN_TOOL *v2i_issuer_sign_tool(X509V3_EXT_METHOD *method, X509V3_
             if (ist->signToolCert == NULL
                 || cnf->value == NULL
                 || !ASN1_STRING_set(ist->signToolCert, cnf->value, strlen(cnf->value))) {
-                ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
+                ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
                 goto err;
             }
         } else if (strcmp(cnf->name, "cAToolCert") == 0) {
@@ -76,7 +76,7 @@ static ISSUER_SIGN_TOOL *v2i_issuer_sign_tool(X509V3_EXT_METHOD *method, X509V3_
             if (ist->cAToolCert == NULL
                 || cnf->value == NULL
                 || !ASN1_STRING_set(ist->cAToolCert, cnf->value, strlen(cnf->value))) {
-                ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
+                ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
                 goto err;
             }
         } else {
@@ -102,9 +102,6 @@ static int i2r_issuer_sign_tool(X509V3_EXT_METHOD *method,
         return 0;
     }
     if (ist->signTool != NULL) {
-        if (new_line == 1) {
-            BIO_write(out, "\n", 1);
-        }
         BIO_printf(out, "%*ssignTool    : ", indent, "");
         BIO_write(out, ist->signTool->data, ist->signTool->length);
         new_line = 1;

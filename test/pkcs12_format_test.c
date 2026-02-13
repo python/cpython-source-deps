@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -10,8 +10,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-
-#include "internal/nelem.h"
 
 #include <openssl/pkcs12.h>
 #include <openssl/x509.h>
@@ -2269,6 +2267,19 @@ static const PKCS12_ATTR ATTRS2[] = {
     { NULL, NULL }
 };
 
+static const PKCS12_ATTR ATTRS3[] = {
+    { "friendlyName", "wildduk" },
+    { "localKeyID", "1122334455" },
+    { "oracle-jdk-trustedkeyusage", "anyExtendedKeyUsage" },
+    { NULL, NULL }
+};
+
+static const PKCS12_ATTR ATTRS4[] = {
+    { "friendlyName", "wildduk" },
+    { "localKeyID", "1122334455" },
+    { NULL, NULL }
+};
+
 static const PKCS12_ENC enc_default = {
 #ifndef OPENSSL_NO_DES
     NID_pbe_WithSHA1And3_Key_TripleDES_CBC,
@@ -2772,6 +2783,85 @@ static int test_multiple_contents(void)
     end_check_pkcs12(pb);
 
     return end_pkcs12_builder(pb);
+}
+
+static int test_jdk_trusted_attr(void)
+{
+    PKCS12_BUILDER *pb = new_pkcs12_builder("jdk_trusted.p12");
+
+    /* Generate/encode */
+    start_pkcs12(pb);
+
+    start_contentinfo(pb);
+
+    add_certbag(pb, CERT1, sizeof(CERT1), ATTRS3);
+
+    end_contentinfo(pb);
+
+    end_pkcs12_with_mac(pb, &mac_default);
+
+    /* Read/decode */
+    start_check_pkcs12_with_mac(pb, &mac_default);
+
+    start_check_contentinfo(pb);
+
+    check_certbag(pb, CERT1, sizeof(CERT1), ATTRS3);
+
+    end_check_contentinfo(pb);
+
+    end_check_pkcs12(pb);
+
+    return end_pkcs12_builder(pb);
+}
+
+static int test_set0_attrs(void)
+{
+    PKCS12_BUILDER *pb = new_pkcs12_builder("attrs.p12");
+    PKCS12_SAFEBAG *bag = NULL;
+    STACK_OF(X509_ATTRIBUTE) *attrs = NULL;
+    X509_ATTRIBUTE *attr = NULL;
+
+    start_pkcs12(pb);
+
+    start_contentinfo(pb);
+
+    /* Add cert and attrs (name/locakkey only) */
+    add_certbag(pb, CERT1, sizeof(CERT1), ATTRS4);
+
+    bag = sk_PKCS12_SAFEBAG_value(pb->bags, 0);
+    attrs = (STACK_OF(X509_ATTRIBUTE) *)PKCS12_SAFEBAG_get0_attrs(bag);
+
+    /* Create new attr, add to list and confirm return attrs is not NULL */
+    attr = X509_ATTRIBUTE_create(NID_oracle_jdk_trustedkeyusage, V_ASN1_OBJECT, OBJ_txt2obj("anyExtendedKeyUsage", 0));
+    X509at_add1_attr(&attrs, attr);
+    PKCS12_SAFEBAG_set0_attrs(bag, attrs);
+    attrs = (STACK_OF(X509_ATTRIBUTE) *)PKCS12_SAFEBAG_get0_attrs(bag);
+    X509_ATTRIBUTE_free(attr);
+    if (!TEST_ptr(attrs)) {
+        goto err;
+    }
+
+    end_contentinfo(pb);
+
+    end_pkcs12(pb);
+
+    /* Read/decode */
+    start_check_pkcs12(pb);
+
+    start_check_contentinfo(pb);
+
+    /* Use existing check functionality to confirm cert bag attrs identical to ATTRS3 */
+    check_certbag(pb, CERT1, sizeof(CERT1), ATTRS3);
+
+    end_check_contentinfo(pb);
+
+    end_check_pkcs12(pb);
+
+    return end_pkcs12_builder(pb);
+
+err:
+    (void)end_pkcs12_builder(pb);
+    return 0;
 }
 
 #ifndef OPENSSL_NO_DES
@@ -3574,6 +3664,8 @@ int setup_tests(void)
     ADD_TEST(test_cert_key_encrypted_content);
     ADD_TEST(test_single_secret_encrypted_content);
     ADD_TEST(test_multiple_contents);
+    ADD_TEST(test_jdk_trusted_attr);
+    ADD_TEST(test_set0_attrs);
     return 1;
 }
 

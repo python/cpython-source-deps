@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2008-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -23,7 +23,7 @@
 /* Return BIO based on EncryptedContentInfo and key */
 
 BIO *ossl_cms_EncryptedContent_init_bio(CMS_EncryptedContentInfo *ec,
-    const CMS_CTX *cms_ctx)
+    const CMS_CTX *cms_ctx, int auth)
 {
     BIO *b;
     EVP_CIPHER_CTX *ctx;
@@ -45,7 +45,7 @@ BIO *ossl_cms_EncryptedContent_init_bio(CMS_EncryptedContentInfo *ec,
 
     b = BIO_new(BIO_f_cipher());
     if (b == NULL) {
-        ERR_raise(ERR_LIB_CMS, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_CMS, ERR_R_BIO_LIB);
         return NULL;
     }
 
@@ -104,6 +104,10 @@ BIO *ossl_cms_EncryptedContent_init_bio(CMS_EncryptedContentInfo *ec,
             goto err;
         }
         if ((EVP_CIPHER_get_flags(cipher) & EVP_CIPH_FLAG_AEAD_CIPHER)) {
+            if (!auth) {
+                ERR_raise(ERR_LIB_CMS, CMS_R_CIPHER_AEAD_IN_ENVELOPED_DATA);
+                goto err;
+            }
             piv = aparams.iv;
             if (ec->taglen > 0
                 && EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG,
@@ -122,10 +126,8 @@ BIO *ossl_cms_EncryptedContent_init_bio(CMS_EncryptedContentInfo *ec,
     /* Generate random session key */
     if (!enc || !ec->key) {
         tkey = OPENSSL_malloc(tkeylen);
-        if (tkey == NULL) {
-            ERR_raise(ERR_LIB_CMS, ERR_R_MALLOC_FAILURE);
+        if (tkey == NULL)
             goto err;
-        }
         if (EVP_CIPHER_CTX_rand_key(ctx, tkey) <= 0)
             goto err;
     }
@@ -168,7 +170,7 @@ BIO *ossl_cms_EncryptedContent_init_bio(CMS_EncryptedContentInfo *ec,
     if (enc) {
         calg->parameter = ASN1_TYPE_new();
         if (calg->parameter == NULL) {
-            ERR_raise(ERR_LIB_CMS, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_CMS, ERR_R_ASN1_LIB);
             goto err;
         }
         if ((EVP_CIPHER_get_flags(cipher) & EVP_CIPH_FLAG_AEAD_CIPHER)) {
@@ -211,10 +213,8 @@ int ossl_cms_EncryptedContent_init(CMS_EncryptedContentInfo *ec,
 {
     ec->cipher = cipher;
     if (key) {
-        if ((ec->key = OPENSSL_malloc(keylen)) == NULL) {
-            ERR_raise(ERR_LIB_CMS, ERR_R_MALLOC_FAILURE);
+        if ((ec->key = OPENSSL_malloc(keylen)) == NULL)
             return 0;
-        }
         memcpy(ec->key, key, keylen);
     }
     ec->keylen = keylen;
@@ -243,7 +243,7 @@ int CMS_EncryptedData_set1_key(CMS_ContentInfo *cms, const EVP_CIPHER *ciph,
         }
         cms->d.encryptedData = M_ASN1_new_of(CMS_EncryptedData);
         if (!cms->d.encryptedData) {
-            ERR_raise(ERR_LIB_CMS, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_CMS, ERR_R_ASN1_LIB);
             return 0;
         }
         cms->contentType = OBJ_nid2obj(NID_pkcs7_encrypted);
@@ -263,5 +263,5 @@ BIO *ossl_cms_EncryptedData_init_bio(const CMS_ContentInfo *cms)
     if (enc->encryptedContentInfo->cipher && enc->unprotectedAttrs)
         enc->version = 2;
     return ossl_cms_EncryptedContent_init_bio(enc->encryptedContentInfo,
-        ossl_cms_get0_cmsctx(cms));
+        ossl_cms_get0_cmsctx(cms), 0);
 }
