@@ -2,10 +2,26 @@
 # ttk::checkbutton widget tests.
 #
 
-package require Tk
-package require tcltest 2.2
-namespace import -force tcltest::*
-loadTestedCommands
+#
+# TESTFILE INITIALIZATION
+#
+
+package require tcltest 2.2; # needed in mode -singleproc 0
+
+# Load the main script main.tcl, which takes care of:
+# - setup for the application and the root window
+# - importing commands from the tcltest namespace
+# - loading of the testutils mechanism along with its utility procs
+# - loading of Tk specific test constraints (additionally to constraints
+#   provided by the package tcltest)
+source [file join [file dirname [tcltest::configure -testdir]] main.tcl]
+
+# Ensure a pristine initial window state
+resetWindows
+
+#
+# TESTS
+#
 
 test checkbutton-1.1 "Checkbutton check" -body {
     pack [ttk::checkbutton .cb -text "TCheckbutton" -variable cb]
@@ -49,7 +65,7 @@ test checkbutton-1.6 "Checkbutton default variable" -body {
 # Bug [109865fa01]
 test checkbutton-1.7 "Button destroyed by click" -body {
     proc destroy_button {} {
-        destroy .top
+	destroy .top
     }
     toplevel .top
     ttk::menubutton .top.mb -text Button -style TLabel
@@ -57,7 +73,7 @@ test checkbutton-1.7 "Button destroyed by click" -body {
     pack .top.mb
     focus -force .top.mb
     update
-    event generate .top.mb <1>
+    event generate .top.mb <Button-1>
     event generate .top.mb <ButtonRelease-1>
     update  ; # shall not trigger error  invalid command name ".top.b"
 } -result {}
@@ -70,5 +86,23 @@ test checkbutton-1.8 "Empty -variable" -body {
 } -cleanup {
     destroy .cbev
 } -result {}
+
+test checkbutton-2.1 "style command" -body {
+    ttk::checkbutton .w
+    list [.w cget -style] [.w style] [winfo class .w]
+} -cleanup {
+    destroy .w
+} -result {{} TCheckbutton TCheckbutton}
+test checkbutton-2.2 "style command" -body {
+    ttk::style configure customStyle.TCheckbutton
+    ttk::checkbutton .w -style customStyle.TCheckbutton
+    list [.w cget -style] [.w style] [winfo class .w]
+} -cleanup {
+    destroy .w
+} -result {customStyle.TCheckbutton customStyle.TCheckbutton TCheckbutton}
+
+#
+# TESTFILE CLEANUP
+#
 
 tcltest::cleanupTests

@@ -2,10 +2,26 @@
 # ttk::radiobutton widget tests.
 #
 
-package require Tk
-package require tcltest 2.2
-namespace import -force tcltest::*
-loadTestedCommands
+#
+# TESTFILE INITIALIZATION
+#
+
+package require tcltest 2.2; # needed in mode -singleproc 0
+
+# Load the main script main.tcl, which takes care of:
+# - setup for the application and the root window
+# - importing commands from the tcltest namespace
+# - loading of the testutils mechanism along with its utility procs
+# - loading of Tk specific test constraints (additionally to constraints
+#   provided by the package tcltest)
+source [file join [file dirname [tcltest::configure -testdir]] main.tcl]
+
+# Ensure a pristine initial window state
+resetWindows
+
+#
+# TESTS
+#
 
 test radiobutton-1.1 "Radiobutton check" -body {
     pack \
@@ -45,5 +61,23 @@ test radiobutton-1.8 "Reset radiobutton variable" -body {
     set ::choice 2
     list [info exists ::choice] [.rb1 instate alternate] [.rb2 instate alternate]
 } -result {1 0 0}
+
+test radiobutton-2.1 "style command" -body {
+    ttk::radiobutton .w
+    list [.w cget -style] [.w style] [winfo class .w]
+} -cleanup {
+    destroy .w
+} -result {{} TRadiobutton TRadiobutton}
+test radiobutton-2.2 "style command" -body {
+    ttk::style configure customStyle.TRadiobutton
+    ttk::radiobutton .w -style customStyle.TRadiobutton
+    list [.w cget -style] [.w style] [winfo class .w]
+} -cleanup {
+    destroy .w
+} -result {customStyle.TRadiobutton customStyle.TRadiobutton TRadiobutton}
+
+#
+# TESTFILE CLEANUP
+#
 
 tcltest::cleanupTests

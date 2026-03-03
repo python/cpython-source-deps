@@ -1,15 +1,57 @@
 # This file is a Tcl script to test the code in the file tkTextIndex.c.
-# This file is organized in the standard fashion for Tcl tests.
 #
-# Copyright (c) 1994 The Regents of the University of California.
-# Copyright (c) 1994 Sun Microsystems, Inc.
-# Copyright (c) 1998-1999 Scriptics Corporation.
+# Copyright © 1994 The Regents of the University of California.
+# Copyright © 1994 Sun Microsystems, Inc.
+# Copyright © 1998-1999 Scriptics Corporation.
 # All rights reserved.
 
-package require tcltest 2.2
-eval tcltest::configure $argv
-tcltest::loadTestedCommands
-namespace import -force tcltest::test
+#
+# TESTFILE INITIALIZATION
+#
+
+package require tcltest 2.2; # needed in mode -singleproc 0
+
+# Load the main script main.tcl, which takes care of:
+# - setup for the application and the root window
+# - importing commands from the tcltest namespace
+# - loading of the testutils mechanism along with its utility procs
+# - loading of Tk specific test constraints (additionally to constraints
+#   provided by the package tcltest)
+source [file join [tcltest::configure -testdir] main.tcl]
+
+# Ensure a pristine initial window state
+resetWindows
+
+# Import utility procs for specific functional areas
+testutils import text
+
+#
+# LOCAL UTILITY PROCS
+#
+
+proc getword index {
+    .t get [.t index "$index wordstart"] [.t index "$index wordend"]
+}
+
+proc text_test_word {startend chars start} {
+    destroy .t
+    text .t
+    .t insert end $chars
+    if {[regexp {end} $start]} {
+	set start [.t index "${start}chars -2c"]
+    } else {
+	set start [.t index "1.0 + ${start}chars"]
+    }
+    if {[.t compare $start >= "end-1c"]} {
+	set start "end-2c"
+    }
+    set res [.t index "$start $startend"]
+    .t count 1.0 $res
+}
+
+#
+# COMMON TEST SETUP
+#
 
 catch {destroy .t}
 text .t -font {Courier -12} -width 20 -height 10
@@ -30,12 +72,16 @@ wm deiconify .
 abcdefghijklm
 12345
 Line 4
-b\u4e4fy GIrl .#@? x_yz
+b乏y GIrl .#@? x_yz
 !@#$%
 Line 7"
 
 image create photo textimage -width 10 -height 10
 textimage put red -to 0 0 9 9
+
+#
+# TESTS
+#
 
 test textIndex-1.1 {TkTextMakeByteIndex} {testtext} {
     # (lineIndex < 0)
@@ -118,7 +164,7 @@ test textIndex-1.16 {TkTextMakeByteIndex: UTF-8 characters} {testtext} {
 test textIndex-1.17 {TkTextMakeByteIndex: prevent splitting UTF-8 character} \
 	{testtext} {
     # ((byteIndex > index) && (segPtr->typePtr == &tkTextCharType))
-    # Wrong answer would be \xb9 (the 2nd byte of UTF rep of 0x4e4f).
+    # Wrong answer would be ¹ (the 2nd byte of UTF rep of 0x4e4f).
 
     set x [testtext .t byteindex 5 2]
     list $x [.t get insert]
@@ -128,7 +174,7 @@ test textIndex-1.18 {TkTextMakeByteIndex: prevent splitting UTF-8 character} \
     # ((byteIndex > index) && (segPtr->typePtr == &tkTextCharType))
     testtext .t byteindex 5 1
     .t get insert
-} "\u4e4f"
+} "乏"
 
 test textIndex-2.1 {TkTextMakeCharIndex} {
     # (lineIndex < 0)
@@ -183,7 +229,7 @@ test textIndex-2.11 {TkTextMakeCharIndex: verify index is in range} {
 } 3.4
 test textIndex-2.12 {TkTextMakeCharIndex: verify index is in range} {
     # (segPtr->typePtr == &tkTextCharType)
-    # Wrong answer would be \xb9 (the 2nd byte of UTF rep of 0x4e4f).
+    # Wrong answer would be ¹ (the 2nd byte of UTF rep of 0x4e4f).
 
     .t mark set insert 5.2
     .t get insert
@@ -206,6 +252,10 @@ test textIndex-2.14 {TkTextMakeCharIndex: verify index is in range} {
     set x
 } 5.0
 
+#
+# COMMON TEST SETUP
+#
+
 .t mark set foo 3.2
 .t tag add x 2.8 2.11
 .t tag add x 6.0 6.2
@@ -219,6 +269,7 @@ set weirdImage "foo-1"
 set weirdEmbWin ".t.bar-1"
 entry $weirdEmbWin
 .t window create 3.1 -window $weirdEmbWin
+
 test textIndex-3.1 {TkTextGetIndex, weird mark names} {
     list [catch {.t index $weirdMark} msg] $msg
 } {0 4.0}
@@ -237,6 +288,10 @@ test textIndex-3.5 {TkTextGetIndex, weird image names} {
 test textIndex-3.6 {TkTextGetIndex, weird image names} knownBug {
     list [catch {.t index "$weirdImage -1char"} msg] $msg
 } {0 2.0}
+
+#
+# COMMON TEST CLEANUP
+#
 .t delete 3.1  ; # remove the weirdEmbWin
 .t delete 2.1  ; # remove the weirdImage
 
@@ -608,14 +663,11 @@ test textIndex-14.15 {TkTextIndexBackChars: UTF} {
 } y
 test textIndex-14.16 {TkTextIndexBackChars: UTF} {
     .t get {5.3 - 2 chars}
-} \u4e4f
+} 乏
 test textIndex-14.17 {TkTextIndexBackChars: UTF} {
     .t get {5.3 - 3 chars}
 } b
 
-proc getword index {
-    .t get [.t index "$index wordstart"] [.t index "$index wordend"]
-}
 test textIndex-15.1 {StartEnd} {
     list [catch {.t index {2.3 lineend}} msg] $msg
 } {0 2.13}
@@ -652,7 +704,6 @@ test textIndex-15.11 {StartEnd} {
 test textIndex-15.12 {StartEnd} {
     getword 3.4
 } 12345
-.t tag add x 2.8 2.11
 test textIndex-15.13 {StartEnd} {
     list [catch {.t index {2.2 worde}} msg] $msg
 } {0 2.13}
@@ -713,12 +764,12 @@ test textIndex-18.1 {Object indices don't cache mark names} {
     set res
 } {3.4 3.0 1.0}
 
+#
+# COMMON TEST SETUP
+#
+
 frame .f -width 100 -height 20
 pack .f -side left
-
-set fixedFont {Courier -12}
-set fixedHeight [font metrics $fixedFont -linespace]
-set fixedWidth [font measure $fixedFont m]
 
 set varFont {Times -14}
 set bigFont {Helvetica -24}
@@ -847,22 +898,6 @@ test textIndex-19.14 {Display lines with elided lines} {
     set res [.t index "951.0 + 1 displaylines"]
 } {952.0}
 
-proc text_test_word {startend chars start} {
-    destroy .t
-    text .t
-    .t insert end $chars
-    if {[regexp {end} $start]} {
-	set start [.t index "${start}chars -2c"]
-    } else {
-	set start [.t index "1.0 + ${start}chars"]
-    }
-    if {[.t compare $start >= "end-1c"]} {
-	set start "end-2c"
-    }
-    set res [.t index "$start $startend"]
-    .t count 1.0 $res
-}
-
 # Following tests copied from tests from string wordstart/end in Tcl
 
 test textIndex-21.4 {text index wordend} {
@@ -884,19 +919,19 @@ test textIndex-21.9 {text index wordend} {
     text_test_word worde "x.y" end-1
 } 2
 test textIndex-21.10 {text index wordend, unicode} {
-    text_test_word wordend "xyz\u00c7de fg" 0
+    text_test_word wordend "xyzÇde fg" 0
 } 6
 test textIndex-21.11 {text index wordend, unicode} {
-    text_test_word wordend "xyz\uc700de fg" 0
+    text_test_word wordend "xyz윀de fg" 0
 } 6
 test textIndex-21.12 {text index wordend, unicode} {
-    text_test_word wordend "xyz\u203fde fg" 0
+    text_test_word wordend "xyz‿de fg" 0
 } 6
 test textIndex-21.13 {text index wordend, unicode} {
-    text_test_word wordend "xyz\u2045de fg" 0
+    text_test_word wordend "xyz⁅de fg" 0
 } 3
 test textIndex-21.14 {text index wordend, unicode} {
-    text_test_word wordend "\uc700\uc700 abc" 8
+    text_test_word wordend "윀윀 abc" 8
 } 6
 
 test textIndex-22.5 {text index wordstart} {
@@ -918,19 +953,19 @@ test textIndex-22.10 {text index wordstart} {
     text_test_word wordstart "one two three" end-5
 } 7
 test textIndex-22.11 {text index wordstart, unicode} {
-    text_test_word wordstart "one tw\u00c7o three" 7
+    text_test_word wordstart "one twÇo three" 7
 } 4
 test textIndex-22.12 {text index wordstart, unicode} {
-    text_test_word wordstart "ab\uc700\uc700 cdef ghi" 12
+    text_test_word wordstart "ab윀윀 cdef ghi" 12
 } 10
 test textIndex-22.13 {text index wordstart, unicode} {
-    text_test_word wordstart "\uc700\uc700 abc" 8
+    text_test_word wordstart "윀윀 abc" 8
 } 3
 test textIndex-22.14 {text index wordstart, unicode, start index at internal segment start} {
     catch {destroy .t}
     text .t
-    .t insert end "C'est du texte en fran\u00e7ais\n"
-    .t insert end "\u042D\u0442\u043E\u0020\u0442\u0435\u043A\u0441\u0442\u0020\u043D\u0430\u0020\u0440\u0443\u0441\u0441\u043A\u043E\u043C"
+    .t insert end "C'est du texte en français\n"
+    .t insert end "Это текст на русском"
     .t mark set insert 1.23
     set res [.t index "1.23 wordstart"]
     .t mark set insert 2.16
@@ -1024,8 +1059,11 @@ test textIndex-26.2 {GetIndex errors out if mark, image, window, or tag is outsi
 } {1.0 {bad text index "mymark"} 1.0 {bad text index "redsquare"} 1.2\
    {bad text index ".f"} 1.3 {text doesn't contain any characters tagged with "mytag"}}
 
-# cleanup
+#
+# TESTFILE CLEANUP
+#
+
 rename textimage {}
 catch {destroy .t}
+testutils forget text
 cleanupTests
-return

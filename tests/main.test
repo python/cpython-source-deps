@@ -1,17 +1,29 @@
 # This file contains tests for the tkMain.c file.
 #
-# This file contains a collection of tests for one or more of the Tcl
-# built-in commands.  Sourcing this file into Tcl runs the tests and
-# generates output for errors.  No output means no errors were found.
-#
-# Copyright (c) 1997 Sun Microsystems, Inc.
-# Copyright (c) 1998-1999 Scriptics Corporation.
+# Copyright © 1997 Sun Microsystems, Inc.
+# Copyright © 1998-1999 Scriptics Corporation.
 # All rights reserved.
 
-package require tcltest 2.2
-namespace import ::tcltest::*
-eval tcltest::configure $argv
-tcltest::loadTestedCommands
+#
+# TESTFILE INITIALIZATION
+#
+
+package require tcltest 2.2; # needed in mode -singleproc 0
+
+# Load the main script main.tcl, which takes care of:
+# - setup for the application and the root window
+# - importing commands from the tcltest namespace
+# - loading of the testutils mechanism along with its utility procs
+# - loading of Tk specific test constraints (additionally to constraints
+#   provided by the package tcltest)
+source [file join [tcltest::configure -testdir] main.tcl]
+
+# Ensure a pristine initial window state
+resetWindows
+
+#
+# TESTS
+#
 
 test main-1.1 {StdinProc} -constraints stdio -setup {
     set script [makeFile {close stdin; exit} script]
@@ -27,8 +39,7 @@ test main-2.1 {Tk_MainEx: -encoding option} -constraints stdio -setup {
 	set f [open $script w]
 	fconfigure $f -encoding utf-8
 	puts $f {puts [list $argv0 $argv $tcl_interactive]}
-	puts -nonewline $f {puts [string equal \u20ac }
-	puts $f "\u20ac]; exit"
+	puts $f {puts [string equal \u20AC €]; exit}
 	close $f
 	catch {set f [open "|[list [interpreter] -encoding utf-8 script]" r]}
 } -body {
@@ -44,10 +55,9 @@ test main-2.2 {Tk_MainEx: -encoding option} -constraints stdio -setup {
 	set f [open $script w]
 	fconfigure $f -encoding utf-8
 	puts $f {puts [list $argv0 $argv $tcl_interactive]}
-	puts -nonewline $f {puts [string equal \u20ac }
-	puts $f "\u20ac]; exit"
+	puts $f {puts [string equal \u20AC €]; exit}
 	close $f
-	catch {set f [open "|[list [interpreter] -encoding ascii script]" r]}
+	catch {set f [open "|[list [interpreter] -encoding iso8859-1 script]" r]}
 } -body {
 	read $f
 } -cleanup {
@@ -58,16 +68,16 @@ test main-2.2 {Tk_MainEx: -encoding option} -constraints stdio -setup {
     # Procedure to simulate interactive typing of commands, line by line,
 	# for test 2.3
     proc type {chan script} {
-        foreach line [split $script \n] {
-            if {[catch {
-                puts $chan $line
-                flush $chan
-            }]} {
-                return
-            }
-            # Grrr... Behavior depends on this value.
-            after 1000
-        }
+	foreach line [split $script \n] {
+	    if {[catch {
+		puts $chan $line
+		flush $chan
+	    }]} {
+		return
+	    }
+	    # Grrr... Behavior depends on this value.
+	    after 1000
+	}
     }
 
 test main-2.3 {Tk_MainEx: -encoding option} -constraints stdio -setup {
@@ -76,8 +86,7 @@ test main-2.3 {Tk_MainEx: -encoding option} -constraints stdio -setup {
 	set f [open $script w]
 	fconfigure $f -encoding utf-8
 	puts $f {puts [list $argv0 $argv $tcl_interactive]}
-	puts -nonewline $f {puts [string equal \u20ac }
-	puts $f "\u20ac]"
+	puts $f {puts [string equal \u20AC €]}
 	close $f
 	catch {set f [open "|[list [interpreter] -enc utf-8 script]" r+]}
 } -body {
@@ -115,6 +124,8 @@ test main-3.3 {Tk_ParseArgv: -help option} -setup {
     interp delete $maininterp
 } -returnCodes error -match glob -result {Command-specific options:*}
 
-# cleanup
+#
+# TESTFILE CLEANUP
+#
+
 cleanupTests
-return

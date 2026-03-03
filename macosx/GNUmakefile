@@ -4,7 +4,7 @@
 #	uses the standard unix build system in tk/unix (which can be used directly instead of this
 #	if you are not using the tk/macosx projects).
 #
-# Copyright (c) 2002-2008 Daniel A. Steffen <das@users.sourceforge.net>
+# Copyright © 2002-2008 Daniel A. Steffen <das@users.sourceforge.net>
 #
 # See the file "license.terms" for information on usage and redistribution of
 # this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -109,7 +109,7 @@ PROJECT			:= tk
 PRODUCT_NAME		:= Tk
 
 UNIX_DIR		:= ${CURDIR}/../unix
-VERSION			:= $(shell awk -F= '/^TK_VERSION/ {print $$2; nextfile}' ${UNIX_DIR}/configure.in)
+VERSION			:= $(shell awk -F= '/^TK_VERSION/ {print $$2; nextfile}' ${UNIX_DIR}/configure.ac)
 TCL_VERSION		:= ${VERSION}
 wish			:= wish
 WISH			= wish${VERSION}
@@ -187,7 +187,7 @@ ${objdir}/Makefile: ${UNIX_DIR}/Makefile.in ${UNIX_DIR}/configure \
 	mkdir -p "${OBJ_DIR}" && cd "${OBJ_DIR}" && \
 	if [ ${UNIX_DIR}/configure -nt config.status ]; then ${UNIX_DIR}/configure -C \
 	--prefix="${PREFIX}" --bindir="${BINDIR}" --libdir="${LIBDIR}" \
-	--mandir="${MANDIR}" --enable-threads --enable-framework \
+	--mandir="${MANDIR}" --enable-framework --disable-zipfs \
 	--with-tcl="${TCL_DIR}" \
 	${CONFIGURE_ARGS} ${EXTRA_CONFIGURE_ARGS}; else ./config.status; fi
 ifneq (${VERSION},${TCL_VERSION})
@@ -272,14 +272,18 @@ else
 	rm -rf Frameworks/Tcl.framework/{,/Versions/${TCL_VERSION}}/{Headers,PrivateHeaders,*_debug,lib*.a,*Config.sh} && \
 	rm -rf Frameworks/Tk.framework/{,/Versions/${VERSION}}/{Headers,PrivateHeaders,*_debug,lib*.a,*Config.sh} && \
 	fix_install_id ( ) { \
-	    chmod -RH a+w "$$1"; \
-	    install_name_tool -id $$(otool -L "$$1" | awk "/$$2\.framework.*[^:]\$$/ {sub(\"^.*/Frameworks\",\"@executable_path/../Frameworks\",\$$1); print \$$1}") "$$1"; \
-	    chmod -RH a-w "$$1"; \
+		chmod -RH a+w "$$1"; \
+		OLD=$$(otool -L "$$1" | awk "/$$2\\.framework.*[^:]\$$/ {print \$$1}"); \
+		NEW=$$(echo "$$OLD" | sed "s|^.*/Frameworks|@executable_path/../Frameworks|"); \
+		install_name_tool -id "$$NEW" "$$1"; \
+		chmod -RH a-w "$$1"; \
 	} && \
 	fix_install_name ( ) { \
-	    chmod -RH a+w "$$1"; \
-	    install_name_tool -change $$(otool -L "$$1" | awk "/$$2\.framework.*[^:]\$$/ {print \$$1; sub(\"^.*/Frameworks\",\"@executable_path/../Frameworks\",\$$1); print \$$1}") "$$1"; \
-	    chmod -RH a-w "$$1"; \
+		chmod -RH a+w "$$1"; \
+		OLD=$$(otool -L "$$1" | awk "/$$2\\.framework.*[^:]\$$/ {print \$$1}"); \
+		NEW=$$(echo "$$OLD" | sed "s|^.*/Frameworks|@executable_path/../Frameworks|"); \
+		install_name_tool -change "$$OLD" "$$NEW" "$$1"; \
+		chmod -RH a-w "$$1"; \
 	} && \
 	fix_install_id Frameworks/Tcl.framework/Tcl Tcl && fix_install_id Frameworks/Tk.framework/Tk Tk && \
 	fix_install_name MacOS/Wish Tcl && fix_install_name MacOS/Wish Tk

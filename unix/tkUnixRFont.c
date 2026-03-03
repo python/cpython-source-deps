@@ -3,7 +3,7 @@
  *
  *	Alternate implementation of tkUnixFont.c using Xft.
  *
- * Copyright (c) 2002-2003 Keith Packard
+ * Copyright © 2002-2003 Keith Packard
  *
  * See the file "license.terms" for information on usage and redistribution of
  * this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -39,7 +39,7 @@ typedef struct {
 } UnixFtColorList;
 
 typedef struct {
-    TkFont font;	    	/* Stuff used by generic font package. Must be
+    TkFont font;		/* Stuff used by generic font package. Must be
 				 * first in structure. */
     UnixFtFace *faces;
     int nfaces;
@@ -48,6 +48,8 @@ typedef struct {
 
     Display *display;
     int screen;
+    Colormap colormap;
+    Visual *visual;
     XftDraw *ftDraw;
     int ncolors;
     int firstColor;
@@ -69,29 +71,36 @@ TCL_DECLARE_MUTEX(xftMutex);
 #define UNLOCK Tcl_MutexUnlock(&xftMutex)
 
 /*
- * Package initialization:
- * 	Nothing to do here except register the fact that we're using Xft in
- * 	the TIP 59 configuration database.
+ *-------------------------------------------------------------------------
+ *
+ * TkpFontPkgInit --
+ *
+ *	This procedure is called when an application is created. It
+ *	initializes all the structures that are used by the
+ *	platform-dependant code on a per application basis.
+ *	Note that this is called before TkpInit() !
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *-------------------------------------------------------------------------
  */
 
-static int utf8ToUcs4(const char *source, FcChar32 *c, int numBytes)
+static Tcl_Size utf8ToUcs4(const char *source, FcChar32 *c, Tcl_Size numBytes)
 {
     if (numBytes >= 6) {
-    	return TkUtfToUniChar(source, (int *)c);
+	return Tcl_UtfToUniChar(source, (int *)c);
     }
     return FcUtf8ToUcs4((const FcChar8 *)source, c, numBytes);
 }
 
 void
 TkpFontPkgInit(
-    TkMainInfo *mainPtr)	/* The application being created. */
+    TCL_UNUSED(TkMainInfo *))	/* The application being created. */
 {
-    static const Tcl_Config cfg[] = {
-	{ "fontsystem", "xft" },
-	{ 0,0 }
-    };
-
-    Tcl_RegisterConfig(mainPtr->interp, "tk", cfg, "utf-8");
 }
 
 static XftFont *
@@ -183,7 +192,7 @@ GetFont(
  *---------------------------------------------------------------------------
  *
  * GetTkFontAttributes --
- * 	Fill in TkFontAttributes from an XftFont.
+ *	Fill in TkFontAttributes from an XftFont.
  */
 
 static void
@@ -238,7 +247,7 @@ GetTkFontAttributes(
  *---------------------------------------------------------------------------
  *
  * GetTkFontMetrics --
- * 	Fill in TkFontMetrics from an XftFont.
+ *	Fill in TkFontMetrics from an XftFont.
  */
 
 static void
@@ -268,7 +277,7 @@ GetTkFontMetrics(
  *	also allocates a new UnixFtFont.
  *
  * Results:
- * 	On error, frees fontPtr and returns NULL, otherwise returns fontPtr.
+ *	On error, frees fontPtr and returns NULL, otherwise returns fontPtr.
  *
  *---------------------------------------------------------------------------
  */
@@ -279,7 +288,7 @@ FinishedWithFont(
 
 static int
 InitFontErrorProc(
-    ClientData clientData,
+    void *clientData,
     TCL_UNUSED(XErrorEvent *))
 {
     int *errorFlagPtr = (int *)clientData;
@@ -344,6 +353,8 @@ InitFont(
 
     fontPtr->display = Tk_Display(tkwin);
     fontPtr->screen = Tk_ScreenNumber(tkwin);
+    fontPtr->colormap = Tk_Colormap(tkwin);
+    fontPtr->visual = Tk_Visual(tkwin);
     fontPtr->ftDraw = 0;
     fontPtr->ncolors = 0;
     fontPtr->firstColor = -1;
@@ -354,7 +365,7 @@ InitFont(
 
     errorFlag = 0;
     handler = Tk_CreateErrorHandler(Tk_Display(tkwin),
-		    -1, -1, -1, InitFontErrorProc, (ClientData) &errorFlag);
+		    -1, -1, -1, InitFontErrorProc, (void *)&errorFlag);
     ftFont = GetFont(fontPtr, 0, 0.0);
     if ((ftFont == NULL) || errorFlag) {
 	Tk_DeleteErrorHandler(handler);
@@ -396,7 +407,7 @@ InitFont(
 
 	fPtr->underlinePos = fPtr->fm.descent / 2;
 	handler = Tk_CreateErrorHandler(Tk_Display(tkwin),
-			-1, -1, -1, InitFontErrorProc, (ClientData) &errorFlag);
+			-1, -1, -1, InitFontErrorProc, (void *)&errorFlag);
 	errorFlag = 0;
 	Tk_MeasureChars((Tk_Font) fPtr, "I", 1, -1, 0, &iWidth);
 	Tk_DeleteErrorHandler(handler);
@@ -616,7 +627,7 @@ TkpGetFontFamilies(
 
 	if (XftPatternGetString(list->fonts[i], XFT_FAMILY, 0, familyPtr)
 		== XftResultMatch) {
-	    Tcl_Obj *strPtr = Tcl_NewStringObj(family, -1);
+	    Tcl_Obj *strPtr = Tcl_NewStringObj(family, TCL_INDEX_NONE);
 
 	    Tcl_ListObjAppendElement(NULL, resultPtr, strPtr);
 	}
@@ -658,15 +669,15 @@ TkpGetSubFonts(
     resultPtr = Tcl_NewListObj(0, NULL);
 
     for (i = 0; i < fontPtr->nfaces ; ++i) {
- 	pattern = FcFontRenderPrepare(0, fontPtr->pattern,
+	pattern = FcFontRenderPrepare(0, fontPtr->pattern,
 		fontPtr->faces[i].source);
 
 	XftPatternGetString(pattern, XFT_FAMILY, 0, familyPtr);
 	XftPatternGetString(pattern, XFT_FOUNDRY, 0, foundryPtr);
 	XftPatternGetString(pattern, XFT_ENCODING, 0, encodingPtr);
-	objv[0] = Tcl_NewStringObj(family, -1);
-	objv[1] = Tcl_NewStringObj(foundry, -1);
-	objv[2] = Tcl_NewStringObj(encoding, -1);
+	objv[0] = Tcl_NewStringObj(family, TCL_INDEX_NONE);
+	objv[1] = Tcl_NewStringObj(foundry, TCL_INDEX_NONE);
+	objv[2] = Tcl_NewStringObj(encoding, TCL_INDEX_NONE);
 	listPtr = Tcl_NewListObj(3, objv);
 	Tcl_ListObjAppendElement(NULL, resultPtr, listPtr);
     }
@@ -688,7 +699,7 @@ void
 TkpGetFontAttrsForChar(
     Tk_Window tkwin,		/* Window on the font's display */
     Tk_Font tkfont,		/* Font to query */
-    int c,         		/* Character of interest */
+    int c,		/* Character of interest */
     TkFontAttributes *faPtr)	/* Output: Font attributes */
 {
     UnixFtFont *fontPtr = (UnixFtFont *) tkfont;
@@ -708,7 +719,7 @@ Tk_MeasureChars(
     Tk_Font tkfont,		/* Font in which characters will be drawn. */
     const char *source,		/* UTF-8 string to be displayed. Need not be
 				 * '\0' terminated. */
-    int numBytes,		/* Maximum number of bytes to consider from
+    Tcl_Size numBytes,		/* Maximum number of bytes to consider from
 				 * source string. */
     int maxLength,		/* If >= 0, maxLength specifies the longest
 				 * permissible line length in pixels; don't
@@ -730,7 +741,8 @@ Tk_MeasureChars(
     XftFont *ftFont;
     FcChar32 c;
     XGlyphInfo extents;
-    int clen, curX, newX, curByte, newByte, sawNonSpace;
+    Tcl_Size clen;
+    int curX, newX, curByte, newByte, sawNonSpace;
     int termByte = 0, termX = 0, errorFlag = 0;
     Tk_ErrorHandler handler;
 #if DEBUG_FONTSEL
@@ -746,7 +758,7 @@ Tk_MeasureChars(
     while (numBytes > 0) {
 	int unichar;
 
-	clen = TkUtfToUniChar(source, &unichar);
+	clen = Tcl_UtfToUniChar(source, &unichar);
 	c = (FcChar32) unichar;
 
 	if (clen <= 0) {
@@ -778,7 +790,8 @@ Tk_MeasureChars(
 	    LOCK;
 	    XftTextExtents32(fontPtr->display, ftFont, &c, 1, &extents);
 	    UNLOCK;
-	} else {
+	}
+	if (errorFlag) {
 	    extents.xOff = 0;
 	    errorFlag = 0;
 	}
@@ -821,12 +834,12 @@ measureCharsEnd:
 }
 
 int
-TkpMeasureCharsInContext(
+Tk_MeasureCharsInContext(
     Tk_Font tkfont,
     const char *source,
-    TCL_UNUSED(int),
-    int rangeStart,
-    int rangeLength,
+    TCL_UNUSED(Tcl_Size),
+    Tcl_Size rangeStart,
+    Tcl_Size rangeLength,
     int maxLength,
     int flags,
     int *lengthPtr)
@@ -898,7 +911,7 @@ LookUpColor(Display *display,      /* Display to lookup colors on */
      * Translate the pixel value to a color.  Needs a server round-trip.
      */
     xcolor.pixel = pixel;
-    XQueryColor(display, DefaultColormap(display, fontPtr->screen), &xcolor);
+    XQueryColor(display, fontPtr->colormap, &xcolor);
 
     fontPtr->colors[last].color.color.red = xcolor.red;
     fontPtr->colors[last].color.color.green = xcolor.green;
@@ -934,7 +947,7 @@ Tk_DrawChars(
 				 * is passed to this function. If they are not
 				 * stripped out, they will be displayed as
 				 * regular printing characters. */
-    int numBytes,		/* Number of bytes in string. */
+    Tcl_Size numBytes,		/* Number of bytes in string. */
     int x, int y)		/* Coordinates at which to place origin of
 				 * string when drawing. */
 {
@@ -947,14 +960,13 @@ Tk_DrawChars(
     XftGlyphFontSpec specs[NUM_SPEC];
     XGlyphInfo metrics;
     ThreadSpecificData *tsdPtr = (ThreadSpecificData *)
-            Tcl_GetThreadData(&dataKey, sizeof(ThreadSpecificData));
+	    Tcl_GetThreadData(&dataKey, sizeof(ThreadSpecificData));
 
     if (fontPtr->ftDraw == 0) {
 	DEBUG(("Switch to drawable 0x%lx\n", drawable));
 	fontPtr->ftDraw = XftDrawCreate(display, drawable,
-		DefaultVisual(display, fontPtr->screen),
-		DefaultColormap(display, fontPtr->screen));
-    } else {
+		fontPtr->visual, fontPtr->colormap);
+} else {
 	Tk_ErrorHandler handler =
 		Tk_CreateErrorHandler(display, -1, -1, -1, NULL, NULL);
 
@@ -1068,7 +1080,7 @@ TkDrawAngledChars(
 				 * is passed to this function. If they are not
 				 * stripped out, they will be displayed as
 				 * regular printing characters. */
-    int numBytes,		/* Number of bytes in string. */
+    Tcl_Size numBytes,		/* Number of bytes in string. */
     double x, double y,		/* Coordinates at which to place origin of
 				 * string when drawing. */
     double angle)		/* What angle to put text at, in degrees. */
@@ -1080,7 +1092,7 @@ TkDrawAngledChars(
     XftColor *xftcolor;
     int xStart = x, yStart = y;
     ThreadSpecificData *tsdPtr = (ThreadSpecificData *)
-            Tcl_GetThreadData(&dataKey, sizeof(ThreadSpecificData));
+	    Tcl_GetThreadData(&dataKey, sizeof(ThreadSpecificData));
 #ifdef XFT_HAS_FIXED_ROTATED_PLACEMENT
     int clen, nglyph;
     FT_UInt glyphs[NUM_SPEC];
@@ -1089,10 +1101,9 @@ TkDrawAngledChars(
     int originX, originY;
 
     if (fontPtr->ftDraw == 0) {
-	DEBUG(("Switch to drawable 0x%x\n", drawable));
+	DEBUG(("Switch to drawable 0x%lx\n", drawable));
 	fontPtr->ftDraw = XftDrawCreate(display, drawable,
-		DefaultVisual(display, fontPtr->screen),
-		DefaultColormap(display, fontPtr->screen));
+		fontPtr->visual, fontPtr->colormap);
     } else {
 	Tk_ErrorHandler handler =
 		Tk_CreateErrorHandler(display, -1, -1, -1, NULL, NULL);
@@ -1161,10 +1172,10 @@ TkDrawAngledChars(
 		     * at once (or whole blocks with same font), this requires a
 		     * dynamic 'glyphs' array. In case of overflow the array has to
 		     * be divided until the maximal string will fit. (GC)
-                     * Given the resolution of current displays though, this should
-                     * not be a huge issue since NUM_SPEC is 1024 and thus able to
-                     * cover about 6000 pixels for a 6 pixel wide font (which is
-                     * a very small barely readable font)
+		     * Given the resolution of current displays though, this should
+		     * not be a huge issue since NUM_SPEC is 1024 and thus able to
+		     * cover about 6000 pixels for a 6 pixel wide font (which is
+		     * a very small barely readable font)
 		     */
 
 		    LOCK;
@@ -1199,7 +1210,8 @@ TkDrawAngledChars(
 	}
     }
 #else /* !XFT_HAS_FIXED_ROTATED_PLACEMENT */
-    int clen, nspec;
+    Tcl_Size clen;
+    int nspec;
     XftGlyphFontSpec specs[NUM_SPEC];
     XGlyphInfo metrics;
     double sinA = sin(angle * PI/180.0), cosA = cos(angle * PI/180.0);
@@ -1207,8 +1219,7 @@ TkDrawAngledChars(
     if (fontPtr->ftDraw == 0) {
 	DEBUG(("Switch to drawable 0x%lx\n", drawable));
 	fontPtr->ftDraw = XftDrawCreate(display, drawable,
-		DefaultVisual(display, fontPtr->screen),
-		DefaultColormap(display, fontPtr->screen));
+		fontPtr->visual, fontPtr->colormap);
     } else {
 	Tk_ErrorHandler handler =
 		Tk_CreateErrorHandler(display, -1, -1, -1, NULL, NULL);
@@ -1338,14 +1349,14 @@ TkDrawAngledChars(
 /*
  *---------------------------------------------------------------------------
  *
- * TkpDrawCharsInContext --
+ * Tk_DrawCharsInContext --
  *
  *	Draw a string of characters on the screen like Tk_DrawChars(), but
  *	with access to all the characters on the line for context. On X11 this
  *	context isn't consulted, so we just call Tk_DrawChars().
  *
  *      Note: TK_DRAW_IN_CONTEXT being currently defined only on macOS, this
- *            function is unused (and possibly unfinished). See [7655f65ae7].
+ *            function is unused.
  *
  * Results:
  *	None.
@@ -1357,7 +1368,7 @@ TkDrawAngledChars(
  */
 
 void
-TkpDrawCharsInContext(
+Tk_DrawCharsInContext(
     Display *display,		/* Display on which to draw. */
     Drawable drawable,		/* Window or pixmap in which to draw. */
     GC gc,			/* Graphics context for drawing characters. */
@@ -1370,9 +1381,9 @@ TkpDrawCharsInContext(
 				 * is passed to this function. If they are not
 				 * stripped out, they will be displayed as
 				 * regular printing characters. */
-    TCL_UNUSED(int),		/* Number of bytes in string. */
-    int rangeStart,		/* Index of first byte to draw. */
-    int rangeLength,		/* Length of range to draw in bytes. */
+    TCL_UNUSED(Tcl_Size),		/* Number of bytes in string. */
+    Tcl_Size rangeStart,		/* Index of first byte to draw. */
+    Tcl_Size rangeLength,		/* Length of range to draw in bytes. */
     int x, int y)		/* Coordinates at which to place origin of the
 				 * whole (not just the range) string when
 				 * drawing. */
@@ -1398,9 +1409,9 @@ TkpDrawAngledCharsInContext(
 				 * passed to this function. If they are not
 				 * stripped out, they will be displayed as
 				 * regular printing characters. */
-    TCL_UNUSED(int),		/* Number of bytes in string. */
-    int rangeStart,		/* Index of first byte to draw. */
-    int rangeLength,		/* Length of range to draw in bytes. */
+    TCL_UNUSED(Tcl_Size),		/* Number of bytes in string. */
+    Tcl_Size rangeStart,		/* Index of first byte to draw. */
+    Tcl_Size rangeLength,		/* Length of range to draw in bytes. */
     double x, double y,		/* Coordinates at which to place origin of the
 				 * whole (not just the range) string when
 				 * drawing. */
@@ -1416,12 +1427,12 @@ TkpDrawAngledCharsInContext(
 
 void
 TkUnixSetXftClipRegion(
-    TkRegion clipRegion)	/* The clipping region to install. */
+    Region clipRegion)	/* The clipping region to install. */
 {
     ThreadSpecificData *tsdPtr = (ThreadSpecificData *)
-            Tcl_GetThreadData(&dataKey, sizeof(ThreadSpecificData));
+	    Tcl_GetThreadData(&dataKey, sizeof(ThreadSpecificData));
 
-    tsdPtr->clipRegion = (Region) clipRegion;
+    tsdPtr->clipRegion = clipRegion;
 }
 
 /*
