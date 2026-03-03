@@ -6,12 +6,12 @@
  *	contains only commands in the generic core (i.e., those that don't
  *	depend much upon UNIX facilities).
  *
- * Copyright (c) 1987-1993 The Regents of the University of California.
- * Copyright (c) 1993-1997 Lucent Technologies.
- * Copyright (c) 1994-1997 Sun Microsystems, Inc.
- * Copyright (c) 1998-1999 by Scriptics Corporation.
- * Copyright (c) 2001 by Kevin B. Kenny. All rights reserved.
- * Copyright (c) 2005 Donal K. Fellows.
+ * Copyright © 1987-1993 The Regents of the University of California.
+ * Copyright © 1993-1997 Lucent Technologies.
+ * Copyright © 1994-1997 Sun Microsystems, Inc.
+ * Copyright © 1998-1999 Scriptics Corporation.
+ * Copyright © 2001 Kevin B. Kenny. All rights reserved.
+ * Copyright © 2005 Donal K. Fellows.
  *
  * See the file "license.terms" for information on usage and redistribution of
  * this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -19,6 +19,8 @@
 
 #include "tclInt.h"
 #include "tclRegexp.h"
+#include "tclTomMath.h"
+#include <math.h>
 
 /*
  * During execution of the "lsort" command, structures of the following type
@@ -35,7 +37,7 @@ typedef struct SortElement {
     } collationKey;
     union {			/* Object being sorted, or its index. */
 	Tcl_Obj *objPtr;
-	int index;
+	size_t index;
     } payload;
     struct SortElement *nextPtr;/* Next element in the list, or NULL for end
 				 * of list. */
@@ -47,7 +49,7 @@ typedef struct SortElement {
  */
 
 typedef int (*SortStrCmpFn_t) (const char *, const char *);
-typedef int (*SortMemCmpFn_t) (const void *, const void *, size_t);
+typedef int (*SortMemCmpFn_t) (const void *, const void *, Tcl_Size);
 
 /*
  * The "lsort" command needs to pass certain information down to the function
@@ -56,7 +58,7 @@ typedef int (*SortMemCmpFn_t) (const void *, const void *, size_t);
  * The following structure is used to pass this information.
  */
 
-typedef struct SortInfo {
+typedef struct {
     int isIncreasing;		/* Nonzero means sort in increasing order. */
     int sortMode;		/* The sort mode. One of SORTMODE_* values
 				 * defined below. */
@@ -70,7 +72,7 @@ typedef struct SortInfo {
 				 * NULL if no indexes supplied, and points to
 				 * singleIndex field when only one
 				 * supplied. */
-    int indexc;			/* Number of indexes in indexv array. */
+    Tcl_Size indexc;		/* Number of indexes in indexv array. */
     int singleIndex;		/* Static space for common index case. */
     int unique;
     int numElements;
@@ -94,52 +96,46 @@ typedef struct SortInfo {
 #define SORTMODE_ASCII_NC	8
 
 /*
+ * Definitions for [lseq] command
+ */
+static const char *const seq_operations[] = {
+    "..", "to", "count", "by", NULL
+};
+typedef enum {
+    LSEQ_DOTS, LSEQ_TO, LSEQ_COUNT, LSEQ_BY
+} SequenceOperators;
+typedef enum {
+     NoneArg, NumericArg, RangeKeywordArg, ErrArg, LastArg = 8
+} SequenceDecoded;
+
+/*
  * Forward declarations for procedures defined in this file:
  */
 
 static int		DictionaryCompare(const char *left, const char *right);
 static Tcl_NRPostProc	IfConditionCallback;
-static int		InfoArgsCmd(ClientData dummy, Tcl_Interp *interp,
-			    int objc, Tcl_Obj *const objv[]);
-static int		InfoBodyCmd(ClientData dummy, Tcl_Interp *interp,
-			    int objc, Tcl_Obj *const objv[]);
-static int		InfoCmdCountCmd(ClientData dummy, Tcl_Interp *interp,
-			    int objc, Tcl_Obj *const objv[]);
-static int		InfoCommandsCmd(ClientData dummy, Tcl_Interp *interp,
-			    int objc, Tcl_Obj *const objv[]);
-static int		InfoCompleteCmd(ClientData dummy, Tcl_Interp *interp,
-			    int objc, Tcl_Obj *const objv[]);
-static int		InfoDefaultCmd(ClientData dummy, Tcl_Interp *interp,
-			    int objc, Tcl_Obj *const objv[]);
+static Tcl_ObjCmdProc	InfoArgsCmd;
+static Tcl_ObjCmdProc	InfoBodyCmd;
+static Tcl_ObjCmdProc	InfoCmdCountCmd;
+static Tcl_ObjCmdProc	InfoCommandsCmd;
+static Tcl_ObjCmdProc	InfoCompleteCmd;
+static Tcl_ObjCmdProc	InfoDefaultCmd;
 /* TIP #348 - New 'info' subcommand 'errorstack' */
-static int		InfoErrorStackCmd(ClientData dummy, Tcl_Interp *interp,
-			    int objc, Tcl_Obj *const objv[]);
+static Tcl_ObjCmdProc	InfoErrorStackCmd;
 /* TIP #280 - New 'info' subcommand 'frame' */
-static int		InfoFrameCmd(ClientData dummy, Tcl_Interp *interp,
-			    int objc, Tcl_Obj *const objv[]);
-static int		InfoFunctionsCmd(ClientData dummy, Tcl_Interp *interp,
-			    int objc, Tcl_Obj *const objv[]);
-static int		InfoHostnameCmd(ClientData dummy, Tcl_Interp *interp,
-			    int objc, Tcl_Obj *const objv[]);
-static int		InfoLevelCmd(ClientData dummy, Tcl_Interp *interp,
-			    int objc, Tcl_Obj *const objv[]);
-static int		InfoLibraryCmd(ClientData dummy, Tcl_Interp *interp,
-			    int objc, Tcl_Obj *const objv[]);
-static int		InfoLoadedCmd(ClientData dummy, Tcl_Interp *interp,
-			    int objc, Tcl_Obj *const objv[]);
-static int		InfoNameOfExecutableCmd(ClientData dummy,
-			    Tcl_Interp *interp, int objc,
-			    Tcl_Obj *const objv[]);
-static int		InfoPatchLevelCmd(ClientData dummy, Tcl_Interp *interp,
-			    int objc, Tcl_Obj *const objv[]);
-static int		InfoProcsCmd(ClientData dummy, Tcl_Interp *interp,
-			    int objc, Tcl_Obj *const objv[]);
-static int		InfoScriptCmd(ClientData dummy, Tcl_Interp *interp,
-			    int objc, Tcl_Obj *const objv[]);
-static int		InfoSharedlibCmd(ClientData dummy, Tcl_Interp *interp,
-			    int objc, Tcl_Obj *const objv[]);
-static int		InfoTclVersionCmd(ClientData dummy, Tcl_Interp *interp,
-			    int objc, Tcl_Obj *const objv[]);
+static Tcl_ObjCmdProc	InfoFrameCmd;
+static Tcl_ObjCmdProc	InfoFunctionsCmd;
+static Tcl_ObjCmdProc	InfoHostnameCmd;
+static Tcl_ObjCmdProc	InfoLevelCmd;
+static Tcl_ObjCmdProc	InfoLibraryCmd;
+static Tcl_ObjCmdProc	InfoLoadedCmd;
+static Tcl_ObjCmdProc	InfoNameOfExecutableCmd;
+static Tcl_ObjCmdProc	InfoPatchLevelCmd;
+static Tcl_ObjCmdProc	InfoProcsCmd;
+static Tcl_ObjCmdProc	InfoScriptCmd;
+static Tcl_ObjCmdProc	InfoSharedlibCmd;
+static Tcl_ObjCmdProc	InfoCmdTypeCmd;
+static Tcl_ObjCmdProc	InfoTclVersionCmd;
 static SortElement *	MergeLists(SortElement *leftPtr, SortElement *rightPtr,
 			    SortInfo *infoPtr);
 static int		SortCompare(SortElement *firstPtr, SortElement *second,
@@ -156,8 +152,11 @@ static const EnsembleImplMap defaultInfoMap[] = {
     {"args",		   InfoArgsCmd,		    TclCompileBasic1ArgCmd, NULL, NULL, 0},
     {"body",		   InfoBodyCmd,		    TclCompileBasic1ArgCmd, NULL, NULL, 0},
     {"cmdcount",	   InfoCmdCountCmd,	    TclCompileBasic0ArgCmd, NULL, NULL, 0},
+    {"cmdtype",		   InfoCmdTypeCmd,	    TclCompileBasic1ArgCmd, NULL, NULL, 1},
     {"commands",	   InfoCommandsCmd,	    TclCompileInfoCommandsCmd, NULL, NULL, 0},
     {"complete",	   InfoCompleteCmd,	    TclCompileBasic1ArgCmd, NULL, NULL, 0},
+    {"constant",	   TclInfoConstantCmd,	    TclCompileBasic1ArgCmd, NULL, NULL, 0},
+    {"consts",		   TclInfoConstsCmd,	    TclCompileBasic0Or1ArgCmd, NULL, NULL, 0},
     {"coroutine",	   TclInfoCoroutineCmd,     TclCompileInfoCoroutineCmd, NULL, NULL, 0},
     {"default",		   InfoDefaultCmd,	    TclCompileBasic3ArgCmd, NULL, NULL, 0},
     {"errorstack",	   InfoErrorStackCmd,	    TclCompileBasic0Or1ArgCmd, NULL, NULL, 0},
@@ -170,7 +169,7 @@ static const EnsembleImplMap defaultInfoMap[] = {
     {"library",		   InfoLibraryCmd,	    TclCompileBasic0ArgCmd, NULL, NULL, 0},
     {"loaded",		   InfoLoadedCmd,	    TclCompileBasic0Or1ArgCmd, NULL, NULL, 0},
     {"locals",		   TclInfoLocalsCmd,	    TclCompileBasic0Or1ArgCmd, NULL, NULL, 0},
-    {"nameofexecutable",   InfoNameOfExecutableCmd, TclCompileBasic0ArgCmd, NULL, NULL, 0},
+    {"nameofexecutable",   InfoNameOfExecutableCmd, TclCompileBasic0ArgCmd, NULL, NULL, 1},
     {"patchlevel",	   InfoPatchLevelCmd,	    TclCompileBasic0ArgCmd, NULL, NULL, 0},
     {"procs",		   InfoProcsCmd,	    TclCompileBasic0Or1ArgCmd, NULL, NULL, 0},
     {"script",		   InfoScriptCmd,	    TclCompileBasic0Or1ArgCmd, NULL, NULL, 0},
@@ -203,17 +202,17 @@ static const EnsembleImplMap defaultInfoMap[] = {
 
 int
 Tcl_IfObjCmd(
-    ClientData dummy,		/* Not used. */
+    void *clientData,
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj *const objv[])	/* Argument objects. */
 {
-    return Tcl_NRCallObjProc(interp, TclNRIfObjCmd, dummy, objc, objv);
+    return Tcl_NRCallObjProc(interp, TclNRIfObjCmd, clientData, objc, objv);
 }
 
 int
 TclNRIfObjCmd(
-    ClientData dummy,		/* Not used. */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj *const objv[])	/* Argument objects. */
@@ -236,13 +235,13 @@ TclNRIfObjCmd(
 
     TclNewObj(boolObj);
     Tcl_NRAddCallback(interp, IfConditionCallback, INT2PTR(objc),
-	    (ClientData)objv, INT2PTR(1), boolObj);
+	    (void *) objv, INT2PTR(1), boolObj);
     return Tcl_NRExprObj(interp, objv[1], boolObj);
 }
 
 static int
 IfConditionCallback(
-    ClientData data[],
+    void *data[],
     Tcl_Interp *interp,
     int result)
 {
@@ -386,7 +385,7 @@ IfConditionCallback(
 
 int
 Tcl_IncrObjCmd(
-    ClientData dummy,		/* Not used. */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj *const objv[])	/* Argument objects. */
@@ -467,7 +466,7 @@ TclInitInfoCmd(
 
 static int
 InfoArgsCmd(
-    ClientData dummy,		/* Not used. */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj *const objv[])	/* Argument objects. */
@@ -530,15 +529,15 @@ InfoArgsCmd(
 
 static int
 InfoBodyCmd(
-    ClientData dummy,		/* Not used. */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj *const objv[])	/* Argument objects. */
 {
     Interp *iPtr = (Interp *) interp;
-    const char *name;
+    const char *name, *bytes;
     Proc *procPtr;
-    Tcl_Obj *bodyPtr, *resultPtr;
+    Tcl_Size numBytes;
 
     if (objc != 2) {
 	Tcl_WrongNumArgs(interp, 1, objv, "procname");
@@ -563,18 +562,8 @@ InfoBodyCmd(
      * the object do not invalidate the internal rep.
      */
 
-    bodyPtr = procPtr->bodyPtr;
-    if (bodyPtr->bytes == NULL) {
-	/*
-	 * The string rep might not be valid if the procedure has never been
-	 * run before. [Bug #545644]
-	 */
-
-	TclGetString(bodyPtr);
-    }
-    resultPtr = Tcl_NewStringObj(bodyPtr->bytes, bodyPtr->length);
-
-    Tcl_SetObjResult(interp, resultPtr);
+    bytes = TclGetStringFromObj(procPtr->bodyPtr, &numBytes);
+    Tcl_SetObjResult(interp, Tcl_NewStringObj(bytes, numBytes));
     return TCL_OK;
 }
 
@@ -601,7 +590,7 @@ InfoBodyCmd(
 
 static int
 InfoCmdCountCmd(
-    ClientData dummy,		/* Not used. */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj *const objv[])	/* Argument objects. */
@@ -613,7 +602,7 @@ InfoCmdCountCmd(
 	return TCL_ERROR;
     }
 
-    Tcl_SetObjResult(interp, Tcl_NewIntObj(iPtr->cmdCount));
+    Tcl_SetObjResult(interp, Tcl_NewWideIntObj(iPtr->cmdCount));
     return TCL_OK;
 }
 
@@ -643,7 +632,7 @@ InfoCmdCountCmd(
 
 static int
 InfoCommandsCmd(
-    ClientData dummy,		/* Not used. */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj *const objv[])	/* Argument objects. */
@@ -658,7 +647,7 @@ InfoCommandsCmd(
     Tcl_Obj *listPtr, *elemObjPtr;
     int specificNsInPattern = 0;/* Init. to avoid compiler warning. */
     Tcl_Command cmd;
-    int i;
+    Tcl_Size i;
 
     /*
      * Get the pattern and find the "effective namespace" in which to list
@@ -880,7 +869,7 @@ InfoCommandsCmd(
 			|| Tcl_StringMatch(cmdName, simplePattern)) {
 		    elemObjPtr = Tcl_NewStringObj(cmdName, -1);
 		    if (Tcl_FindHashEntry(&addedCommandsTable,
-			    (char *) elemObjPtr) == NULL) {
+			    elemObjPtr) == NULL) {
 			Tcl_ListObjAppendElement(interp, listPtr, elemObjPtr);
 		    } else {
 			TclDecrRefCount(elemObjPtr);
@@ -920,7 +909,7 @@ InfoCommandsCmd(
 
 static int
 InfoCompleteCmd(
-    ClientData dummy,		/* Not used. */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj *const objv[])	/* Argument objects. */
@@ -957,7 +946,7 @@ InfoCompleteCmd(
 
 static int
 InfoDefaultCmd(
-    ClientData dummy,		/* Not used. */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj *const objv[])	/* Argument objects. */
@@ -998,8 +987,8 @@ InfoDefaultCmd(
 		Tcl_SetObjResult(interp, Tcl_NewBooleanObj(1));
 	    } else {
 		Tcl_Obj *nullObjPtr;
-
 		TclNewObj(nullObjPtr);
+
 		valueObjPtr = Tcl_ObjSetVar2(interp, objv[3], NULL,
 			nullObjPtr, TCL_LEAVE_ERR_MSG);
 		if (valueObjPtr == NULL) {
@@ -1040,7 +1029,7 @@ InfoDefaultCmd(
 
 static int
 InfoErrorStackCmd(
-    ClientData dummy,		/* Not used. */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj *const objv[])	/* Argument objects. */
@@ -1089,7 +1078,7 @@ InfoErrorStackCmd(
 
 int
 TclInfoExistsCmd(
-    ClientData dummy,		/* Not used. */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj *const objv[])	/* Argument objects. */
@@ -1134,7 +1123,7 @@ TclInfoExistsCmd(
 
 static int
 InfoFrameCmd(
-    ClientData dummy,		/* Not used. */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj *const objv[])	/* Argument objects. */
@@ -1179,7 +1168,7 @@ InfoFrameCmd(
 	 * Just "info frame".
 	 */
 
-	Tcl_SetObjResult(interp, Tcl_NewIntObj(topLevel));
+	Tcl_SetObjResult(interp, Tcl_NewWideIntObj(topLevel));
 	goto done;
     }
 
@@ -1306,9 +1295,9 @@ TclInfoFrame(
 
 	ADD_PAIR("type", Tcl_NewStringObj(typeString[framePtr->type], -1));
 	if (framePtr->line) {
-	    ADD_PAIR("line", Tcl_NewIntObj(framePtr->line[0]));
+	    ADD_PAIR("line", Tcl_NewWideIntObj(framePtr->line[0]));
 	} else {
-	    ADD_PAIR("line", Tcl_NewIntObj(1));
+	    ADD_PAIR("line", Tcl_NewWideIntObj(1));
 	}
 	ADD_PAIR("cmd", TclGetSourceFromFrame(framePtr, 0, NULL));
 	break;
@@ -1345,7 +1334,7 @@ TclInfoFrame(
 
 	ADD_PAIR("type", Tcl_NewStringObj(typeString[fPtr->type], -1));
 	if (fPtr->line) {
-	    ADD_PAIR("line", Tcl_NewIntObj(fPtr->line[0]));
+	    ADD_PAIR("line", Tcl_NewWideIntObj(fPtr->line[0]));
 	}
 
 	if (fPtr->type == TCL_LOCATION_SOURCE) {
@@ -1372,7 +1361,7 @@ TclInfoFrame(
 	 */
 
 	ADD_PAIR("type", Tcl_NewStringObj(typeString[framePtr->type], -1));
-	ADD_PAIR("line", Tcl_NewIntObj(framePtr->line[0]));
+	ADD_PAIR("line", Tcl_NewWideIntObj(framePtr->line[0]));
 	ADD_PAIR("file", framePtr->data.eval.path);
 
 	/*
@@ -1409,7 +1398,7 @@ TclInfoFrame(
 	    ADD_PAIR("proc", procNameObj);
 	} else if (procPtr->cmdPtr->clientData) {
 	    ExtraFrameInfo *efiPtr = (ExtraFrameInfo *)procPtr->cmdPtr->clientData;
-	    int i;
+	    Tcl_Size i;
 
 	    /*
 	     * This is a non-standard command. Luckily, it's told us how to
@@ -1443,7 +1432,7 @@ TclInfoFrame(
 		int c = framePtr->framePtr->level;
 		int t = iPtr->varFramePtr->level;
 
-		ADD_PAIR("level", Tcl_NewIntObj(t - c));
+		ADD_PAIR("level", Tcl_NewWideIntObj(t - c));
 		break;
 	    }
 	}
@@ -1479,7 +1468,7 @@ TclInfoFrame(
 
 static int
 InfoFunctionsCmd(
-    ClientData dummy,		/* Not used. */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj *const objv[])	/* Argument objects. */
@@ -1544,7 +1533,7 @@ InfoFunctionsCmd(
 
 static int
 InfoHostnameCmd(
-    ClientData dummy,		/* Not used. */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj *const objv[])	/* Argument objects. */
@@ -1590,7 +1579,7 @@ InfoHostnameCmd(
 
 static int
 InfoLevelCmd(
-    ClientData dummy,		/* Not used. */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj *const objv[])	/* Argument objects. */
@@ -1598,7 +1587,7 @@ InfoLevelCmd(
     Interp *iPtr = (Interp *) interp;
 
     if (objc == 1) {		/* Just "info level" */
-	Tcl_SetObjResult(interp, Tcl_NewIntObj(iPtr->varFramePtr->level));
+	Tcl_SetObjResult(interp, Tcl_NewWideIntObj((int)iPtr->varFramePtr->level));
 	return TCL_OK;
     }
 
@@ -1617,7 +1606,7 @@ InfoLevelCmd(
 	}
 	for (framePtr=iPtr->varFramePtr ; framePtr!=rootFramePtr;
 		framePtr=framePtr->callerVarPtr) {
-	    if (framePtr->level == level) {
+	    if ((int)framePtr->level == level) {
 		break;
 	    }
 	}
@@ -1664,7 +1653,7 @@ InfoLevelCmd(
 
 static int
 InfoLibraryCmd(
-    ClientData dummy,		/* Not used. */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj *const objv[])	/* Argument objects. */
@@ -1676,7 +1665,7 @@ InfoLibraryCmd(
 	return TCL_ERROR;
     }
 
-    libDirName = Tcl_GetVar(interp, "tcl_library", TCL_GLOBAL_ONLY);
+    libDirName = Tcl_GetVar2(interp, "tcl_library", NULL, TCL_GLOBAL_ONLY);
     if (libDirName != NULL) {
 	Tcl_SetObjResult(interp, Tcl_NewStringObj(libDirName, -1));
 	return TCL_OK;
@@ -1711,24 +1700,29 @@ InfoLibraryCmd(
 
 static int
 InfoLoadedCmd(
-    ClientData dummy,		/* Not used. */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj *const objv[])	/* Argument objects. */
 {
-    const char *interpName;
+    const char *interpName, *prefix;
 
-    if ((objc != 1) && (objc != 2)) {
-	Tcl_WrongNumArgs(interp, 1, objv, "?interp?");
+    if (objc > 3) {
+	Tcl_WrongNumArgs(interp, 1, objv, "?interp? ?prefix?");
 	return TCL_ERROR;
     }
 
-    if (objc == 1) {		/* Get loaded pkgs in all interpreters. */
+    if (objc < 2) {		/* Get loaded pkgs in all interpreters. */
 	interpName = NULL;
     } else {			/* Get pkgs just in specified interp. */
 	interpName = TclGetString(objv[1]);
     }
-    return TclGetLoadedPackages(interp, interpName);
+    if (objc < 3) {		/* Get loaded files in all packages. */
+	prefix = NULL;
+    } else {			/* Get pkgs just in specified interp. */
+	prefix = TclGetString(objv[2]);
+    }
+    return TclGetLoadedLibraries(interp, interpName, prefix);
 }
 
 /*
@@ -1754,7 +1748,7 @@ InfoLoadedCmd(
 
 static int
 InfoNameOfExecutableCmd(
-    ClientData dummy,		/* Not used. */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj *const objv[])	/* Argument objects. */
@@ -1790,7 +1784,7 @@ InfoNameOfExecutableCmd(
 
 static int
 InfoPatchLevelCmd(
-    ClientData dummy,		/* Not used. */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj *const objv[])	/* Argument objects. */
@@ -1802,7 +1796,7 @@ InfoPatchLevelCmd(
 	return TCL_ERROR;
     }
 
-    patchlevel = Tcl_GetVar(interp, "tcl_patchLevel",
+    patchlevel = Tcl_GetVar2(interp, "tcl_patchLevel", NULL,
 	    (TCL_GLOBAL_ONLY | TCL_LEAVE_ERR_MSG));
     if (patchlevel != NULL) {
 	Tcl_SetObjResult(interp, Tcl_NewStringObj(patchlevel, -1));
@@ -1837,7 +1831,7 @@ InfoPatchLevelCmd(
 
 static int
 InfoProcsCmd(
-    ClientData dummy,		/* Not used. */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj *const objv[])	/* Argument objects. */
@@ -1845,9 +1839,6 @@ InfoProcsCmd(
     const char *cmdName, *pattern;
     const char *simplePattern;
     Namespace *nsPtr;
-#ifdef INFO_PROCS_SEARCH_GLOBAL_NS
-    Namespace *globalNsPtr = (Namespace *) Tcl_GetGlobalNamespace(interp);
-#endif
     Namespace *currNsPtr = (Namespace *) Tcl_GetCurrentNamespace(interp);
     Tcl_Obj *listPtr, *elemObjPtr;
     int specificNsInPattern = 0;/* Init. to avoid compiler warning. */
@@ -1899,7 +1890,6 @@ InfoProcsCmd(
      */
 
     listPtr = Tcl_NewListObj(0, NULL);
-#ifndef INFO_PROCS_SEARCH_GLOBAL_NS
     if (simplePattern != NULL && TclMatchIsTrivial(simplePattern)) {
 	entryPtr = Tcl_FindHashEntry(&nsPtr->cmdTable, simplePattern);
 	if (entryPtr != NULL) {
@@ -1923,9 +1913,7 @@ InfoProcsCmd(
 		Tcl_ListObjAppendElement(interp, listPtr, elemObjPtr);
 	    }
 	}
-    } else
-#endif /* !INFO_PROCS_SEARCH_GLOBAL_NS */
-    {
+    } else {
 	entryPtr = Tcl_FirstHashEntry(&nsPtr->cmdTable, &search);
 	while (entryPtr != NULL) {
 	    cmdName = (const char *)Tcl_GetHashKey(&nsPtr->cmdTable, entryPtr);
@@ -1953,46 +1941,6 @@ InfoProcsCmd(
 	    }
 	    entryPtr = Tcl_NextHashEntry(&search);
 	}
-
-	/*
-	 * If the effective namespace isn't the global :: namespace, and a
-	 * specific namespace wasn't requested in the pattern, then add in all
-	 * global :: procs that match the simple pattern. Of course, we add in
-	 * only those procs that aren't hidden by a proc in the effective
-	 * namespace.
-	 */
-
-#ifdef INFO_PROCS_SEARCH_GLOBAL_NS
-	/*
-	 * If "info procs" worked like "info commands", returning the commands
-	 * also seen in the global namespace, then you would include this
-	 * code. As this could break backwards compatibility with 8.0-8.2, we
-	 * decided not to "fix" it in 8.3, leaving the behavior slightly
-	 * different.
-	 */
-
-	if ((nsPtr != globalNsPtr) && !specificNsInPattern) {
-	    entryPtr = Tcl_FirstHashEntry(&globalNsPtr->cmdTable, &search);
-	    while (entryPtr != NULL) {
-		cmdName = Tcl_GetHashKey(&globalNsPtr->cmdTable, entryPtr);
-		if ((simplePattern == NULL)
-			|| Tcl_StringMatch(cmdName, simplePattern)) {
-		    if (Tcl_FindHashEntry(&nsPtr->cmdTable,cmdName) == NULL) {
-			cmdPtr = Tcl_GetHashValue(entryPtr);
-			realCmdPtr = (Command *) TclGetOriginalCommand(
-				(Tcl_Command) cmdPtr);
-
-			if (TclIsProc(cmdPtr) || ((realCmdPtr != NULL)
-				&& TclIsProc(realCmdPtr))) {
-			    Tcl_ListObjAppendElement(interp, listPtr,
-				    Tcl_NewStringObj(cmdName, -1));
-			}
-		    }
-		}
-		entryPtr = Tcl_NextHashEntry(&search);
-	    }
-	}
-#endif
     }
 
     Tcl_SetObjResult(interp, listPtr);
@@ -2024,12 +1972,13 @@ InfoProcsCmd(
 
 static int
 InfoScriptCmd(
-    ClientData dummy,		/* Not used. */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj *const objv[])	/* Argument objects. */
 {
     Interp *iPtr = (Interp *) interp;
+
     if ((objc != 1) && (objc != 2)) {
 	Tcl_WrongNumArgs(interp, 1, objv, "?filename?");
 	return TCL_ERROR;
@@ -2071,7 +2020,7 @@ InfoScriptCmd(
 
 static int
 InfoSharedlibCmd(
-    ClientData dummy,		/* Not used. */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj *const objv[])	/* Argument objects. */
@@ -2109,7 +2058,7 @@ InfoSharedlibCmd(
 
 static int
 InfoTclVersionCmd(
-    ClientData dummy,		/* Not used. */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj *const objv[])	/* Argument objects. */
@@ -2133,6 +2082,60 @@ InfoTclVersionCmd(
 /*
  *----------------------------------------------------------------------
  *
+ * InfoCmdTypeCmd --
+ *
+ *	Called to implement the "info cmdtype" command that returns the type
+ *	of a given command. Handles the following syntax:
+ *
+ *	    info cmdtype cmdName
+ *
+ * Results:
+ *	Returns TCL_OK if successful and TCL_ERROR if there is an error.
+ *
+ * Side effects:
+ *	Returns a type name. If there is an error, the result is an error
+ *	message.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+InfoCmdTypeCmd(
+    TCL_UNUSED(void *),
+    Tcl_Interp *interp,		/* Current interpreter. */
+    int objc,			/* Number of arguments. */
+    Tcl_Obj *const objv[])	/* Argument objects. */
+{
+    Tcl_Command command;
+
+    if (objc != 2) {
+	Tcl_WrongNumArgs(interp, 1, objv, "commandName");
+	return TCL_ERROR;
+    }
+    command = Tcl_FindCommand(interp, TclGetString(objv[1]), NULL,
+	    TCL_LEAVE_ERR_MSG);
+    if (command == NULL) {
+	return TCL_ERROR;
+    }
+
+    /*
+     * There's one special case: safe child interpreters can't see aliases as
+     * aliases as they're part of the security mechanisms.
+     */
+
+    if (Tcl_IsSafe(interp)
+	    && (((Command *) command)->objProc == TclAliasObjCmd)) {
+	Tcl_AppendResult(interp, "native", (char *)NULL);
+    } else {
+	Tcl_SetObjResult(interp,
+		Tcl_NewStringObj(TclGetCommandTypeName(command), -1));
+    }
+    return TCL_OK;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
  * Tcl_JoinObjCmd --
  *
  *	This procedure is invoked to process the "join" Tcl command. See the
@@ -2149,13 +2152,14 @@ InfoTclVersionCmd(
 
 int
 Tcl_JoinObjCmd(
-    ClientData dummy,		/* Not used. */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj *const objv[])	/* The argument objects. */
 {
-    int listLen, i;
-    Tcl_Obj *resObjPtr, *joinObjPtr, **elemPtrs;
+    Tcl_Size length, listLen;
+    int isAbstractList = 0;
+    Tcl_Obj *resObjPtr = NULL, *joinObjPtr, **elemPtrs;
 
     if ((objc < 2) || (objc > 3)) {
 	Tcl_WrongNumArgs(interp, 1, objv, "list ?joinString?");
@@ -2167,32 +2171,68 @@ Tcl_JoinObjCmd(
      * pointer to its array of element pointers.
      */
 
-    if (TclListObjGetElements(interp, objv[1], &listLen,
+    if (TclObjTypeHasProc(objv[1], getElementsProc)) {
+	listLen = TclObjTypeLength(objv[1]);
+	isAbstractList = (listLen ? 1 : 0);
+	if (listLen > 1 && TclObjTypeGetElements(interp, objv[1],
+		&listLen, &elemPtrs) != TCL_OK) {
+	    return TCL_ERROR;
+	}
+    } else if (TclListObjGetElements(interp, objv[1], &listLen,
 	    &elemPtrs) != TCL_OK) {
 	return TCL_ERROR;
+    }
+
+    if (listLen == 0) {
+	/* No elements to join; default empty result is correct. */
+	return TCL_OK;
+    }
+    if (listLen == 1) {
+	/* One element; return it */
+	if (!isAbstractList) {
+	    Tcl_SetObjResult(interp, elemPtrs[0]);
+	} else {
+	    Tcl_Obj *elemObj;
+
+	    if (TclObjTypeIndex(interp, objv[1], 0, &elemObj) != TCL_OK) {
+		return TCL_ERROR;
+	    }
+	    Tcl_SetObjResult(interp, elemObj);
+	}
+	return TCL_OK;
     }
 
     joinObjPtr = (objc == 2) ? Tcl_NewStringObj(" ", 1) : objv[2];
     Tcl_IncrRefCount(joinObjPtr);
 
-    TclNewObj(resObjPtr);
-    for (i = 0;  i < listLen;  i++) {
-	if (i > 0) {
+    (void)TclGetStringFromObj(joinObjPtr, &length);
+    if (length == 0) {
+	resObjPtr = TclStringCat(interp, listLen, elemPtrs, 0);
+    } else {
+	Tcl_Size i;
 
-	    /*
-	     * NOTE: This code is relying on Tcl_AppendObjToObj() **NOT**
-	     * to shimmer joinObjPtr.  If it did, then the case where
-	     * objv[1] and objv[2] are the same value would not be safe.
-	     * Accessing elemPtrs would crash.
-	     */
+	TclNewObj(resObjPtr);
+	for (i = 0;  i < listLen;  i++) {
+	    if (i > 0) {
 
-	    Tcl_AppendObjToObj(resObjPtr, joinObjPtr);
+		/*
+		 * NOTE: This code is relying on Tcl_AppendObjToObj() **NOT**
+		 * to shimmer joinObjPtr.  If it did, then the case where
+		 * objv[1] and objv[2] are the same value would not be safe.
+		 * Accessing elemPtrs would crash.
+		 */
+
+		Tcl_AppendObjToObj(resObjPtr, joinObjPtr);
+	    }
+	    Tcl_AppendObjToObj(resObjPtr, elemPtrs[i]);
 	}
-	Tcl_AppendObjToObj(resObjPtr, elemPtrs[i]);
     }
     Tcl_DecrRefCount(joinObjPtr);
-    Tcl_SetObjResult(interp, resObjPtr);
-    return TCL_OK;
+    if (resObjPtr) {
+	Tcl_SetObjResult(interp, resObjPtr);
+	return TCL_OK;
+    }
+    return TCL_ERROR;
 }
 
 /*
@@ -2214,61 +2254,99 @@ Tcl_JoinObjCmd(
 
 int
 Tcl_LassignObjCmd(
-    ClientData dummy,		/* Not used. */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj *const objv[])	/* Argument objects. */
 {
-    Tcl_Obj *listCopyPtr;
-    Tcl_Obj **listObjv;		/* The contents of the list. */
-    int listObjc;		/* The length of the list. */
-    int code = TCL_OK;
+    Tcl_Obj *listPtr;
+    Tcl_Size listObjc;		/* The length of the list. */
+    Tcl_Size origListObjc;	/* Original length */
+    int i;
 
     if (objc < 2) {
 	Tcl_WrongNumArgs(interp, 1, objv, "list ?varName ...?");
 	return TCL_ERROR;
     }
 
-    listCopyPtr = TclListObjCopy(interp, objv[1]);
-    if (listCopyPtr == NULL) {
+    /*
+     * Note: no need to Dup the list to avoid shimmering. That is only
+     * needed when Tcl_ListObjGetElements is used since that returns
+     * pointers to internal structures. Using Tcl_ListObjIndex does not
+     * have that problem. However, we now have to IncrRef each elemObj
+     * (see below). I see that as preferable as duping lists is potentially
+     * expensive for abstract lists when they have a string representation.
+     */
+    listPtr = objv[1];
+
+    if (TclListObjLength(interp, listPtr, &listObjc) != TCL_OK) {
 	return TCL_ERROR;
     }
-
-    TclListObjGetElements(NULL, listCopyPtr, &listObjc, &listObjv);
+    origListObjc = listObjc;
 
     objc -= 2;
     objv += 2;
-    while (code == TCL_OK && objc > 0 && listObjc > 0) {
-	if (Tcl_ObjSetVar2(interp, *objv++, NULL, *listObjv++,
-		TCL_LEAVE_ERR_MSG) == NULL) {
-	    code = TCL_ERROR;
-	}
-	objc--;
-	listObjc--;
-    }
+    for (i = 0; i < objc && i < listObjc; ++i) {
+	Tcl_Obj *elemObj;
 
-    if (code == TCL_OK && objc > 0) {
+	if (Tcl_ListObjIndex(interp, listPtr, i, &elemObj) != TCL_OK) {
+	    return TCL_ERROR;
+	}
+	/*
+	 * Must incrref elemObj. If the var name being set is same as the
+	 * list value, ObjSetVar2 will shimmer the list to a VAR freeing
+	 * the elements in the list (in case list refCount was 1) BEFORE
+	 * the elemObj is stored in the var. See tests 6.{25,26}
+	 */
+	Tcl_IncrRefCount(elemObj);
+	if (Tcl_ObjSetVar2(interp, *objv++, NULL, elemObj,
+		TCL_LEAVE_ERR_MSG) == NULL) {
+	    Tcl_DecrRefCount(elemObj);
+	    return TCL_ERROR;
+	}
+	Tcl_DecrRefCount(elemObj);
+    }
+    objc -= i;
+    listObjc -= i;
+
+    if (objc > 0) {
+	/* Still some variables left to be assigned */
 	Tcl_Obj *emptyObj;
 
 	TclNewObj(emptyObj);
 	Tcl_IncrRefCount(emptyObj);
-	while (code == TCL_OK && objc-- > 0) {
+	while (objc-- > 0) {
 	    if (Tcl_ObjSetVar2(interp, *objv++, NULL, emptyObj,
 		    TCL_LEAVE_ERR_MSG) == NULL) {
-		code = TCL_ERROR;
+		Tcl_DecrRefCount(emptyObj);
+		return TCL_ERROR;
 	    }
 	}
 	Tcl_DecrRefCount(emptyObj);
     }
 
-    if (code == TCL_OK && listObjc > 0) {
-	Tcl_SetObjResult(interp, Tcl_NewListObj(listObjc, listObjv));
+    if (listObjc > 0) {
+	Tcl_Obj *resultObjPtr = NULL;
+	Tcl_Size fromIdx = origListObjc - listObjc;
+	Tcl_Size toIdx = origListObjc - 1;
+	if (TclObjTypeHasProc(listPtr, sliceProc)) {
+	    if (TclObjTypeSlice(
+		    interp, listPtr, fromIdx, toIdx, &resultObjPtr) != TCL_OK) {
+		return TCL_ERROR;
+	    }
+	} else {
+	    resultObjPtr = TclListObjRange(
+		interp, listPtr, origListObjc - listObjc, origListObjc - 1);
+	    if (resultObjPtr == NULL) {
+		return TCL_ERROR;
+	    }
+	}
+	Tcl_SetObjResult(interp, resultObjPtr);
     }
 
-    Tcl_DecrRefCount(listCopyPtr);
-    return code;
+    return TCL_OK;
 }
-
+
 /*
  *----------------------------------------------------------------------
  *
@@ -2288,12 +2366,11 @@ Tcl_LassignObjCmd(
 
 int
 Tcl_LindexObjCmd(
-    ClientData dummy,		/* Not used. */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj *const objv[])	/* Argument objects. */
 {
-
     Tcl_Obj *elemPtr;		/* Pointer to the element being extracted. */
 
     if (objc < 2) {
@@ -2347,13 +2424,14 @@ Tcl_LindexObjCmd(
 
 int
 Tcl_LinsertObjCmd(
-    ClientData dummy,		/* Not used. */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,		/* Number of arguments. */
     Tcl_Obj *const objv[])	/* Argument objects. */
 {
     Tcl_Obj *listPtr;
-    int index, len, result;
+    Tcl_Size len, index;
+    int copied = 0, result;
 
     if (objc < 3) {
 	Tcl_WrongNumArgs(interp, 1, objv, "list index ?element ...?");
@@ -2387,6 +2465,7 @@ Tcl_LinsertObjCmd(
     listPtr = objv[1];
     if (Tcl_IsShared(listPtr)) {
 	listPtr = TclListObjCopy(NULL, listPtr);
+	copied = 1;
     }
 
     if ((objc == 4) && (index == len)) {
@@ -2394,10 +2473,19 @@ Tcl_LinsertObjCmd(
 	 * Special case: insert one element at the end of the list.
 	 */
 
-	Tcl_ListObjAppendElement(NULL, listPtr, objv[3]);
+	result = Tcl_ListObjAppendElement(NULL, listPtr, objv[3]);
+	if (result != TCL_OK) {
+	    if (copied) {
+		Tcl_DecrRefCount(listPtr);
+	    }
+	    return result;
+	}
     } else {
 	if (TCL_OK != Tcl_ListObjReplace(interp, listPtr, index, 0,
 		(objc-3), &(objv[3]))) {
+	    if (copied) {
+		Tcl_DecrRefCount(listPtr);
+	    }
 	    return TCL_ERROR;
 	}
     }
@@ -2429,7 +2517,7 @@ Tcl_LinsertObjCmd(
 
 int
 Tcl_ListObjCmd(
-    ClientData dummy,		/* Not used. */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,		/* Number of arguments. */
     Tcl_Obj *const objv[])
@@ -2465,13 +2553,15 @@ Tcl_ListObjCmd(
 
 int
 Tcl_LlengthObjCmd(
-    ClientData dummy,		/* Not used. */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj *const objv[])
 				/* Argument objects. */
 {
-    int listLen, result;
+    Tcl_Size listLen;
+    int result;
+    Tcl_Obj *objPtr;
 
     if (objc != 2) {
 	Tcl_WrongNumArgs(interp, 1, objv, "list");
@@ -2488,7 +2578,127 @@ Tcl_LlengthObjCmd(
      * length.
      */
 
-    Tcl_SetObjResult(interp, Tcl_NewIntObj(listLen));
+    TclNewUIntObj(objPtr, listLen);
+    Tcl_SetObjResult(interp, objPtr);
+    return TCL_OK;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Tcl_LpopObjCmd --
+ *
+ *	This procedure is invoked to process the "lpop" Tcl command. See the
+ *	user documentation for details on what it does.
+ *
+ * Results:
+ *	A standard Tcl object result.
+ *
+ * Side effects:
+ *	See the user documentation.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Tcl_LpopObjCmd(
+    TCL_UNUSED(void *),
+    Tcl_Interp *interp,		/* Current interpreter. */
+    int objc,			/* Number of arguments. */
+    Tcl_Obj *const objv[])
+				/* Argument objects. */
+{
+    Tcl_Size listLen;
+    int copied = 0, result;
+    Tcl_Obj *elemPtr, *stored;
+    Tcl_Obj *listPtr;
+
+    if (objc < 2) {
+	Tcl_WrongNumArgs(interp, 1, objv, "listvar ?index?");
+	return TCL_ERROR;
+    }
+
+    listPtr = Tcl_ObjGetVar2(interp, objv[1], NULL, TCL_LEAVE_ERR_MSG);
+    if (listPtr == NULL) {
+	return TCL_ERROR;
+    }
+
+    result = TclListObjLength(interp, listPtr, &listLen);
+    if (result != TCL_OK) {
+	return result;
+    }
+
+    /*
+     * First, extract the element to be returned.
+     * TclLindexFlat adds a ref count which is handled.
+     */
+
+    if (objc == 2) {
+	if (!listLen) {
+	    /* empty list, throw the same error as with index "end" */
+	    Tcl_SetObjResult(interp, Tcl_NewStringObj(
+		"index \"end\" out of range", -1));
+	    Tcl_SetErrorCode(interp, "TCL", "VALUE", "INDEX", "OUTOFRANGE", (char *)NULL);
+	    return TCL_ERROR;
+	}
+
+	result = Tcl_ListObjIndex(interp, listPtr, (listLen-1),	&elemPtr);
+	if (result != TCL_OK) {
+	    return result;
+	}
+
+	Tcl_IncrRefCount(elemPtr);
+    } else {
+	elemPtr = TclLindexFlat(interp, listPtr, objc-2, objv+2);
+
+	if (elemPtr == NULL) {
+	    return TCL_ERROR;
+	}
+    }
+    Tcl_SetObjResult(interp, elemPtr);
+    Tcl_DecrRefCount(elemPtr);
+
+    /*
+     * Second, remove the element.
+     * TclLsetFlat adds a ref count which is handled.
+     */
+
+    if (objc == 2) {
+	if (Tcl_IsShared(listPtr)) {
+	    listPtr = TclListObjCopy(NULL, listPtr);
+	    copied = 1;
+	}
+	result = Tcl_ListObjReplace(interp, listPtr, listLen - 1, 1, 0, NULL);
+	if (result != TCL_OK) {
+	    if (copied) {
+		Tcl_DecrRefCount(listPtr);
+	    }
+	    return result;
+	}
+    } else {
+	Tcl_Obj *newListPtr;
+	Tcl_ObjTypeSetElement *proc = TclObjTypeHasProc(listPtr, setElementProc);
+	if (proc) {
+	    newListPtr = proc(interp, listPtr, objc-2, objv+2, NULL);
+	} else {
+	    newListPtr = TclLsetFlat(interp, listPtr, objc-2, objv+2, NULL);
+	}
+	if (newListPtr == NULL) {
+	    if (copied) {
+		Tcl_DecrRefCount(listPtr);
+	    }
+	    return TCL_ERROR;
+	} else {
+	    listPtr = newListPtr;
+	    TclUndoRefCount(listPtr);
+	}
+    }
+
+    stored = Tcl_ObjSetVar2(interp, objv[1], NULL, listPtr, TCL_LEAVE_ERR_MSG);
+    if (stored == NULL) {
+	return TCL_ERROR;
+    }
+
     return TCL_OK;
 }
 
@@ -2511,15 +2721,14 @@ Tcl_LlengthObjCmd(
 
 int
 Tcl_LrangeObjCmd(
-    ClientData notUsed,		/* Not used. */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj *const objv[])
 				/* Argument objects. */
 {
-    Tcl_Obj **elemPtrs;
-    int listLen, first, last, result;
-
+    int result;
+    Tcl_Size listLen, first, last;
     if (objc != 4) {
 	Tcl_WrongNumArgs(interp, 1, objv, "list first last");
 	return TCL_ERROR;
@@ -2535,56 +2744,175 @@ Tcl_LrangeObjCmd(
     if (result != TCL_OK) {
 	return result;
     }
-    if (first < 0) {
-	first = 0;
-    }
 
     result = TclGetIntForIndexM(interp, objv[3], /*endValue*/ listLen - 1,
 	    &last);
     if (result != TCL_OK) {
 	return result;
     }
-    if (last >= listLen) {
-	last = listLen - 1;
+
+    if (TclObjTypeHasProc(objv[1], sliceProc)) {
+	Tcl_Obj *resultObj;
+	int status = TclObjTypeSlice(interp, objv[1], first, last, &resultObj);
+	if (status == TCL_OK) {
+	    Tcl_SetObjResult(interp, resultObj);
+	} else {
+	    return TCL_ERROR;
+	}
+    } else {
+	Tcl_Obj *resultObj = TclListObjRange(interp, objv[1], first, last);
+	if (resultObj == NULL) {
+	    return TCL_ERROR;
+	}
+	Tcl_SetObjResult(interp, resultObj);
+    }
+    return TCL_OK;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Tcl_LremoveObjCmd --
+ *
+ *	This procedure is invoked to process the "lremove" Tcl command. See the
+ *	user documentation for details on what it does.
+ *
+ * Results:
+ *	A standard Tcl object result.
+ *
+ * Side effects:
+ *	See the user documentation.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+LremoveIndexCompare(
+    const void *el1Ptr,
+    const void *el2Ptr)
+{
+    Tcl_Size idx1 = *((const Tcl_Size *) el1Ptr);
+    Tcl_Size idx2 = *((const Tcl_Size *) el2Ptr);
+
+    /*
+     * This will put the larger element first.
+     */
+
+    return (idx1 < idx2) ? 1 : (idx1 > idx2) ? -1 : 0;
+}
+
+int
+Tcl_LremoveObjCmd(
+    TCL_UNUSED(void *),
+    Tcl_Interp *interp,		/* Current interpreter. */
+    int objc,			/* Number of arguments. */
+    Tcl_Obj *const objv[])	/* Argument objects. */
+{
+    Tcl_Size i, idxc, prevIdx, first, num;
+    Tcl_Size *idxv, listLen;
+    Tcl_Obj *listObj;
+    int copied = 0, status = TCL_OK;
+
+    /*
+     * Parse the arguments.
+     */
+
+    if (objc < 2) {
+	Tcl_WrongNumArgs(interp, 1, objv, "list ?index ...?");
+	return TCL_ERROR;
     }
 
-    if (first > last) {
-	/*
-	 * Returning an empty list is easy.
-	 */
+    listObj = objv[1];
+    if (TclListObjLength(interp, listObj, &listLen) != TCL_OK) {
+	return TCL_ERROR;
+    }
 
+    idxc = objc - 2;
+    if (idxc == 0) {
+	Tcl_SetObjResult(interp, listObj);
 	return TCL_OK;
     }
-
-    result = TclListObjGetElements(interp, objv[1], &listLen, &elemPtrs);
-    if (result != TCL_OK) {
-	return result;
+    idxv = (Tcl_Size *)Tcl_Alloc((objc - 2) * sizeof(*idxv));
+    for (i = 2; i < objc; i++) {
+	status = (TclGetIntForIndexM(interp, objv[i], /*endValue*/ listLen - 1,
+		&idxv[i - 2]) != TCL_OK);
+	if (status != TCL_OK) {
+	    goto done;
+	}
     }
 
-    if (Tcl_IsShared(objv[1]) ||
-	    ((ListRepPtr(objv[1])->refCount > 1))) {
-	Tcl_SetObjResult(interp, Tcl_NewListObj(last - first + 1,
-		&elemPtrs[first]));
-    } else {
+    /*
+     * Sort the indices, large to small so that when we remove an index we
+     * don't change the indices still to be processed.
+     */
+
+    if (idxc > 1) {
+	qsort(idxv, idxc, sizeof(*idxv), LremoveIndexCompare);
+    }
+
+    /*
+     * Make our working copy, then do the actual removes piecemeal.
+     */
+
+    if (Tcl_IsShared(listObj)) {
+	listObj = TclListObjCopy(NULL, listObj);
+	copied = 1;
+    }
+    num = 0;
+    first = listLen;
+    for (i = 0, prevIdx = -1 ; i < idxc ; i++) {
+	Tcl_Size idx = idxv[i];
+
 	/*
-	 * In-place is possible.
+	 * Repeated index and sanity check.
 	 */
 
-	if (last < (listLen - 1)) {
-	    Tcl_ListObjReplace(interp, objv[1], last + 1, listLen - 1 - last,
-		    0, NULL);
+	if (idx == prevIdx) {
+	    continue;
+	}
+	prevIdx = idx;
+	if (idx < 0 || idx >= listLen) {
+	    continue;
 	}
 
 	/*
-	 * This one is not conditioned on (first > 0) in order to preserve the
-	 * string-canonizing effect of [lrange 0 end].
+	 * Coalesce adjacent removes to reduce the number of copies.
 	 */
 
-	Tcl_ListObjReplace(interp, objv[1], 0, first, 0, NULL);
-	Tcl_SetObjResult(interp, objv[1]);
-    }
+	if (num == 0) {
+	    num = 1;
+	    first = idx;
+	} else if (idx + 1 == first) {
+	    num++;
+	    first = idx;
+	} else {
+	    /*
+	     * Note that this operation can't fail now; we know we have a list
+	     * and we're only ever contracting that list.
+	     */
 
-    return TCL_OK;
+	    status = Tcl_ListObjReplace(interp, listObj, first, num, 0, NULL);
+	    if (status != TCL_OK) {
+		goto done;
+	    }
+	    listLen -= num;
+	    num = 1;
+	    first = idx;
+	}
+    }
+    if (num != 0) {
+	status = Tcl_ListObjReplace(interp, listObj, first, num, 0, NULL);
+	if (status != TCL_OK) {
+	    if (copied) {
+		Tcl_DecrRefCount(listObj);
+	    }
+	    goto done;
+	}
+    }
+    Tcl_SetObjResult(interp, listObj);
+done:
+    Tcl_Free(idxv);
+    return status;
 }
 
 /*
@@ -2606,13 +2934,14 @@ Tcl_LrangeObjCmd(
 
 int
 Tcl_LrepeatObjCmd(
-    ClientData dummy,		/* Not used. */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,		/* Number of arguments. */
     Tcl_Obj *const objv[])
 				/* The argument objects. */
 {
-    int elementCount, i, totalElems;
+    Tcl_WideInt elementCount, i;
+    Tcl_Size totalElems;
     Tcl_Obj *listPtr, **dataArray = NULL;
 
     /*
@@ -2624,12 +2953,12 @@ Tcl_LrepeatObjCmd(
 	Tcl_WrongNumArgs(interp, 1, objv, "count ?value ...?");
 	return TCL_ERROR;
     }
-    if (TCL_OK != TclGetIntFromObj(interp, objv[1], &elementCount)) {
+    if (TCL_OK != TclGetWideIntFromObj(interp, objv[1], &elementCount)) {
 	return TCL_ERROR;
     }
     if (elementCount < 0) {
 	Tcl_SetObjResult(interp, Tcl_ObjPrintf(
-		"bad count \"%d\": must be integer >= 0", elementCount));
+		"bad count \"%" TCL_LL_MODIFIER "d\": must be integer >= 0", elementCount));
 	Tcl_SetErrorCode(interp, "TCL", "OPERATION", "LREPEAT", "NEGARG",
 		(char *)NULL);
 	return TCL_ERROR;
@@ -2646,7 +2975,7 @@ Tcl_LrepeatObjCmd(
 
     if (elementCount && objc > LIST_MAX/elementCount) {
 	Tcl_SetObjResult(interp, Tcl_ObjPrintf(
-		"max length of a Tcl list (%d elements) exceeded", LIST_MAX));
+		"max length of a Tcl list (%" TCL_SIZE_MODIFIER "d elements) exceeded", LIST_MAX));
 	Tcl_SetErrorCode(interp, "TCL", "MEMORY", (char *)NULL);
 	return TCL_ERROR;
     }
@@ -2659,10 +2988,15 @@ Tcl_LrepeatObjCmd(
 
     listPtr = Tcl_NewListObj(totalElems, NULL);
     if (totalElems) {
-	List *listRepPtr = ListRepPtr(listPtr);
-
-	listRepPtr->elemCount = elementCount*objc;
-	dataArray = &listRepPtr->elements;
+	ListRep listRep;
+	ListObjGetRep(listPtr, &listRep);
+	dataArray = ListRepElementsBase(&listRep);
+	listRep.storePtr->numUsed = totalElems;
+	if (listRep.spanPtr) {
+	    /* Future proofing in case Tcl_NewListObj returns a span */
+	    listRep.spanPtr->spanStart = listRep.storePtr->firstUsed;
+	    listRep.spanPtr->spanLength = listRep.storePtr->numUsed;
+	}
     }
 
     /*
@@ -2681,7 +3015,7 @@ Tcl_LrepeatObjCmd(
 	    dataArray[i] = tmpPtr;
 	}
     } else {
-	int j, k = 0;
+	Tcl_Size j, k = 0;
 
 	for (i=0 ; i<elementCount ; i++) {
 	    for (j=0 ; j<objc ; j++) {
@@ -2715,13 +3049,14 @@ Tcl_LrepeatObjCmd(
 
 int
 Tcl_LreplaceObjCmd(
-    ClientData dummy,		/* Not used. */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj *const objv[])	/* Argument objects. */
 {
     Tcl_Obj *listPtr;
-    int first, last, listLen, numToDelete, result;
+    Tcl_Size numToDelete, listLen, first, last;
+    int result;
 
     if (objc < 4) {
 	Tcl_WrongNumArgs(interp, 1, objv,
@@ -2752,8 +3087,7 @@ Tcl_LreplaceObjCmd(
 
     if (first < 0) {
 	first = 0;
-    }
-    if (first > listLen) {
+    } else if (first > listLen) {
 	first = listLen;
     }
 
@@ -2761,7 +3095,7 @@ Tcl_LreplaceObjCmd(
 	last = listLen - 1;
     }
     if (first <= last) {
-	numToDelete = last - first + 1;
+	numToDelete = (size_t)last - (size_t)first + 1; /* See [3d3124d01d] */
     } else {
 	numToDelete = 0;
     }
@@ -2786,6 +3120,7 @@ Tcl_LreplaceObjCmd(
 
     if (TCL_OK != Tcl_ListObjReplace(interp, listPtr, first, numToDelete,
 	    objc-4, objv+4)) {
+	Tcl_DecrRefCount(listPtr);
 	return TCL_ERROR;
     }
 
@@ -2816,19 +3151,33 @@ Tcl_LreplaceObjCmd(
 
 int
 Tcl_LreverseObjCmd(
-    ClientData clientData,	/* Not used. */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj *const objv[])	/* Argument values. */
 {
     Tcl_Obj **elemv;
-    int elemc, i, j;
+    Tcl_Size elemc, i, j;
 
     if (objc != 2) {
 	Tcl_WrongNumArgs(interp, 1, objv, "list");
 	return TCL_ERROR;
     }
-    if (TclListObjGetElements(interp, objv[1], &elemc, &elemv) != TCL_OK) {
+
+    /*
+     *  Handle AbstractList special case - do not shimmer into a list, if it
+     *  supports a private Reverse function, just to reverse it.
+     */
+    if (TclObjTypeHasProc(objv[1], reverseProc)) {
+	Tcl_Obj *resultObj;
+
+	if (TclObjTypeReverse(interp, objv[1], &resultObj) == TCL_OK) {
+	    Tcl_SetObjResult(interp, resultObj);
+	    return TCL_OK;
+	}
+    } /* end Abstract List */
+
+    if (TclListObjLength(interp, objv[1], &elemc) != TCL_OK) {
 	return TCL_ERROR;
     }
 
@@ -2840,16 +3189,26 @@ Tcl_LreverseObjCmd(
 	Tcl_SetObjResult(interp, objv[1]);
 	return TCL_OK;
     }
+    if (TclListObjGetElements(interp, objv[1], &elemc, &elemv) != TCL_OK) {
+	return TCL_ERROR;
+    }
 
     if (Tcl_IsShared(objv[1])
-	    || (ListRepPtr(objv[1])->refCount > 1)) {	/* Bug 1675044 */
+	    || ListObjRepIsShared(objv[1])) { /* Bug 1675044 */
 	Tcl_Obj *resultObj, **dataArray;
-	List *listRepPtr;
+	ListRep listRep;
 
 	resultObj = Tcl_NewListObj(elemc, NULL);
-	listRepPtr = ListRepPtr(resultObj);
-	listRepPtr->elemCount = elemc;
-	dataArray = &listRepPtr->elements;
+
+	/* Modify the internal rep in-place */
+	ListObjGetRep(resultObj, &listRep);
+	listRep.storePtr->numUsed = elemc;
+	dataArray = ListRepElementsBase(&listRep);
+	if (listRep.spanPtr) {
+	    /* Future proofing */
+	    listRep.spanPtr->spanStart = listRep.storePtr->firstUsed;
+	    listRep.spanPtr->spanLength = listRep.storePtr->numUsed;
+	}
 
 	for (i=0,j=elemc-1 ; i<elemc ; i++,j--) {
 	    dataArray[j] = elemv[i];
@@ -2895,38 +3254,41 @@ Tcl_LreverseObjCmd(
 
 int
 Tcl_LsearchObjCmd(
-    ClientData clientData,	/* Not used. */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj *const objv[])	/* Argument values. */
 {
     const char *bytes, *patternBytes;
-    int i, match, index, result=TCL_OK, listc, length, elemLen, bisect;
-    int dataType, isIncreasing, lower, upper, offset;
-    Tcl_WideInt patWide, objWide;
+    int match, result=TCL_OK, bisect;
+    Tcl_Size i, length = 0, listc, elemLen, start, index;
+    Tcl_Size groupOffset, lower, upper;
+    int allocatedIndexVector = 0;
+    int isIncreasing;
+    Tcl_WideInt patWide, objWide, wide, groupSize;
     int allMatches, inlineReturn, negatedMatch, returnSubindices, noCase;
     double patDouble, objDouble;
     SortInfo sortInfo;
-    Tcl_Obj *patObj, **listv, *listPtr, *startPtr, *itemPtr;
-    SortStrCmpFn_t strCmpFn = strcmp;
+    Tcl_Obj *patObj, **listv, *listPtr, *startPtr, *itemPtr = NULL;
+    SortStrCmpFn_t strCmpFn = TclUtfCmp;
     Tcl_RegExp regexp = NULL;
     static const char *const options[] = {
 	"-all",	    "-ascii",   "-bisect", "-decreasing", "-dictionary",
 	"-exact",   "-glob",    "-increasing", "-index",
 	"-inline",  "-integer", "-nocase",     "-not",
-	"-real",    "-regexp",  "-sorted",     "-start",
+	"-real",    "-regexp",  "-sorted",     "-start", "-stride",
 	"-subindices", NULL
     };
-    enum options {
+    enum lsearchoptions {
 	LSEARCH_ALL, LSEARCH_ASCII, LSEARCH_BISECT, LSEARCH_DECREASING,
 	LSEARCH_DICTIONARY, LSEARCH_EXACT, LSEARCH_GLOB, LSEARCH_INCREASING,
 	LSEARCH_INDEX, LSEARCH_INLINE, LSEARCH_INTEGER, LSEARCH_NOCASE,
 	LSEARCH_NOT, LSEARCH_REAL, LSEARCH_REGEXP, LSEARCH_SORTED,
-	LSEARCH_START, LSEARCH_SUBINDICES
+	LSEARCH_START, LSEARCH_STRIDE, LSEARCH_SUBINDICES
     };
     enum datatypes {
 	ASCII, DICTIONARY, INTEGER, REAL
-    };
+    } dataType;
     enum modes {
 	EXACT, GLOB, REGEXP, SORTED
     };
@@ -2942,7 +3304,9 @@ Tcl_LsearchObjCmd(
     bisect = 0;
     listPtr = NULL;
     startPtr = NULL;
-    offset = 0;
+    groupSize = 1;
+    groupOffset = 0;
+    start = 0;
     noCase = 0;
     sortInfo.compareCmdPtr = NULL;
     sortInfo.isIncreasing = 1;
@@ -2958,15 +3322,13 @@ Tcl_LsearchObjCmd(
     }
 
     for (i = 1; i < objc-2; i++) {
-	if (Tcl_GetIndexFromObj(interp, objv[i], options, "option", 0, &index)
+	enum lsearchoptions idx;
+	if (Tcl_GetIndexFromObj(interp, objv[i], options, "option", 0, &idx)
 		!= TCL_OK) {
-	    if (startPtr != NULL) {
-		Tcl_DecrRefCount(startPtr);
-	    }
 	    result = TCL_ERROR;
 	    goto done;
 	}
-	switch ((enum options) index) {
+	switch (idx) {
 	case LSEARCH_ALL:		/* -all */
 	    allMatches = 1;
 	    break;
@@ -3027,6 +3389,7 @@ Tcl_LsearchObjCmd(
 
 	    if (startPtr != NULL) {
 		Tcl_DecrRefCount(startPtr);
+		startPtr = NULL;
 	    }
 	    if (i > objc-4) {
 		Tcl_SetObjResult(interp, Tcl_NewStringObj(
@@ -3047,25 +3410,48 @@ Tcl_LsearchObjCmd(
 		startPtr = Tcl_DuplicateObj(objv[i]);
 	    } else {
 		startPtr = objv[i];
-		Tcl_IncrRefCount(startPtr);
 	    }
+	    Tcl_IncrRefCount(startPtr);
+	    break;
+	case LSEARCH_STRIDE:		/* -stride */
+	    if (i > objc-4) {
+		Tcl_SetObjResult(interp, Tcl_NewStringObj(
+			"\"-stride\" option must be "
+			"followed by stride length", -1));
+		Tcl_SetErrorCode(interp, "TCL", "ARGUMENT", "MISSING", (char *)NULL);
+		result = TCL_ERROR;
+		goto done;
+	    }
+	    if (TclGetWideIntFromObj(interp, objv[i+1], &wide) != TCL_OK) {
+		result = TCL_ERROR;
+		goto done;
+	    }
+	    if (wide < 1) {
+		Tcl_SetObjResult(interp, Tcl_NewStringObj(
+			"stride length must be at least 1", -1));
+		Tcl_SetErrorCode(interp, "TCL", "OPERATION", "LSEARCH",
+			"BADSTRIDE", (char *)NULL);
+		result = TCL_ERROR;
+		goto done;
+	    }
+	    groupSize = wide;
+	    i++;
 	    break;
 	case LSEARCH_INDEX: {		/* -index */
 	    Tcl_Obj **indices;
-	    int j;
+	    Tcl_Size j;
 
-	    if (sortInfo.indexc > 1) {
+	    if (allocatedIndexVector) {
 		TclStackFree(interp, sortInfo.indexv);
+		allocatedIndexVector = 0;
 	    }
 	    if (i > objc-4) {
-		if (startPtr != NULL) {
-		    Tcl_DecrRefCount(startPtr);
-		}
 		Tcl_SetObjResult(interp, Tcl_NewStringObj(
 			"\"-index\" option must be followed by list index",
 			-1));
 		Tcl_SetErrorCode(interp, "TCL", "ARGUMENT", "MISSING", (char *)NULL);
-		return TCL_ERROR;
+		result = TCL_ERROR;
+		goto done;
 	    }
 
 	    /*
@@ -3077,10 +3463,8 @@ Tcl_LsearchObjCmd(
 	    i++;
 	    if (TclListObjGetElements(interp, objv[i],
 		    &sortInfo.indexc, &indices) != TCL_OK) {
-		if (startPtr != NULL) {
-		    Tcl_DecrRefCount(startPtr);
-		}
-		return TCL_ERROR;
+		result = TCL_ERROR;
+		goto done;
 	    }
 	    switch (sortInfo.indexc) {
 	    case 0:
@@ -3092,6 +3476,8 @@ Tcl_LsearchObjCmd(
 	    default:
 		sortInfo.indexv = (int *)
 			TclStackAlloc(interp, sizeof(int) * sortInfo.indexc);
+		allocatedIndexVector = 1; /* Cannot use indexc field, as it
+					   * might be decreased by 1 later. */
 	    }
 
 	    /*
@@ -3102,22 +3488,20 @@ Tcl_LsearchObjCmd(
 
 	    for (j=0 ; j<sortInfo.indexc ; j++) {
 		int encoded = 0;
-		if (TclIndexEncode(interp, indices[j], TCL_INDEX_BEFORE,
-			TCL_INDEX_AFTER, &encoded) != TCL_OK) {
+		if (TclIndexEncode(interp, indices[j], TCL_INDEX_NONE,
+			TCL_INDEX_NONE, &encoded) != TCL_OK) {
 		    result = TCL_ERROR;
 		}
-		if ((encoded == TCL_INDEX_BEFORE)
-			|| (encoded == TCL_INDEX_AFTER)) {
+		if (encoded == (int)TCL_INDEX_NONE) {
 		    Tcl_SetObjResult(interp, Tcl_ObjPrintf(
-			    "index \"%s\" cannot select an element "
-			    "from any list", TclGetString(indices[j])));
-		    Tcl_SetErrorCode(interp, "TCL", "VALUE", "INDEX"
-			    "OUTOFRANGE", (char *)NULL);
+			    "index \"%s\" out of range",
+			    TclGetString(indices[j])));
+		    Tcl_SetErrorCode(interp, "TCL", "VALUE", "INDEX", "OUTOFRANGE", (char *)NULL);
 		    result = TCL_ERROR;
 		}
 		if (result == TCL_ERROR) {
 		    Tcl_AppendObjToErrorInfo(interp, Tcl_ObjPrintf(
-			    "\n    (-index option item number %d)", j));
+			    "\n    (-index option item number %" TCL_Z_MODIFIER "u)", j));
 		    goto done;
 		}
 		sortInfo.indexv[j] = encoded;
@@ -3132,14 +3516,12 @@ Tcl_LsearchObjCmd(
      */
 
     if (returnSubindices && sortInfo.indexc==0) {
-	if (startPtr != NULL) {
-	    Tcl_DecrRefCount(startPtr);
-	}
 	Tcl_SetObjResult(interp, Tcl_NewStringObj(
 		"-subindices cannot be used without -index option", -1));
 	Tcl_SetErrorCode(interp, "TCL", "OPERATION", "LSEARCH",
 		"BAD_OPTION_MIX", (char *)NULL);
-	return TCL_ERROR;
+	result = TCL_ERROR;
+	goto done;
     }
 
     if (bisect && (allMatches || negatedMatch)) {
@@ -3147,7 +3529,8 @@ Tcl_LsearchObjCmd(
 		"-bisect is not compatible with -all or -not", -1));
 	Tcl_SetErrorCode(interp, "TCL", "OPERATION", "LSEARCH",
 		"BAD_OPTION_MIX", (char *)NULL);
-	return TCL_ERROR;
+	result = TCL_ERROR;
+	goto done;
     }
 
     if (mode == REGEXP) {
@@ -3173,9 +3556,6 @@ Tcl_LsearchObjCmd(
 	}
 
 	if (regexp == NULL) {
-	    if (startPtr != NULL) {
-		Tcl_DecrRefCount(startPtr);
-	    }
 	    result = TCL_ERROR;
 	    goto done;
 	}
@@ -3188,10 +3568,51 @@ Tcl_LsearchObjCmd(
 
     result = TclListObjGetElements(interp, objv[objc - 2], &listc, &listv);
     if (result != TCL_OK) {
-	if (startPtr != NULL) {
-	    Tcl_DecrRefCount(startPtr);
-	}
 	goto done;
+    }
+
+    /*
+     * Check for sanity when grouping elements of the overall list together
+     * because of the -stride option. [TIP #351]
+     */
+
+    if (groupSize > 1) {
+	if (listc % groupSize) {
+	    Tcl_SetObjResult(interp, Tcl_NewStringObj(
+		    "list size must be a multiple of the stride length",
+		    -1));
+	    Tcl_SetErrorCode(interp, "TCL", "OPERATION", "LSEARCH", "BADSTRIDE",
+		    (char *)NULL);
+	    result = TCL_ERROR;
+	    goto done;
+	}
+	if (sortInfo.indexc > 0) {
+	    /*
+	     * Use the first value in the list supplied to -index as the
+	     * offset of the element within each group by which to sort.
+	     */
+
+	    groupOffset = TclIndexDecode(sortInfo.indexv[0], groupSize - 1);
+	    if (groupOffset < 0 || groupOffset >= groupSize) {
+		Tcl_SetObjResult(interp, Tcl_NewStringObj(
+			"when used with \"-stride\", the leading \"-index\""
+			" value must be within the group", -1));
+		Tcl_SetErrorCode(interp, "TCL", "OPERATION", "LSEARCH",
+			"BADINDEX", (char *)NULL);
+		result = TCL_ERROR;
+		goto done;
+	    }
+	    if (sortInfo.indexc == 1) {
+		sortInfo.indexc = 0;
+		sortInfo.indexv = NULL;
+	    } else {
+		sortInfo.indexc--;
+
+		for (i = 0; i < sortInfo.indexc; i++) {
+		    sortInfo.indexv[i] = sortInfo.indexv[i+1];
+		}
+	    }
+	}
     }
 
     /*
@@ -3199,13 +3620,12 @@ Tcl_LsearchObjCmd(
      */
 
     if (startPtr) {
-	result = TclGetIntForIndexM(interp, startPtr, listc-1, &offset);
-	Tcl_DecrRefCount(startPtr);
+	result = TclGetIntForIndexM(interp, startPtr, listc-1, &start);
 	if (result != TCL_OK) {
 	    goto done;
 	}
-	if (offset < 0) {
-	    offset = 0;
+	if (start == TCL_INDEX_NONE) {
+	    start = TCL_INDEX_START;
 	}
 
 	/*
@@ -3213,23 +3633,29 @@ Tcl_LsearchObjCmd(
 	 * "did not match anything at all" result straight away. [Bug 1374778]
 	 */
 
-	if (offset > listc-1) {
-	    if (sortInfo.indexc > 1) {
-		TclStackFree(interp, sortInfo.indexv);
-	    }
+	if (start >= listc) {
 	    if (allMatches || inlineReturn) {
 		Tcl_ResetResult(interp);
 	    } else {
-		Tcl_SetObjResult(interp, Tcl_NewIntObj(-1));
+		TclNewIntObj(itemPtr, -1);
+		Tcl_SetObjResult(interp, itemPtr);
 	    }
-	    return TCL_OK;
+	    goto done;
+	}
+
+	/*
+	 * If start points within a group, it points to the start of the group.
+	 */
+
+	if (groupSize > 1) {
+	    start -= (start % groupSize);
 	}
     }
 
     patObj = objv[objc - 1];
     patternBytes = NULL;
     if (mode == EXACT || mode == SORTED) {
-	switch ((enum datatypes) dataType) {
+	switch (dataType) {
 	case ASCII:
 	case DICTIONARY:
 	    patternBytes = TclGetStringFromObj(patObj, &length);
@@ -3281,20 +3707,30 @@ Tcl_LsearchObjCmd(
 	 * sense in doing this when the match sense is inverted.
 	 */
 
-	lower = offset - 1;
+	/*
+	 * With -stride, lower, upper and i are kept as multiples of groupSize.
+	 */
+
+	lower = start - groupSize;
 	upper = listc;
-	while (lower + 1 != upper && sortInfo.resultCode == TCL_OK) {
+	itemPtr = NULL;
+	while (lower + groupSize != upper && sortInfo.resultCode == TCL_OK) {
 	    i = (lower + upper)/2;
+	    i -= i % groupSize;
+
+	    Tcl_BounceRefCount(itemPtr);
+	    itemPtr = NULL;
+
 	    if (sortInfo.indexc != 0) {
-		itemPtr = SelectObjFromSublist(listv[i], &sortInfo);
+		itemPtr = SelectObjFromSublist(listv[i+groupOffset], &sortInfo);
 		if (sortInfo.resultCode != TCL_OK) {
 		    result = sortInfo.resultCode;
 		    goto done;
 		}
 	    } else {
-		itemPtr = listv[i];
+		itemPtr = listv[i+groupOffset];
 	    }
-	    switch ((enum datatypes) dataType) {
+	    switch (dataType) {
 	    case ASCII:
 		bytes = TclGetString(itemPtr);
 		match = strCmpFn(patternBytes, bytes);
@@ -3381,10 +3817,13 @@ Tcl_LsearchObjCmd(
 	if (allMatches) {
 	    listPtr = Tcl_NewListObj(0, NULL);
 	}
-	for (i = offset; i < listc; i++) {
+	for (i = start; i < listc; i += groupSize) {
 	    match = 0;
+	    Tcl_BounceRefCount(itemPtr);
+	    itemPtr = NULL;
+
 	    if (sortInfo.indexc != 0) {
-		itemPtr = SelectObjFromSublist(listv[i], &sortInfo);
+		itemPtr = SelectObjFromSublist(listv[i+groupOffset], &sortInfo);
 		if (sortInfo.resultCode != TCL_OK) {
 		    if (listPtr != NULL) {
 			Tcl_DecrRefCount(listPtr);
@@ -3393,13 +3832,13 @@ Tcl_LsearchObjCmd(
 		    goto done;
 		}
 	    } else {
-		itemPtr = listv[i];
+		itemPtr = listv[i+groupOffset];
 	    }
 
 	    switch (mode) {
 	    case SORTED:
 	    case EXACT:
-		switch ((enum datatypes) dataType) {
+		switch (dataType) {
 		case ASCII:
 		    bytes = TclGetStringFromObj(itemPtr, &elemLen);
 		    if (length == elemLen) {
@@ -3411,8 +3850,7 @@ Tcl_LsearchObjCmd(
 			if (noCase) {
 			    match = (TclUtfCasecmp(bytes, patternBytes) == 0);
 			} else {
-			    match = (memcmp(bytes, patternBytes,
-				    (size_t) length) == 0);
+			    match = (memcmp(bytes, patternBytes, length) == 0);
 			}
 		    }
 		    break;
@@ -3483,25 +3921,41 @@ Tcl_LsearchObjCmd(
 		 */
 
 		if (returnSubindices && (sortInfo.indexc != 0)) {
-		    itemPtr = SelectObjFromSublist(listv[i], &sortInfo);
+		    Tcl_BounceRefCount(itemPtr);
+		    itemPtr = SelectObjFromSublist(listv[i+groupOffset],
+			    &sortInfo);
+		    Tcl_ListObjAppendElement(interp, listPtr, itemPtr);
+		} else if (returnSubindices && (sortInfo.indexc == 0) && (groupSize > 1)) {
+		    Tcl_BounceRefCount(itemPtr);
+		    itemPtr = listv[i + groupOffset];
+			Tcl_ListObjAppendElement(interp, listPtr, itemPtr);
+		} else if (groupSize > 1) {
+		    Tcl_ListObjReplace(interp, listPtr, LIST_MAX, 0,
+			    groupSize, &listv[i]);
 		} else {
+		    Tcl_BounceRefCount(itemPtr);
 		    itemPtr = listv[i];
+		    Tcl_ListObjAppendElement(interp, listPtr, itemPtr);
 		}
-		Tcl_ListObjAppendElement(interp, listPtr, itemPtr);
 	    } else if (returnSubindices) {
-		int j;
+		Tcl_Size j;
 
-		TclNewIntObj(itemPtr, i);
+		TclNewIndexObj(itemPtr, i+groupOffset);
 		for (j=0 ; j<sortInfo.indexc ; j++) {
-		    Tcl_ListObjAppendElement(interp, itemPtr, Tcl_NewIntObj(
-			    TclIndexDecode(sortInfo.indexv[j], listc)));
+		    Tcl_Obj *elObj;
+		    size_t elValue = TclIndexDecode(sortInfo.indexv[j], listc);
+		    TclNewIndexObj(elObj, elValue);
+		    Tcl_ListObjAppendElement(interp, itemPtr, elObj);
 		}
 		Tcl_ListObjAppendElement(interp, listPtr, itemPtr);
 	    } else {
-		Tcl_ListObjAppendElement(interp, listPtr, Tcl_NewIntObj(i));
+		Tcl_ListObjAppendElement(interp, listPtr, Tcl_NewWideIntObj(i));
 	    }
 	}
     }
+
+    Tcl_BounceRefCount(itemPtr);
+    itemPtr = NULL;
 
     /*
      * Return everything or a single value.
@@ -3511,16 +3965,20 @@ Tcl_LsearchObjCmd(
 	Tcl_SetObjResult(interp, listPtr);
     } else if (!inlineReturn) {
 	if (returnSubindices) {
-	    int j;
+	    Tcl_Size j;
 
-	    TclNewIntObj(itemPtr, index);
+	    TclNewIndexObj(itemPtr, index+groupOffset);
 	    for (j=0 ; j<sortInfo.indexc ; j++) {
-		Tcl_ListObjAppendElement(interp, itemPtr, Tcl_NewIntObj(
-			TclIndexDecode(sortInfo.indexv[j], listc)));
+		Tcl_Obj *elObj;
+		size_t elValue = TclIndexDecode(sortInfo.indexv[j], listc);
+		TclNewIndexObj(elObj, elValue);
+		Tcl_ListObjAppendElement(interp, itemPtr, elObj);
 	    }
 	    Tcl_SetObjResult(interp, itemPtr);
 	} else {
-	    Tcl_SetObjResult(interp, Tcl_NewIntObj(index));
+		Tcl_Obj *elObj;
+		TclNewIndexObj(elObj, index);
+	    Tcl_SetObjResult(interp, elObj);
 	}
     } else if (index < 0) {
 	/*
@@ -3530,7 +3988,14 @@ Tcl_LsearchObjCmd(
 
 	Tcl_SetObjResult(interp, Tcl_NewObj());
     } else {
-	Tcl_SetObjResult(interp, listv[index]);
+	if (returnSubindices) {
+	    Tcl_SetObjResult(interp, SelectObjFromSublist(listv[i+groupOffset],
+		    &sortInfo));
+	} else if (groupSize > 1) {
+	    Tcl_SetObjResult(interp, Tcl_NewListObj(groupSize, &listv[index]));
+	} else {
+	    Tcl_SetObjResult(interp, listv[index]);
+	}
     }
     result = TCL_OK;
 
@@ -3539,10 +4004,401 @@ Tcl_LsearchObjCmd(
      */
 
   done:
-    if (sortInfo.indexc > 1) {
+    /* potential lingering abstract list element */
+    Tcl_BounceRefCount(itemPtr);
+
+    if (startPtr != NULL) {
+	Tcl_DecrRefCount(startPtr);
+    }
+    if (allocatedIndexVector) {
 	TclStackFree(interp, sortInfo.indexv);
     }
     return result;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * SequenceIdentifyArgument --
+ *   (for [lseq] command)
+ *
+ *  Given a Tcl_Obj, identify if it is a keyword or a number
+ *
+ *  Return Value
+ *    0 - failure, unexpected value
+ *    1 - value is a number
+ *    2 - value is an operand keyword
+ *    3 - value is a by keyword
+ *
+ *  The decoded value will be assigned to the appropriate
+ *  pointer, numValuePtr reference count is incremented.
+ */
+
+static SequenceDecoded
+SequenceIdentifyArgument(
+     Tcl_Interp *interp,        /* for error reporting  */
+     Tcl_Obj *argPtr,           /* Argument to decode   */
+     int allowedArgs,		/* Flags if keyword or numeric allowed. */
+     Tcl_Obj **numValuePtr,     /* Return numeric value */
+     int *keywordIndexPtr)      /* Return keyword enum  */
+{
+    int result = TCL_ERROR;
+    SequenceOperators opmode;
+    void *internalPtr;
+
+    if (allowedArgs & NumericArg) {
+	/* speed-up a bit (and avoid shimmer for compiled expressions) */
+	if (TclHasInternalRep(argPtr, &tclExprCodeType)) {
+	   goto doExpr;
+	}
+	result = Tcl_GetNumberFromObj(NULL, argPtr, &internalPtr, keywordIndexPtr);
+	if (result == TCL_OK) {
+	    *numValuePtr = argPtr;
+	    Tcl_IncrRefCount(argPtr);
+	    return NumericArg;
+	}
+    }
+    if (allowedArgs & RangeKeywordArg) {
+	result = Tcl_GetIndexFromObj(NULL, argPtr, seq_operations,
+			"range operation", 0, &opmode);
+    }
+    if (result == TCL_OK) {
+	if (allowedArgs & LastArg) {
+	    /* keyword found, but no followed number */
+	    Tcl_SetObjResult(interp, Tcl_ObjPrintf(
+		  "missing \"%s\" value.", TclGetString(argPtr)));
+	    return ErrArg;
+	}
+	*keywordIndexPtr = opmode;
+	return RangeKeywordArg;
+    } else {
+	Tcl_Obj *exprValueObj;
+	if (!(allowedArgs & NumericArg)) {
+	    return NoneArg;
+	}
+    doExpr:
+	/* Check for an index expression */
+	if (Tcl_ExprObj(interp, argPtr, &exprValueObj) != TCL_OK) {
+	    return ErrArg;
+	}
+	int keyword;
+	/* Determine if result of expression is double or int */
+	if (Tcl_GetNumberFromObj(interp, exprValueObj, &internalPtr,
+		&keyword) != TCL_OK
+	) {
+	    return ErrArg;
+	}
+	*numValuePtr = exprValueObj; /* incremented in Tcl_ExprObj */
+	*keywordIndexPtr = keyword; /* type of expression result */
+	return NumericArg;
+    }
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Tcl_LseqObjCmd --
+ *
+ *	This procedure is invoked to process the "lseq" Tcl command.
+ *	See the user documentation for details on what it does.
+ *
+ * Enumerated possible argument patterns:
+ *
+ * 1:
+ *    lseq n
+ * 2:
+ *    lseq n n
+ * 3:
+ *    lseq n n n
+ *    lseq n 'to' n
+ *    lseq n 'count' n
+ *    lseq n 'by' n
+ * 4:
+ *    lseq n 'to' n n
+ *    lseq n n 'by' n
+ *    lseq n 'count' n n
+ * 5:
+ *    lseq n 'to' n 'by' n
+ *    lseq n 'count' n 'by' n
+ *
+ * Results:
+ *	A standard Tcl object result.
+ *
+ * Side effects:
+ *	See the user documentation.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Tcl_LseqObjCmd(
+    TCL_UNUSED(void *),
+    Tcl_Interp *interp,	   /* Current interpreter. */
+    int objc,		   /* Number of arguments. */
+    Tcl_Obj *const objv[]) /* The argument objects. */
+{
+    Tcl_Obj *elementCount = NULL;
+    Tcl_Obj *start = NULL, *end = NULL, *step = NULL;
+    Tcl_WideInt values[5];
+    Tcl_Obj *numValues[5];
+    Tcl_Obj *numberObj;
+    int status = TCL_ERROR, keyword, allowedArgs = NumericArg;
+    int useDoubles = 0;
+    int remNums = 3;
+    Tcl_Obj *arithSeriesPtr;
+    SequenceOperators opmode;
+    SequenceDecoded decoded;
+    int i, arg_key = 0, value_i = 0;
+    /* Default constants */
+    #define zero ((Interp *)interp)->execEnvPtr->constants[0];
+    #define one ((Interp *)interp)->execEnvPtr->constants[1];
+
+    /*
+     * Create a decoding key by looping through the arguments and identify
+     * what kind of argument each one is.  Encode each argument as a decimal
+     * digit.
+     */
+    if (objc > 6) {
+	/* Too many arguments */
+	goto syntax;
+    }
+    for (i = 1; i < objc; i++) {
+	arg_key = (arg_key * 10);
+	numValues[value_i] = NULL;
+	decoded = SequenceIdentifyArgument(interp, objv[i],
+			allowedArgs | (i == objc-1 ? LastArg : 0),
+			&numberObj, &keyword);
+	switch (decoded) {
+	  case NoneArg:
+	    /*
+	     * Unrecognizable argument
+	     * Reproduce operation error message
+	     */
+	    status = Tcl_GetIndexFromObj(interp, objv[i], seq_operations,
+			"operation", 0, &opmode);
+	    goto done;
+
+	  case NumericArg:
+	    remNums--;
+	    arg_key += NumericArg;
+	    allowedArgs = RangeKeywordArg;
+	    /* if last number but 2 arguments remain, next is not numeric */
+	    if ((remNums != 1) || ((objc-1-i) != 2)) {
+		allowedArgs |= NumericArg;
+	    }
+	    numValues[value_i] = numberObj;
+	    values[value_i] = keyword;  /* TCL_NUMBER_* */
+	    if ((keyword == TCL_NUMBER_DOUBLE || keyword == TCL_NUMBER_NAN)) {
+		useDoubles++;
+	    }
+	    value_i++;
+	    break;
+
+	  case RangeKeywordArg:
+	    arg_key += RangeKeywordArg;
+	    allowedArgs = NumericArg;   /* after keyword always numeric only */
+	    values[value_i] = keyword;  /* SequenceOperators */
+	    value_i++;
+	    break;
+
+	  default: /* Error state */
+	    status = TCL_ERROR;
+	    goto done;
+	}
+    }
+
+    /*
+     * The key encoding defines a valid set of arguments, or indicates an
+     * error condition; process the values accordningly.
+     */
+    switch (arg_key) {
+
+/*    lseq n */
+    case 1:
+	start = zero;
+	elementCount = numValues[0];
+	end = NULL;
+	step = one;
+	useDoubles = 0; /* Can only have Integer value. If a fractional value
+			 * is given, this will fail later. In other words,
+			 * "3.0" is allowed and used as Integer, but "3.1"
+			 * will be flagged as an error. (bug f4a4bd7f1070) */
+	break;
+
+/*    lseq n n */
+    case 11:
+	start = numValues[0];
+	end = numValues[1];
+	break;
+
+/*    lseq n n n */
+    case 111:
+	start = numValues[0];
+	end = numValues[1];
+	step = numValues[2];
+	break;
+
+/*    lseq n 'to' n    */
+/*    lseq n 'count' n */
+/*    lseq n 'by' n    */
+    case 121:
+	opmode = (SequenceOperators)values[1];
+	switch (opmode) {
+	case LSEQ_DOTS:
+	case LSEQ_TO:
+	    start = numValues[0];
+	    end = numValues[2];
+	    break;
+	case LSEQ_BY:
+	    start = zero;
+	    elementCount = numValues[0];
+	    step = numValues[2];
+	    break;
+	case LSEQ_COUNT:
+	    start = numValues[0];
+	    elementCount = numValues[2];
+	    step = one;
+	    break;
+	default:
+	    goto syntax;
+	}
+	break;
+
+/*    lseq n 'to' n n    */
+/*    lseq n 'count' n n */
+    case 1211:
+	opmode = (SequenceOperators)values[1];
+	switch (opmode) {
+	case LSEQ_DOTS:
+	case LSEQ_TO:
+	    start = numValues[0];
+	    end = numValues[2];
+	    step = numValues[3];
+	    break;
+	case LSEQ_COUNT:
+	    start = numValues[0];
+	    elementCount = numValues[2];
+	    step = numValues[3];
+	    break;
+	case LSEQ_BY:
+	    /* Error case */
+	    goto syntax;
+	    break;
+	default:
+	    goto syntax;
+	    break;
+	}
+	break;
+
+/*    lseq n n 'by' n */
+    case 1121:
+	start = numValues[0];
+	end = numValues[1];
+	opmode = (SequenceOperators)values[2];
+	switch (opmode) {
+	case LSEQ_BY:
+	    step = numValues[3];
+	    break;
+	case LSEQ_DOTS:
+	case LSEQ_TO:
+	case LSEQ_COUNT:
+	default:
+	    goto syntax;
+	    break;
+	}
+	break;
+
+/*    lseq n 'to' n 'by' n    */
+/*    lseq n 'count' n 'by' n */
+    case 12121:
+	start = numValues[0];
+	opmode = (SequenceOperators)values[3];
+	switch (opmode) {
+	case LSEQ_BY:
+	    step = numValues[4];
+	    break;
+	default:
+	    goto syntax;
+	    break;
+	}
+	opmode = (SequenceOperators)values[1];
+	switch (opmode) {
+	case LSEQ_DOTS:
+	case LSEQ_TO:
+	    start = numValues[0];
+	    end = numValues[2];
+	    break;
+	case LSEQ_COUNT:
+	    start = numValues[0];
+	    elementCount = numValues[2];
+	    break;
+	default:
+	    goto syntax;
+	    break;
+	}
+	break;
+
+/*    All other argument errors */
+    default:
+      syntax:
+	 Tcl_WrongNumArgs(interp, 1, objv, "n ??op? n ??by? n??");
+	 goto done;
+	 break;
+    }
+
+    /* Count needs to be integer, so try to convert if possible */
+    if (elementCount && TclHasInternalRep(elementCount, &tclDoubleType)) {
+	double d = elementCount->internalRep.doubleValue;
+	/* Don't consider Count type to indicate using double values in seqence */
+	useDoubles -= (useDoubles > 0) ? 1 : 0;
+	if (!isinf(d) && !isnan(d) && floor(d) == d) {
+	    if ((d >= (double)WIDE_MAX) || (d <= (double)WIDE_MIN)) {
+		mp_int big;
+
+		if (Tcl_InitBignumFromDouble(NULL, d, &big) == TCL_OK) {
+		    elementCount = Tcl_NewBignumObj(&big);
+		    keyword = TCL_NUMBER_INT;
+		}
+		/* Infinity, don't convert, let fail later */
+	    } else {
+		elementCount = Tcl_NewWideIntObj((Tcl_WideInt)d);
+		keyword = TCL_NUMBER_INT;
+	    }
+	}
+    }
+
+
+    /*
+     * Success!  Now lets create the series object.
+     */
+    arithSeriesPtr = TclNewArithSeriesObj(interp,
+		  useDoubles, start, end, step, elementCount);
+
+    status = TCL_ERROR;
+    if (arithSeriesPtr) {
+	status = TCL_OK;
+	Tcl_SetObjResult(interp, arithSeriesPtr);
+    }
+
+ done:
+    // Free number arguments.
+    while (--value_i>=0) {
+	if (numValues[value_i]) {
+	    if (elementCount == numValues[value_i]) {
+		elementCount = NULL;
+	    }
+	    Tcl_DecrRefCount(numValues[value_i]);
+	}
+    }
+    if (elementCount) {
+	Tcl_DecrRefCount(elementCount);
+    }
+
+    /* Undef constants */
+    #undef zero
+    #undef one
+
+    return status;
 }
 
 /*
@@ -3564,7 +4420,7 @@ Tcl_LsearchObjCmd(
 
 int
 Tcl_LsetObjCmd(
-    ClientData clientData,	/* Not used. */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj *const objv[])	/* Argument values. */
@@ -3599,8 +4455,16 @@ Tcl_LsetObjCmd(
     if (objc == 4) {
 	finalValuePtr = TclLsetList(interp, listPtr, objv[2], objv[3]);
     } else {
-	finalValuePtr = TclLsetFlat(interp, listPtr, objc-3, objv+2,
-		objv[objc-1]);
+	if (TclObjTypeHasProc(listPtr, setElementProc)) {
+	    finalValuePtr = TclObjTypeSetElement(interp, listPtr,
+						       objc-3, objv+2, objv[objc-1]);
+	    if (finalValuePtr) {
+		Tcl_IncrRefCount(finalValuePtr);
+	    }
+	} else {
+	    finalValuePtr = TclLsetFlat(interp, listPtr, objc-3, objv+2,
+					objv[objc-1]);
+	}
     }
 
     /*
@@ -3649,16 +4513,18 @@ Tcl_LsetObjCmd(
 
 int
 Tcl_LsortObjCmd(
-    ClientData clientData,	/* Not used. */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj *const objv[])	/* Argument values. */
 {
-    int i, j, index, indices, length, nocase = 0, indexc;
+    int indices, nocase = 0, indexc;
     int sortMode = SORTMODE_ASCII;
-    int group, groupSize, groupOffset, idx, allocatedIndexVector = 0;
+    int group, allocatedIndexVector = 0;
+    Tcl_Size j, idx, groupOffset, length;
+    Tcl_WideInt wide, groupSize;
     Tcl_Obj *resultPtr, *cmdPtr, **listObjPtrs, *listObj, *indexPtr;
-    size_t elmArrSize;
+    Tcl_Size i, elmArrSize;
     SortElement *elementArray = NULL, *elementPtr;
     SortInfo sortInfo;		/* Information about this sort that needs to
 				 * be passed to the comparison function. */
@@ -3678,7 +4544,7 @@ Tcl_LsortObjCmd(
 	LSORT_ASCII, LSORT_COMMAND, LSORT_DECREASING, LSORT_DICTIONARY,
 	LSORT_INCREASING, LSORT_INDEX, LSORT_INDICES, LSORT_INTEGER,
 	LSORT_NOCASE, LSORT_REAL, LSORT_STRIDE, LSORT_UNIQUE
-    };
+    } index;
 
     if (objc < 2) {
 	Tcl_WrongNumArgs(interp, 1, objv, "?-option value ...? list");
@@ -3708,7 +4574,7 @@ Tcl_LsortObjCmd(
 	    sortInfo.resultCode = TCL_ERROR;
 	    goto done;
 	}
-	switch ((enum Lsort_Switches) index) {
+	switch (index) {
 	case LSORT_ASCII:
 	    sortInfo.sortMode = SORTMODE_ASCII;
 	    break;
@@ -3735,7 +4601,7 @@ Tcl_LsortObjCmd(
 	    sortInfo.isIncreasing = 1;
 	    break;
 	case LSORT_INDEX: {
-	    int sortindex;
+	    Tcl_Size sortindex;
 	    Tcl_Obj **indexv;
 
 	    if (i == objc-2) {
@@ -3763,20 +4629,18 @@ Tcl_LsortObjCmd(
 	    for (j=0 ; j<sortindex ; j++) {
 		int encoded = 0;
 		int result = TclIndexEncode(interp, indexv[j],
-			TCL_INDEX_BEFORE, TCL_INDEX_AFTER, &encoded);
+			TCL_INDEX_NONE, TCL_INDEX_NONE, &encoded);
 
-		if ((result == TCL_OK) && ((encoded == TCL_INDEX_BEFORE)
-			|| (encoded == TCL_INDEX_AFTER))) {
+		if ((result == TCL_OK) && (encoded == (int)TCL_INDEX_NONE)) {
 		    Tcl_SetObjResult(interp, Tcl_ObjPrintf(
-			    "index \"%s\" cannot select an element "
-			    "from any list", TclGetString(indexv[j])));
-		    Tcl_SetErrorCode(interp, "TCL", "VALUE", "INDEX"
-			    "OUTOFRANGE", (char *)NULL);
+			    "index \"%s\" out of range",
+			    TclGetString(indexv[j])));
+		    Tcl_SetErrorCode(interp, "TCL", "VALUE", "INDEX", "OUTOFRANGE", (char *)NULL);
 		    result = TCL_ERROR;
 		}
 		if (result == TCL_ERROR) {
 		    Tcl_AppendObjToErrorInfo(interp, Tcl_ObjPrintf(
-			    "\n    (-index option item number %d)", j));
+			    "\n    (-index option item number %" TCL_Z_MODIFIER "u)", j));
 		    sortInfo.resultCode = TCL_ERROR;
 		    goto done;
 		}
@@ -3809,11 +4673,11 @@ Tcl_LsortObjCmd(
 		sortInfo.resultCode = TCL_ERROR;
 		goto done;
 	    }
-	    if (Tcl_GetIntFromObj(interp, objv[i+1], &groupSize) != TCL_OK) {
+	    if (TclGetWideIntFromObj(interp, objv[i+1], &wide) != TCL_OK) {
 		sortInfo.resultCode = TCL_ERROR;
 		goto done;
 	    }
-	    if (groupSize < 2) {
+	    if (wide < 2) {
 		Tcl_SetObjResult(interp, Tcl_NewStringObj(
 			"stride length must be at least 2", -1));
 		Tcl_SetErrorCode(interp, "TCL", "OPERATION", "LSORT",
@@ -3821,6 +4685,7 @@ Tcl_LsortObjCmd(
 		sortInfo.resultCode = TCL_ERROR;
 		goto done;
 	    }
+	    groupSize = wide;
 	    group = 1;
 	    i++;
 	    break;
@@ -3855,7 +4720,8 @@ Tcl_LsortObjCmd(
 	}
 	for (j=0 ; j<sortInfo.indexc ; j++) {
 	    /* Prescreened values, no errors or out of range possible */
-	    TclIndexEncode(NULL, indexv[j], 0, 0, &sortInfo.indexv[j]);
+	    TclIndexEncode(NULL, indexv[j], TCL_INDEX_NONE,
+		    TCL_INDEX_NONE, &sortInfo.indexv[j]);
 	}
     }
 
@@ -3888,8 +4754,6 @@ Tcl_LsortObjCmd(
 	if (Tcl_ListObjAppendElement(interp, newCommandPtr, newObjPtr)
 		!= TCL_OK) {
 	    TclDecrRefCount(newCommandPtr);
-	    TclDecrRefCount(listObj);
-	    Tcl_IncrRefCount(newObjPtr);
 	    TclDecrRefCount(newObjPtr);
 	    sortInfo.resultCode = TCL_ERROR;
 	    goto done;
@@ -3898,8 +4762,13 @@ Tcl_LsortObjCmd(
 	sortInfo.compareCmdPtr = newCommandPtr;
     }
 
-    sortInfo.resultCode = TclListObjGetElements(interp, listObj,
+    if (TclObjTypeHasProc(objv[1], getElementsProc)) {
+	sortInfo.resultCode =
+	    TclObjTypeGetElements(interp, listObj, &length, &listObjPtrs);
+    } else {
+	sortInfo.resultCode = TclListObjGetElements(interp, listObj,
 	    &length, &listObjPtrs);
+    }
     if (sortInfo.resultCode != TCL_OK || length <= 0) {
 	goto done;
     }
@@ -3987,19 +4856,19 @@ Tcl_LsortObjCmd(
 
     elmArrSize = length * sizeof(SortElement);
     if (elmArrSize <= MAXCALLOC) {
-	elementArray = (SortElement *)ckalloc(elmArrSize);
+	elementArray = (SortElement *)Tcl_Alloc(elmArrSize);
     } else {
 	elementArray = (SortElement *)malloc(elmArrSize);
     }
     if (!elementArray) {
 	Tcl_SetObjResult(interp, Tcl_ObjPrintf(
-		"no enough memory to proccess sort of %d items", length));
+		"no enough memory to proccess sort of %" TCL_Z_MODIFIER "u items", length));
 	Tcl_SetErrorCode(interp, "TCL", "MEMORY", (char *)NULL);
 	sortInfo.resultCode = TCL_ERROR;
 	goto done;
     }
 
-    for (i=0; i < length; i++){
+    for (i=0; i < length; i++) {
 	idx = groupSize * i + groupOffset;
 	if (indexc) {
 	    /*
@@ -4030,8 +4899,7 @@ Tcl_LsortObjCmd(
 	} else if (sortMode == SORTMODE_REAL) {
 	    double a;
 
-	    if (Tcl_GetDoubleFromObj(sortInfo.interp, indexPtr,
-		    &a) != TCL_OK) {
+	    if (Tcl_GetDoubleFromObj(sortInfo.interp, indexPtr, &a) != TCL_OK) {
 		sortInfo.resultCode = TCL_ERROR;
 		goto done;
 	    }
@@ -4082,18 +4950,18 @@ Tcl_LsortObjCmd(
      */
 
     if (sortInfo.resultCode == TCL_OK) {
-	List *listRepPtr;
+	ListRep listRep;
 	Tcl_Obj **newArray, *objPtr;
 
 	resultPtr = Tcl_NewListObj(sortInfo.numElements * groupSize, NULL);
-	listRepPtr = ListRepPtr(resultPtr);
-	newArray = &listRepPtr->elements;
+	ListObjGetRep(resultPtr, &listRep);
+	newArray = ListRepElementsBase(&listRep);
 	if (group) {
 	    for (i=0; elementPtr!=NULL ; elementPtr=elementPtr->nextPtr) {
 		idx = elementPtr->payload.index;
 		for (j = 0; j < groupSize; j++) {
 		    if (indices) {
-			TclNewIntObj(objPtr, idx + j - groupOffset);
+			TclNewIndexObj(objPtr, idx + j - groupOffset);
 			newArray[i++] = objPtr;
 			Tcl_IncrRefCount(objPtr);
 		    } else {
@@ -4105,7 +4973,7 @@ Tcl_LsortObjCmd(
 	    }
 	} else if (indices) {
 	    for (i=0; elementPtr != NULL ; elementPtr = elementPtr->nextPtr) {
-		TclNewIntObj(objPtr, elementPtr->payload.index);
+		TclNewIndexObj(objPtr, elementPtr->payload.index);
 		newArray[i++] = objPtr;
 		Tcl_IncrRefCount(objPtr);
 	    }
@@ -4116,7 +4984,11 @@ Tcl_LsortObjCmd(
 		Tcl_IncrRefCount(objPtr);
 	    }
 	}
-	listRepPtr->elemCount = i;
+	listRep.storePtr->numUsed = i;
+	if (listRep.spanPtr) {
+	    listRep.spanPtr->spanStart = listRep.storePtr->firstUsed;
+	    listRep.spanPtr->spanLength = listRep.storePtr->numUsed;
+	}
 	Tcl_SetObjResult(interp, resultPtr);
     }
 
@@ -4131,12 +5003,121 @@ Tcl_LsortObjCmd(
     }
     if (elementArray) {
 	if (elmArrSize <= MAXCALLOC) {
-	    ckfree((char *)elementArray);
+	    Tcl_Free(elementArray);
 	} else {
 	    free((char *)elementArray);
 	}
     }
     return sortInfo.resultCode;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Tcl_LeditObjCmd --
+ *
+ *	This procedure is invoked to process the "ledit" Tcl command. See the
+ *	user documentation for details on what it does.
+ *
+ * Results:
+ *	A standard Tcl result.
+ *
+ * Side effects:
+ *	See the user documentation.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Tcl_LeditObjCmd(
+    TCL_UNUSED(void *),
+    Tcl_Interp *interp,		/* Current interpreter. */
+    int objc,			/* Number of arguments. */
+    Tcl_Obj *const objv[])	/* Argument values. */
+{
+    Tcl_Obj *listPtr;		/* Pointer to the list being altered. */
+    Tcl_Obj *finalValuePtr;	/* Value finally assigned to the variable. */
+    int createdNewObj;
+    int result;
+    Tcl_Size first;
+    Tcl_Size last;
+    Tcl_Size listLen;
+    Tcl_Size numToDelete;
+
+    if (objc < 4) {
+	Tcl_WrongNumArgs(interp, 1, objv,
+		"listVar first last ?element ...?");
+	return TCL_ERROR;
+    }
+
+    listPtr = Tcl_ObjGetVar2(interp, objv[1], NULL, TCL_LEAVE_ERR_MSG);
+    if (listPtr == NULL) {
+	return TCL_ERROR;
+    }
+
+    /*
+     * TODO - refactor the index extraction into a common function shared
+     * by Tcl_{Lrange,Lreplace,Ledit}ObjCmd
+     */
+
+    result = TclListObjLength(interp, listPtr, &listLen);
+    if (result != TCL_OK) {
+	return result;
+    }
+
+    result = TclGetIntForIndexM(interp, objv[2], /*end*/ listLen-1, &first);
+    if (result != TCL_OK) {
+	return result;
+    }
+
+    result = TclGetIntForIndexM(interp, objv[3], /*end*/ listLen-1, &last);
+    if (result != TCL_OK) {
+	return result;
+    }
+
+    if (first < 0) {
+	first = 0;
+    } else if (first > listLen) {
+	first = listLen;
+    }
+
+    if (last >= listLen) {
+	last = listLen - 1;
+    }
+    if (first <= last) {
+	numToDelete = (size_t)last - (size_t)first + 1; /* See [3d3124d01d] */
+    } else {
+	numToDelete = 0;
+    }
+
+    if (Tcl_IsShared(listPtr)) {
+	listPtr = TclListObjCopy(NULL, listPtr);
+	createdNewObj = 1;
+    } else {
+	createdNewObj = 0;
+    }
+
+    result =
+	Tcl_ListObjReplace(interp, listPtr, first, numToDelete, objc - 4, objv + 4);
+    if (result != TCL_OK) {
+	if (createdNewObj) {
+	    Tcl_DecrRefCount(listPtr);
+	}
+	return result;
+    }
+
+    /*
+     * Tcl_ObjSetVar2 may return a value different from listPtr in the
+     * presence of traces etc.
+     */
+    finalValuePtr =
+	Tcl_ObjSetVar2(interp, objv[1], NULL, listPtr, TCL_LEAVE_ERR_MSG);
+    if (finalValuePtr == NULL) {
+	return TCL_ERROR;
+    }
+
+    Tcl_SetObjResult(interp, finalValuePtr);
+    return TCL_OK;
 }
 
 /*
@@ -4269,7 +5250,7 @@ SortCompare(
     int order = 0;
 
     if (infoPtr->sortMode == SORTMODE_ASCII) {
-	order = strcmp(elemPtr1->collationKey.strValuePtr,
+	order = TclUtfCmp(elemPtr1->collationKey.strValuePtr,
 		elemPtr2->collationKey.strValuePtr);
     } else if (infoPtr->sortMode == SORTMODE_ASCII_NC) {
 	order = TclUtfCasecmp(elemPtr1->collationKey.strValuePtr,
@@ -4291,7 +5272,7 @@ SortCompare(
 	order = ((a >= b) - (a <= b));
     } else {
 	Tcl_Obj **objv, *paramObjv[2];
-	int objc;
+	Tcl_Size objc;
 	Tcl_Obj *objPtr1, *objPtr2;
 
 	if (infoPtr->resultCode != TCL_OK) {
@@ -4302,7 +5283,6 @@ SortCompare(
 
 	    return 0;
 	}
-
 
 	objPtr1 = elemPtr1->collationKey.objValuePtr;
 	objPtr2 = elemPtr2->collationKey.objValuePtr;
@@ -4381,7 +5361,7 @@ DictionaryCompare(
     int secondaryDiff = 0;
 
     while (1) {
-	if (isdigit(UCHAR(*right))		/* INTL: digit */
+		if (isdigit(UCHAR(*right))		/* INTL: digit */
 		&& isdigit(UCHAR(*left))) {	/* INTL: digit */
 	    /*
 	     * There are decimal numbers embedded in the two strings. Compare
@@ -4445,8 +5425,8 @@ DictionaryCompare(
 	 */
 
 	if ((*left != '\0') && (*right != '\0')) {
-	    left += TclUtfToUCS4(left, &uniLeft);
-	    right += TclUtfToUCS4(right, &uniRight);
+	    left += TclUtfToUniChar(left, &uniLeft);
+	    right += TclUtfToUniChar(right, &uniRight);
 
 	    /*
 	     * Convert both chars to lower for the comparison, because
@@ -4455,8 +5435,8 @@ DictionaryCompare(
 	     * other interesting punctuations occur).
 	     */
 
-	    uniLeftLower = TclUCS4ToLower(uniLeft);
-	    uniRightLower = TclUCS4ToLower(uniRight);
+	    uniLeftLower = Tcl_UniCharToLower(uniLeft);
+	    uniRightLower = Tcl_UniCharToLower(uniRight);
 	} else {
 	    diff = UCHAR(*left) - UCHAR(*right);
 	    break;
@@ -4509,7 +5489,7 @@ SelectObjFromSublist(
     SortInfo *infoPtr)		/* Information passed from the top-level
 				 * "lsearch" or "lsort" command. */
 {
-    int i;
+    Tcl_Size i;
 
     /*
      * Quick check for case when no "-index" option is there.
@@ -4525,8 +5505,9 @@ SelectObjFromSublist(
      */
 
     for (i=0 ; i<infoPtr->indexc ; i++) {
-	int listLen, index;
-	Tcl_Obj *currentObj;
+	Tcl_Size listLen;
+	int index;
+	Tcl_Obj *currentObj, *lastObj=NULL;
 
 	if (TclListObjLength(infoPtr->interp, objPtr, &listLen) != TCL_OK) {
 	    infoPtr->resultCode = TCL_ERROR;
@@ -4541,15 +5522,24 @@ SelectObjFromSublist(
 	    return NULL;
 	}
 	if (currentObj == NULL) {
-	    Tcl_SetObjResult(infoPtr->interp, Tcl_ObjPrintf(
-		    "element %d missing from sublist \"%s\"",
-		    index, TclGetString(objPtr)));
+	    if (index == TCL_INDEX_NONE) {
+		index = TCL_INDEX_END - infoPtr->indexv[i];
+		Tcl_SetObjResult(infoPtr->interp, Tcl_ObjPrintf(
+			"element end-%d missing from sublist \"%s\"",
+			index, TclGetString(objPtr)));
+	    } else {
+		Tcl_SetObjResult(infoPtr->interp, Tcl_ObjPrintf(
+			"element %d missing from sublist \"%s\"",
+			index, TclGetString(objPtr)));
+	    }
 	    Tcl_SetErrorCode(infoPtr->interp, "TCL", "OPERATION", "LSORT",
 		    "INDEXFAILED", (char *)NULL);
 	    infoPtr->resultCode = TCL_ERROR;
 	    return NULL;
 	}
 	objPtr = currentObj;
+	Tcl_BounceRefCount(lastObj);
+	lastObj = currentObj;
     }
     return objPtr;
 }

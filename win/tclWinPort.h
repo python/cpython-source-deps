@@ -18,18 +18,22 @@
 /* See [Bug 3354324]: file mtime sets wrong time */
 #   define __MINGW_USE_VC2005_COMPAT
 #endif
+#if defined(_MSC_VER) && defined(_WIN64) && !defined(STATIC_BUILD) \
+	&& !defined(MP_32BIT) && !defined(MP_64BIT)
+#   define MP_64BIT
+#endif
 
 /*
  * We must specify the lower version we intend to support.
  *
- * WINVER = 0x0501 means Windows XP and above
+ * WINVER = 0x0601 means Windows 7 and above
  */
 
 #ifndef WINVER
-#   define WINVER 0x0501
+#   define WINVER 0x0601
 #endif
 #ifndef _WIN32_WINNT
-#   define _WIN32_WINNT 0x0501
+#   define _WIN32_WINNT 0x0601
 #endif
 
 #define WIN32_LEAN_AND_MEAN
@@ -53,15 +57,6 @@ typedef DWORD_PTR * PDWORD_PTR;
 #ifdef HAVE_WSPIAPI_H
 #   include <wspiapi.h>
 #endif
-
-#ifdef CHECK_UNICODE_CALLS
-#   define _UNICODE
-#   define UNICODE
-#   define __TCHAR_DEFINED
-    typedef float *_TCHAR;
-#   define _TCHAR_DEFINED
-    typedef float *TCHAR;
-#endif /* CHECK_UNICODE_CALLS */
 
 /*
  *  Pull in the typedef of TCHAR for windows.
@@ -97,7 +92,6 @@ typedef DWORD_PTR * PDWORD_PTR;
 #   include <inttypes.h>
 #endif
 #include <limits.h>
-
 #ifndef __GNUC__
 #    define strncasecmp _strnicmp
 #    define strcasecmp _stricmp
@@ -111,11 +105,7 @@ typedef DWORD_PTR * PDWORD_PTR;
 #ifndef __MWERKS__
 #include <sys/stat.h>
 #include <sys/timeb.h>
-#   ifdef __BORLANDC__
-#	include <utime.h>
-#   else
-#	include <sys/utime.h>
-#   endif /* __BORLANDC__ */
+#include <sys/utime.h>
 #endif /* __MWERKS__ */
 
 /*
@@ -124,7 +114,7 @@ typedef DWORD_PTR * PDWORD_PTR;
  */
 
 #ifndef ENOTEMPTY
-#   define ENOTEMPTY 	41	/* Directory not empty */
+#   define ENOTEMPTY	41	/* Directory not empty */
 #endif
 #ifndef EREMOTE
 #   define EREMOTE	66	/* The object is remote */
@@ -255,7 +245,6 @@ typedef DWORD_PTR * PDWORD_PTR;
 #ifndef EWOULDBLOCK
 #   define EWOULDBLOCK	140	/* Operation would block */
 #endif
-
 
 /* Visual Studio doesn't have these, so just choose some high numbers */
 #ifndef ESOCKTNOSUPPORT
@@ -425,7 +414,6 @@ typedef DWORD_PTR * PDWORD_PTR;
 #   endif
 #endif /* !S_ISLNK */
 
-
 /*
  * Define MAXPATHLEN in terms of MAXPATH if available
  */
@@ -457,46 +445,25 @@ typedef DWORD_PTR * PDWORD_PTR;
 
 #if defined(_MSC_VER) || defined(__MSVCRT__)
 #   define environ _environ
-#   if defined(_MSC_VER) && (_MSC_VER < 1600)
-#	define hypot _hypot
-#   endif
 #   define exception _exception
 #   undef EDEADLOCK
-#   if defined(_MSC_VER) && (_MSC_VER >= 1700)
+#   if defined(_MSC_VER)
 #	define timezone _timezone
 #   endif
 #endif /* _MSC_VER || __MSVCRT__ */
 
-/*
- * Borland's timezone and environ functions.
- */
-
-#ifdef  __BORLANDC__
-#   define timezone _timezone
-#   define environ  _environ
-#endif /* __BORLANDC__ */
-
-#ifdef __WATCOMC__
-#   if !defined(__CHAR_SIGNED__)
-#	error "You must use the -j switch to ensure char is signed."
-#   endif
-#endif
-
-
-/*
- * MSVC 8.0 started to mark many standard C library functions depreciated
- * including the *printf family and others. Tell it to shut up.
- * (_MSC_VER is 1200 for VC6, 1300 or 1310 for vc7.net, 1400 for 8.0)
- */
 #if defined(_MSC_VER)
 #   pragma warning(disable:4090) /* see: https://developercommunity.visualstudio.com/t/c-compiler-incorrect-propagation-of-const-qualifie/390711 */
 #   pragma warning(disable:4146)
 #   pragma warning(disable:4244)
-#   if _MSC_VER >= 1400
-#	pragma warning(disable:4267)
-#	pragma warning(disable:4996)
-#   endif
+#if !defined(_WIN64)
+#   pragma warning(disable:4305)
 #endif
+#   pragma warning(disable:4267)
+#   pragma warning(disable:4996)
+#   pragma warning(disable:5287) /* See [1dcda0e862] */
+#endif
+
 /*
  *---------------------------------------------------------------------------
  * The following macros and declarations represent the interface between
@@ -546,30 +513,27 @@ typedef DWORD_PTR * PDWORD_PTR;
  * use by tclAlloc.c.
  */
 
-#define TclpSysAlloc(size, isBin)	((void*)HeapAlloc(GetProcessHeap(), \
-					    (DWORD)0, (DWORD)size))
+#define TclpSysAlloc(size)		((void*)HeapAlloc(GetProcessHeap(), \
+					    0, size))
 #define TclpSysFree(ptr)		(HeapFree(GetProcessHeap(), \
-					    (DWORD)0, (HGLOBAL)ptr))
+					    0, (HGLOBAL)ptr))
 #define TclpSysRealloc(ptr, size)	((void*)HeapReAlloc(GetProcessHeap(), \
-					    (DWORD)0, (LPVOID)ptr, (DWORD)size))
+					    0, (LPVOID)ptr, size))
 
 /* This type is not defined in the Windows headers */
 #define socklen_t       int
-
 
 /*
  * The following macros have trivial definitions, allowing generic code to
  * address platform-specific issues.
  */
 
-#define TclpReleaseFile(file)	ckfree((char *) file)
+#define TclpReleaseFile(file)	Tcl_Free(file)
 
 /*
  * The following macros and declarations wrap the C runtime library
  * functions.
  */
-
-#define TclpExit		exit
 
 #ifndef INVALID_SET_FILE_POINTER
 #define INVALID_SET_FILE_POINTER 0xFFFFFFFF
@@ -578,8 +542,5 @@ typedef DWORD_PTR * PDWORD_PTR;
 #ifndef LABEL_SECURITY_INFORMATION
 #   define LABEL_SECURITY_INFORMATION (0x00000010L)
 #endif
-
-#define Tcl_DirEntry void
-#define TclDIR void
 
 #endif /* _TCLWINPORT */

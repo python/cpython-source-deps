@@ -36,10 +36,9 @@
  * Overrides for regguts.h definitions, if any.
  */
 
-#define	FUNCPTR(name, args)	(*name)args
-#define	MALLOC(n)		VS(attemptckalloc(n))
-#define	FREE(p)			ckfree(VS(p))
-#define	REALLOC(p,n)		VS(attemptckrealloc(VS(p),n))
+#define	MALLOC(n)		Tcl_AttemptAlloc(n)
+#define	FREE(p)			Tcl_Free(p)
+#define	REALLOC(p,n)		Tcl_AttemptRealloc(p,n)
 
 /*
  * Do not insert extras between the "begin" and "end" lines - this chunk is
@@ -57,9 +56,6 @@
 #ifdef __REG_WIDE_EXEC
 #undef __REG_WIDE_EXEC
 #endif
-#ifdef __REG_REGOFF_T
-#undef __REG_REGOFF_T
-#endif
 #ifdef __REG_NOFRONT
 #undef __REG_NOFRONT
 #endif
@@ -68,7 +64,6 @@
 #endif
 /* Interface types */
 #define	__REG_WIDE_T	Tcl_UniChar
-#define	__REG_REGOFF_T	long	/* Not really right, but good enough... */
 /* Names and declarations */
 #define	__REG_WIDE_COMPILE	TclReComp
 #define	__REG_WIDE_EXEC		TclReExec
@@ -89,15 +84,9 @@ typedef int celt;		/* Type to hold chr, or NOCELT */
 #define	NOCELT (-1)		/* Celt value which is not valid chr */
 #define	CHR(c) (UCHAR(c))	/* Turn char literal into chr literal */
 #define	DIGITVAL(c) ((c)-'0')	/* Turn chr digit into its value */
-#if TCL_UTF_MAX > 4
 #define	CHRBITS	32		/* Bits in a chr; must not use sizeof */
 #define	CHR_MIN	0x00000000	/* Smallest and largest chr; the value */
-#define	CHR_MAX	0xFFFFFFFF	/* CHR_MAX-CHR_MIN+1 should fit in uchr */
-#else
-#define	CHRBITS	16		/* Bits in a chr; must not use sizeof */
-#define	CHR_MIN	0x0000		/* Smallest and largest chr; the value */
-#define	CHR_MAX	0xFFFF		/* CHR_MAX-CHR_MIN+1 should fit in uchr */
-#endif
+#define	CHR_MAX	0x10FFFF	/* CHR_MAX-CHR_MIN+1 should fit in uchr */
 
 /*
  * Functions operating on chr.

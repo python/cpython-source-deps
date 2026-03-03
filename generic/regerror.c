@@ -1,7 +1,7 @@
 /*
  * regerror - error-code expansion
  *
- * Copyright (c) 1998, 1999 Henry Spencer.  All rights reserved.
+ * Copyright © 1998, 1999 Henry Spencer.  All rights reserved.
  *
  * Development of this software was funded, in part, by Cray Research Inc.,
  * UUNET Communications Services Inc., Sun Microsystems Inc., and Scriptics
@@ -86,7 +86,7 @@ regerror(
 	if (r->code >= 0) {
 	    msg = r->name;
 	} else {		/* Unknown; tell him the number */
-	    snprintf(convbuf, sizeof(convbuf), "REG_%u", (unsigned)icode);
+	    snprintf(convbuf, sizeof(convbuf), "REG_%u", icode);
 	    msg = convbuf;
 	}
 	break;

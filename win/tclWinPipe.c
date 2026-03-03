@@ -4,13 +4,16 @@
  *	This file implements the Windows-specific exec pipeline functions, the
  *	"pipe" channel driver, and the "pid" Tcl command.
  *
- * Copyright (c) 1996-1997 by Sun Microsystems, Inc.
+ * Copyright © 1996-1997 Sun Microsystems, Inc.
  *
  * See the file "license.terms" for information on usage and redistribution of
  * this file, and for a DISCLAIMER OF ALL WARRANTIES.
  */
 
 #include "tclWinInt.h"
+#if defined (__clang__) && (__clang_major__ > 20)
+#pragma clang diagnostic ignored "-Wc++-keyword"
+#endif
 
 /*
  * The following variable is used to tell whether this module has been
@@ -61,7 +64,7 @@ typedef struct {
 
 typedef struct ProcInfo {
     HANDLE hProcess;
-    DWORD dwProcessId;
+    int dwProcessId;
     struct ProcInfo *nextPtr;
 } ProcInfo;
 
@@ -104,7 +107,7 @@ typedef struct PipeInfo {
     TclFile readFile;		/* Output from pipe. */
     TclFile writeFile;		/* Input from pipe. */
     TclFile errorFile;		/* Error output from pipe. */
-    int numPids;		/* Number of processes attached to pipe. */
+    size_t numPids;		/* Number of processes attached to pipe. */
     Tcl_Pid *pidPtr;		/* Pids of attached processes. */
     Tcl_ThreadId threadId;	/* Thread to which events should be reported.
 				 * This value is used by the reader/writer
@@ -171,28 +174,28 @@ typedef struct {
 
 static int		ApplicationType(Tcl_Interp *interp,
 			    const char *fileName, char *fullName);
-static void		BuildCommandLine(const char *executable, int argc,
+static void		BuildCommandLine(const char *executable, size_t argc,
 			    const char **argv, Tcl_DString *linePtr);
 static BOOL		HasConsole(void);
-static int		PipeBlockModeProc(ClientData instanceData, int mode);
-static void		PipeCheckProc(ClientData clientData, int flags);
-static int		PipeClose2Proc(ClientData instanceData,
+static int		PipeBlockModeProc(void *instanceData, int mode);
+static void		PipeCheckProc(void *clientData, int flags);
+static int		PipeClose2Proc(void *instanceData,
 			    Tcl_Interp *interp, int flags);
 static int		PipeEventProc(Tcl_Event *evPtr, int flags);
-static int		PipeGetHandleProc(ClientData instanceData,
-			    int direction, ClientData *handlePtr);
+static int		PipeGetHandleProc(void *instanceData,
+			    int direction, void **handlePtr);
 static void		PipeInit(void);
-static int		PipeInputProc(ClientData instanceData, char *buf,
+static int		PipeInputProc(void *instanceData, char *buf,
 			    int toRead, int *errorCode);
-static int		PipeOutputProc(ClientData instanceData,
+static int		PipeOutputProc(void *instanceData,
 			    const char *buf, int toWrite, int *errorCode);
 static DWORD WINAPI	PipeReaderThread(LPVOID arg);
-static void		PipeSetupProc(ClientData clientData, int flags);
-static void		PipeWatchProc(ClientData instanceData, int mask);
+static void		PipeSetupProc(void *clientData, int flags);
+static void		PipeWatchProc(void *instanceData, int mask);
 static DWORD WINAPI	PipeWriterThread(LPVOID arg);
 static int		TempFileName(WCHAR name[MAX_PATH]);
 static int		WaitForRead(PipeInfo *infoPtr, int blocking);
-static void		PipeThreadActionProc(ClientData instanceData,
+static void		PipeThreadActionProc(void *instanceData,
 			    int action);
 
 /*
@@ -201,23 +204,23 @@ static void		PipeThreadActionProc(ClientData instanceData,
  */
 
 static const Tcl_ChannelType pipeChannelType = {
-    "pipe",			/* Type name. */
-    TCL_CHANNEL_VERSION_5,	/* v5 channel */
-    TCL_CLOSE2PROC,		/* Close proc. */
-    PipeInputProc,		/* Input proc. */
-    PipeOutputProc,		/* Output proc. */
-    NULL,			/* Seek proc. */
+    "pipe",
+    TCL_CHANNEL_VERSION_5,
+    NULL,			/* Deprecated. */
+    PipeInputProc,
+    PipeOutputProc,
+    NULL,			/* Deprecated. */
     NULL,			/* Set option proc. */
     NULL,			/* Get option proc. */
-    PipeWatchProc,		/* Set up notifier to watch the channel. */
-    PipeGetHandleProc,		/* Get an OS handle from channel. */
-    PipeClose2Proc,		/* close2proc */
-    PipeBlockModeProc,		/* Set blocking or non-blocking mode.*/
-    NULL,			/* flush proc. */
-    NULL,			/* handler proc. */
-    NULL,			/* wide seek proc */
-    PipeThreadActionProc,	/* thread action proc */
-    NULL			/* truncate */
+    PipeWatchProc,
+    PipeGetHandleProc,
+    PipeClose2Proc,
+    PipeBlockModeProc,
+    NULL,			/* Flush proc. */
+    NULL,			/* Bubbled event handler proc. */
+    NULL,			/* Seek proc. */
+    PipeThreadActionProc,
+    NULL			/* Truncate proc. */
 };
 
 /*
@@ -310,7 +313,7 @@ TclpFinalizePipes(void)
 
 void
 PipeSetupProc(
-    ClientData data,		/* Not used. */
+    TCL_UNUSED(void *),
     int flags)			/* Event flags as passed to Tcl_DoOneEvent. */
 {
     PipeInfo *infoPtr;
@@ -363,7 +366,7 @@ PipeSetupProc(
 
 static void
 PipeCheckProc(
-    ClientData data,		/* Not used. */
+    TCL_UNUSED(void *),
     int flags)			/* Event flags as passed to Tcl_DoOneEvent. */
 {
     PipeInfo *infoPtr;
@@ -402,7 +405,7 @@ PipeCheckProc(
 
 	if (needEvent) {
 	    infoPtr->flags |= PIPE_PENDING;
-	    evPtr = (PipeEvent *)ckalloc(sizeof(PipeEvent));
+	    evPtr = (PipeEvent *)Tcl_Alloc(sizeof(PipeEvent));
 	    evPtr->header.proc = PipeEventProc;
 	    evPtr->infoPtr = infoPtr;
 	    Tcl_QueueEvent((Tcl_Event *) evPtr, TCL_QUEUE_TAIL);
@@ -433,7 +436,7 @@ TclWinMakeFile(
 {
     WinFile *filePtr;
 
-    filePtr = (WinFile *)ckalloc(sizeof(WinFile));
+    filePtr = (WinFile *)Tcl_Alloc(sizeof(WinFile));
     filePtr->type = WIN_FILE;
     filePtr->handle = handle;
 
@@ -500,7 +503,7 @@ TclpMakeFile(
     HANDLE handle;
 
     if (Tcl_GetChannelHandle(channel, direction,
-	    (ClientData *) &handle) == TCL_OK) {
+	    (void **) &handle) == TCL_OK) {
 	return TclWinMakeFile(handle);
     } else {
 	return (TclFile) NULL;
@@ -549,7 +552,7 @@ TclpOpenFile(
 	accessMode = (GENERIC_READ | GENERIC_WRITE);
 	break;
     default:
-	TclWinConvertError(ERROR_INVALID_FUNCTION);
+	Tcl_WinConvertError(ERROR_INVALID_FUNCTION);
 	return NULL;
     }
 
@@ -577,7 +580,8 @@ TclpOpenFile(
 	break;
     }
 
-    nativePath = (WCHAR *)Tcl_WinUtfToTChar(path, -1, &ds);
+    Tcl_DStringInit(&ds);
+    nativePath = Tcl_UtfToWCharDString(path, TCL_INDEX_NONE, &ds);
 
     /*
      * If the file is not being created, use the existing file attributes.
@@ -612,7 +616,7 @@ TclpOpenFile(
 	if ((err & 0xFFFFL) == ERROR_OPEN_FAILED) {
 	    err = (mode & O_CREAT) ? ERROR_FILE_EXISTS : ERROR_FILE_NOT_FOUND;
 	}
-	TclWinConvertError(err);
+	Tcl_WinConvertError(err);
 	return NULL;
     }
 
@@ -650,7 +654,7 @@ TclpCreateTempFile(
     const char *contents)	/* String to write into temp file, or NULL. */
 {
     WCHAR name[MAX_PATH];
-    const char *native;
+    const char *native = NULL;
     Tcl_DString dstring;
     HANDLE handle;
 
@@ -678,7 +682,10 @@ TclpCreateTempFile(
 	 * Convert the contents from UTF to native encoding
 	 */
 
-	native = Tcl_UtfToExternalDString(NULL, contents, -1, &dstring);
+	if (Tcl_UtfToExternalDStringEx(NULL, NULL, contents, TCL_INDEX_NONE, 0, &dstring, NULL) != TCL_OK) {
+	   goto error;
+	}
+	native = Tcl_DStringValue(&dstring);
 
 	toCopy = Tcl_DStringLength(&dstring);
 	for (p = native; toCopy > 0; p++, toCopy--) {
@@ -718,7 +725,9 @@ TclpCreateTempFile(
 	Tcl_DStringFree(&dstring);
     }
 
-    TclWinConvertError(GetLastError());
+    if (native != NULL) {
+	Tcl_WinConvertError(GetLastError());
+    }
     CloseHandle(handle);
     DeleteFileW(name);
     return NULL;
@@ -783,7 +792,7 @@ TclpCreatePipe(
 	return 1;
     }
 
-    TclWinConvertError(GetLastError());
+    Tcl_WinConvertError(GetLastError());
     return 0;
 }
 
@@ -824,8 +833,8 @@ TclpCloseFile(
 		    && (GetStdHandle(STD_ERROR_HANDLE) != filePtr->handle))) {
 	    if (filePtr->handle != NULL &&
 		    CloseHandle(filePtr->handle) == FALSE) {
-		TclWinConvertError(GetLastError());
-		ckfree(filePtr);
+		Tcl_WinConvertError(GetLastError());
+		Tcl_Free(filePtr);
 		return -1;
 	    }
 	}
@@ -835,7 +844,7 @@ TclpCloseFile(
 	Tcl_Panic("TclpCloseFile: unexpected file type");
     }
 
-    ckfree(filePtr);
+    Tcl_Free(filePtr);
     return 0;
 }
 
@@ -850,7 +859,7 @@ TclpCloseFile(
  * Results:
  *	Returns the process id for the child process. If the pid was not known
  *	by Tcl, either because the pid was not created by Tcl or the child
- *	process has already been reaped, -1 is returned.
+ *	process has already been reaped, TCL_INDEX_NONE is returned.
  *
  * Side effects:
  *	None.
@@ -858,7 +867,7 @@ TclpCloseFile(
  *--------------------------------------------------------------------------
  */
 
-int
+Tcl_Size
 TclpGetPid(
     Tcl_Pid pid)		/* The HANDLE of the child process. */
 {
@@ -868,13 +877,13 @@ TclpGetPid(
 
     Tcl_MutexLock(&pipeMutex);
     for (infoPtr = procList; infoPtr != NULL; infoPtr = infoPtr->nextPtr) {
-	if (infoPtr->hProcess == (HANDLE) pid) {
+	if (infoPtr->dwProcessId == (Tcl_Size)pid) {
 	    Tcl_MutexUnlock(&pipeMutex);
 	    return infoPtr->dwProcessId;
 	}
     }
     Tcl_MutexUnlock(&pipeMutex);
-    return (unsigned long) -1;
+    return -1;
 }
 
 /*
@@ -910,7 +919,7 @@ TclpCreateProcess(
 				 * occurred when creating the child process.
 				 * Error messages from the child process
 				 * itself are sent to errorFile. */
-    int argc,			/* Number of arguments in following array. */
+    size_t argc,			/* Number of arguments in following array. */
     const char **argv,		/* Array of argument strings. argv[0] contains
 				 * the name of the executable converted to
 				 * native format (using the
@@ -940,7 +949,7 @@ TclpCreateProcess(
     PROCESS_INFORMATION procInfo;
     SECURITY_ATTRIBUTES secAtts;
     HANDLE hProcess, h, inputHandle, outputHandle, errorHandle;
-    char execPath[MAX_PATH * TCL_UTF_MAX];
+    char execPath[MAX_PATH * 3];
     WinFile *filePtr;
 
     PipeInit();
@@ -1025,7 +1034,7 @@ TclpCreateProcess(
 		0, TRUE, DUPLICATE_SAME_ACCESS);
     }
     if (startInfo.hStdInput == INVALID_HANDLE_VALUE) {
-	TclWinConvertError(GetLastError());
+	Tcl_WinConvertError(GetLastError());
 	Tcl_SetObjResult(interp, Tcl_ObjPrintf(
 		"couldn't duplicate input handle: %s",
 		Tcl_PosixError(interp)));
@@ -1054,7 +1063,7 @@ TclpCreateProcess(
 		&startInfo.hStdOutput, 0, TRUE, DUPLICATE_SAME_ACCESS);
     }
     if (startInfo.hStdOutput == INVALID_HANDLE_VALUE) {
-	TclWinConvertError(GetLastError());
+	Tcl_WinConvertError(GetLastError());
 	Tcl_SetObjResult(interp, Tcl_ObjPrintf(
 		"couldn't duplicate output handle: %s",
 		Tcl_PosixError(interp)));
@@ -1074,7 +1083,7 @@ TclpCreateProcess(
 		0, TRUE, DUPLICATE_SAME_ACCESS);
     }
     if (startInfo.hStdError == INVALID_HANDLE_VALUE) {
-	TclWinConvertError(GetLastError());
+	Tcl_WinConvertError(GetLastError());
 	Tcl_SetObjResult(interp, Tcl_ObjPrintf(
 		"couldn't duplicate error handle: %s",
 		Tcl_PosixError(interp)));
@@ -1136,7 +1145,7 @@ TclpCreateProcess(
     if (CreateProcessW(NULL, (WCHAR *) Tcl_DStringValue(&cmdLine),
 	    NULL, NULL, TRUE, (DWORD) createFlags, NULL, NULL, &startInfo,
 	    &procInfo) == 0) {
-	TclWinConvertError(GetLastError());
+	Tcl_WinConvertError(GetLastError());
 	Tcl_SetObjResult(interp, Tcl_ObjPrintf("couldn't execute \"%s\": %s",
 		argv[0], Tcl_PosixError(interp)));
 	goto end;
@@ -1155,14 +1164,14 @@ TclpCreateProcess(
      * will be created for each process but the previous instances may not be
      * cleaned up. This results in a significant virtual memory loss each time
      * the process is spawned. If there is a WaitForInputIdle() call between
-     * CreateProcess() and CloseHandle(), the problem does not occur." PSS ID
+     * CreateProcessW() and CloseHandle(), the problem does not occur." PSS ID
      * Number: Q124121
      */
 
     WaitForInputIdle(procInfo.hProcess, 5000);
     CloseHandle(procInfo.hThread);
 
-    *pidPtr = (Tcl_Pid) procInfo.hProcess;
+    *pidPtr = (Tcl_Pid)INT2PTR(procInfo.dwProcessId);
     if (*pidPtr != 0) {
 	TclWinAddProcess(procInfo.hProcess, procInfo.dwProcessId);
     }
@@ -1181,7 +1190,6 @@ TclpCreateProcess(
     }
     return result;
 }
-
 
 /*
  *----------------------------------------------------------------------
@@ -1277,20 +1285,21 @@ ApplicationType(
      * Using the raw SearchPathW() function doesn't do quite what is necessary.
      * If the name of the executable already contains a '.' character, it will
      * not try appending the specified extension when searching (in other
-     * words, SearchPathW will not find the program "a.b.exe" if the arguments
+     * words, SearchPath will not find the program "a.b.exe" if the arguments
      * specified "a.b" and ".exe"). So, first look for the file as it is
      * named. Then manually append the extensions, looking for a match.
      */
 
     applType = APPL_NONE;
     Tcl_DStringInit(&nameBuf);
-    Tcl_DStringAppend(&nameBuf, originalName, -1);
+    Tcl_DStringAppend(&nameBuf, originalName, TCL_INDEX_NONE);
     nameLen = Tcl_DStringLength(&nameBuf);
 
     for (i = 0; i < (int) (sizeof(extensions) / sizeof(extensions[0])); i++) {
 	Tcl_DStringSetLength(&nameBuf, nameLen);
-	Tcl_DStringAppend(&nameBuf, extensions[i], -1);
-	nativeName = (WCHAR *)Tcl_WinUtfToTChar(Tcl_DStringValue(&nameBuf),
+	Tcl_DStringAppend(&nameBuf, extensions[i], TCL_INDEX_NONE);
+	Tcl_DStringInit(&ds);
+	nativeName = Tcl_UtfToWCharDString(Tcl_DStringValue(&nameBuf),
 		Tcl_DStringLength(&nameBuf), &ds);
 	found = SearchPathW(NULL, nativeName, NULL, MAX_PATH,
 		nativeFullPath, &rest);
@@ -1308,25 +1317,38 @@ ApplicationType(
 	if ((attr == 0xFFFFFFFF) || (attr & FILE_ATTRIBUTE_DIRECTORY)) {
 	    continue;
 	}
-	strcpy(fullName, Tcl_WinTCharToUtf((TCHAR *)nativeFullPath, -1, &ds));
+	Tcl_DStringInit(&ds);
+	strcpy(fullName, Tcl_WCharToUtfDString(nativeFullPath, TCL_INDEX_NONE, &ds));
 	Tcl_DStringFree(&ds);
 
 	ext = strrchr(fullName, '.');
 	if ((ext != NULL) &&
-            (strcasecmp(ext, ".cmd") == 0 || strcasecmp(ext, ".bat") == 0)) {
+		(strcasecmp(ext, ".cmd") == 0 || strcasecmp(ext, ".bat") == 0)) {
 	    applType = APPL_DOS;
 	    break;
 	}
 
 	hFile = CreateFileW(nativeFullPath,
 		GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING,
-		FILE_ATTRIBUTE_NORMAL, NULL);
+		FILE_ATTRIBUTE_NORMAL|FILE_FLAG_OPEN_REPARSE_POINT, NULL);
 	if (hFile == INVALID_HANDLE_VALUE) {
 	    continue;
 	}
 
+	if (attr & FILE_ATTRIBUTE_REPARSE_POINT) {
+	    /*
+	     * But [4f0b5767ac]. Likely a App Execution Alias. This can only
+	     * be a Win32 APP. Attempt to ReadFile below will fail. We assume
+	     * that if it is on the PATH, and it is a reparse point, it is an
+	     * App Execution Alias.
+	     */
+	    CloseHandle(hFile);
+	    applType = APPL_WIN32;
+	    break;
+	}
+
 	header.e_magic = 0;
-	ReadFile(hFile, (void *) &header, sizeof(header), &read, NULL);
+	ReadFile(hFile, (void *)&header, sizeof(header), &read, NULL);
 	if (header.e_magic != IMAGE_DOS_SIGNATURE) {
 	    /*
 	     * Doesn't have the magic number for relocatable executables. If
@@ -1361,7 +1383,7 @@ ApplicationType(
 
 	buf[0] = '\0';
 	SetFilePointer(hFile, header.e_lfanew, NULL, FILE_BEGIN);
-	ReadFile(hFile, (void *) buf, 2, &read, NULL);
+	ReadFile(hFile, (void *)buf, 2, &read, NULL);
 	CloseHandle(hFile);
 
 	if ((buf[0] == 'N') && (buf[1] == 'E')) {
@@ -1384,7 +1406,7 @@ ApplicationType(
     Tcl_DStringFree(&nameBuf);
 
     if (applType == APPL_NONE) {
-	TclWinConvertError(GetLastError());
+	Tcl_WinConvertError(GetLastError());
 	Tcl_SetObjResult(interp, Tcl_ObjPrintf("couldn't execute \"%s\": %s",
 		originalName, Tcl_PosixError(interp)));
 	return APPL_NONE;
@@ -1399,7 +1421,8 @@ ApplicationType(
 	 */
 
 	GetShortPathNameW(nativeFullPath, nativeFullPath, MAX_PATH);
-	strcpy(fullName, Tcl_WinTCharToUtf((TCHAR *)nativeFullPath, -1, &ds));
+	Tcl_DStringInit(&ds);
+	strcpy(fullName, Tcl_WCharToUtfDString(nativeFullPath, TCL_INDEX_NONE, &ds));
 	Tcl_DStringFree(&ds);
     }
     return applType;
@@ -1411,7 +1434,7 @@ ApplicationType(
  * BuildCommandLine --
  *
  *	The command line arguments are stored in linePtr separated by spaces,
- *	in a form that CreateProcess() understands. Special characters in
+ *	in a form that CreateProcessW() understands. Special characters in
  *	individual arguments from argv[] must be quoted when being stored in
  *	cmdLine.
  *
@@ -1454,7 +1477,7 @@ QuoteCmdLineBackslash(
 	    Tcl_DStringAppend(dsPtr, start, (int) (current - start));
 	}
     } else {
-    	if (bspos > start) {	/* part before first backslash */
+	if (bspos > start) {	/* part before first backslash */
 	    Tcl_DStringAppend(dsPtr, start, (int) (bspos - start));
 	}
 	while (bspos++ < current) { /* each backslash twice */
@@ -1497,7 +1520,7 @@ QuoteCmdLinePart(
 
     TclDStringAppendLiteral(dsPtr, "\""); /* opening escape quote-char */
     do {
-    	*bspos = NULL;
+	*bspos = NULL;
 	special++;
 	if (*special == '\\') {
 	    /*
@@ -1532,13 +1555,14 @@ static void
 BuildCommandLine(
     const char *executable,	/* Full path of executable (including
 				 * extension). Replacement for argv[0]. */
-    int argc,			/* Number of arguments. */
+    size_t argc,			/* Number of arguments. */
     const char **argv,		/* Argument strings in UTF. */
     Tcl_DString *linePtr)	/* Initialized Tcl_DString that receives the
 				 * command line (WCHAR). */
 {
     const char *arg, *start, *special, *bspos;
-    int quote = 0, i;
+    int quote = 0;
+    size_t i;
     Tcl_DString ds;
 #ifdef TCL_WIN_PIPE_FULLESC
     /* full escape inclusive %-subst avoidance */
@@ -1632,7 +1656,7 @@ BuildCommandLine(
 	     * Nothing to escape.
 	     */
 
-	    Tcl_DStringAppend(&ds, arg, -1);
+	    Tcl_DStringAppend(&ds, arg, TCL_INDEX_NONE);
 	} else {
 	    start = arg;
 	    for (special = arg; *special != '\0'; ) {
@@ -1736,7 +1760,8 @@ BuildCommandLine(
 	}
     }
     Tcl_DStringFree(linePtr);
-    Tcl_WinUtfToTChar(Tcl_DStringValue(&ds), Tcl_DStringLength(&ds), linePtr);
+    Tcl_DStringInit(linePtr);
+    Tcl_UtfToWCharDString(Tcl_DStringValue(&ds), Tcl_DStringLength(&ds), linePtr);
     Tcl_DStringFree(&ds);
 }
 
@@ -1763,11 +1788,11 @@ TclpCreateCommandChannel(
     TclFile writeFile,		/* If non-null, gives the file for writing. */
     TclFile errorFile,		/* If non-null, gives the file where errors
 				 * can be read. */
-    int numPids,		/* The number of pids in the pid array. */
+    size_t numPids,		/* The number of pids in the pid array. */
     Tcl_Pid *pidPtr)		/* An array of process identifiers. */
 {
     char channelName[16 + TCL_INTEGER_SPACE];
-    PipeInfo *infoPtr = (PipeInfo *)ckalloc(sizeof(PipeInfo));
+    PipeInfo *infoPtr = (PipeInfo *)Tcl_Alloc(sizeof(PipeInfo));
 
     PipeInit();
 
@@ -1795,12 +1820,11 @@ TclpCreateCommandChannel(
 
 	infoPtr->readable = CreateEventW(NULL, TRUE, TRUE, NULL);
 	infoPtr->readThread = CreateThread(NULL, 256, PipeReaderThread,
-	    TclPipeThreadCreateTI(&infoPtr->readTI, infoPtr, infoPtr->readable),
-	    0, NULL);
+	    TclPipeThreadCreateTI(&infoPtr->readTI, infoPtr), 0, NULL);
 	SetThreadPriority(infoPtr->readThread, THREAD_PRIORITY_HIGHEST);
 	infoPtr->validMask |= TCL_READABLE;
     } else {
-    	infoPtr->readTI = NULL;
+	infoPtr->readTI = NULL;
 	infoPtr->readThread = 0;
     }
     if (writeFile != NULL) {
@@ -1810,13 +1834,12 @@ TclpCreateCommandChannel(
 
 	infoPtr->writable = CreateEventW(NULL, TRUE, TRUE, NULL);
 	infoPtr->writeThread = CreateThread(NULL, 256, PipeWriterThread,
-	    TclPipeThreadCreateTI(&infoPtr->writeTI, infoPtr, infoPtr->writable),
-	    0, NULL);
+	    TclPipeThreadCreateTI(&infoPtr->writeTI, infoPtr), 0, NULL);
 	SetThreadPriority(infoPtr->writeThread, THREAD_PRIORITY_HIGHEST);
 	infoPtr->validMask |= TCL_WRITABLE;
     } else {
-    	infoPtr->writeTI = NULL;
-    	infoPtr->writeThread = 0;
+	infoPtr->writeTI = NULL;
+	infoPtr->writeThread = 0;
     }
 
     /*
@@ -1826,18 +1849,11 @@ TclpCreateCommandChannel(
      * unique, in case channels share handles (stdin/stdout).
      */
 
-    snprintf(channelName, sizeof(channelName), "file%" TCL_Z_MODIFIER "x", (size_t) infoPtr);
+    TclWinGenerateChannelName(channelName, "file", infoPtr);
     infoPtr->channel = Tcl_CreateChannel(&pipeChannelType, channelName,
 	    infoPtr, infoPtr->validMask);
 
-    /*
-     * Pipes have AUTO translation mode on Windows and ^Z eof char, which
-     * means that a ^Z will be appended to them at close. This is needed for
-     * Windows programs that expect a ^Z at EOF.
-     */
-
     Tcl_SetChannelOption(NULL, infoPtr->channel, "-translation", "auto");
-    Tcl_SetChannelOption(NULL, infoPtr->channel, "-eofchar", "\032 {}");
     return infoPtr->channel;
 }
 
@@ -1860,7 +1876,7 @@ Tcl_CreatePipe(
     Tcl_Interp *interp,		/* Errors returned in result.*/
     Tcl_Channel *rchan,		/* Where to return the read side. */
     Tcl_Channel *wchan,		/* Where to return the write side. */
-    int flags)			/* Reserved for future use. */
+    TCL_UNUSED(int) /*flags*/)	/* Reserved for future use. */
 {
     HANDLE readHandle, writeHandle;
     SECURITY_ATTRIBUTES sec;
@@ -1870,16 +1886,16 @@ Tcl_CreatePipe(
     sec.bInheritHandle = FALSE;
 
     if (!CreatePipe(&readHandle, &writeHandle, &sec, 0)) {
-	TclWinConvertError(GetLastError());
+	Tcl_WinConvertError(GetLastError());
 	Tcl_SetObjResult(interp, Tcl_ObjPrintf(
 		"pipe creation failed: %s", Tcl_PosixError(interp)));
 	return TCL_ERROR;
     }
 
-    *rchan = Tcl_MakeFileChannel((ClientData) readHandle, TCL_READABLE);
+    *rchan = Tcl_MakeFileChannel((void *)readHandle, TCL_READABLE);
     Tcl_RegisterChannel(interp, *rchan);
 
-    *wchan = Tcl_MakeFileChannel((ClientData) writeHandle, TCL_WRITABLE);
+    *wchan = Tcl_MakeFileChannel((void *)writeHandle, TCL_WRITABLE);
     Tcl_RegisterChannel(interp, *wchan);
 
     return TCL_OK;
@@ -1910,7 +1926,7 @@ TclGetAndDetachPids(
     PipeInfo *pipePtr;
     const Tcl_ChannelType *chanTypePtr;
     Tcl_Obj *pidsObj;
-    int i;
+    size_t i;
 
     /*
      * Punt if the channel is not a command channel.
@@ -1925,13 +1941,13 @@ TclGetAndDetachPids(
     TclNewObj(pidsObj);
     for (i = 0; i < pipePtr->numPids; i++) {
 	Tcl_ListObjAppendElement(NULL, pidsObj,
-		Tcl_NewWideIntObj((unsigned)
+		Tcl_NewWideIntObj(
 			TclpGetPid(pipePtr->pidPtr[i])));
 	Tcl_DetachPids(1, &pipePtr->pidPtr[i]);
     }
     Tcl_SetObjResult(interp, pidsObj);
     if (pipePtr->numPids > 0) {
-	ckfree(pipePtr->pidPtr);
+	Tcl_Free(pipePtr->pidPtr);
 	pipePtr->numPids = 0;
     }
 }
@@ -1954,7 +1970,7 @@ TclGetAndDetachPids(
 
 static int
 PipeBlockModeProc(
-    ClientData instanceData,	/* Instance data for channel. */
+    void *instanceData,	/* Instance data for channel. */
     int mode)			/* TCL_MODE_BLOCKING or
 				 * TCL_MODE_NONBLOCKING. */
 {
@@ -1993,7 +2009,7 @@ PipeBlockModeProc(
 
 static int
 PipeClose2Proc(
-    ClientData instanceData,	/* Pointer to PipeInfo structure. */
+    void *instanceData,	/* Pointer to PipeInfo structure. */
     Tcl_Interp *interp,		/* For error reporting. */
     int flags)			/* Flags that indicate which side to close. */
 {
@@ -2039,7 +2055,7 @@ PipeClose2Proc(
 	    if ((pipePtr->flags & PIPE_ASYNC) && inExit) {
 
 		/* give it a chance to leave honorably */
-		TclPipeThreadStopSignal(&pipePtr->writeTI, pipePtr->writable);
+		TclPipeThreadStopSignal(&pipePtr->writeTI);
 
 		if (WaitForSingleObject(pipePtr->writable, 20) == WAIT_TIMEOUT) {
 		    return EWOULDBLOCK;
@@ -2116,9 +2132,10 @@ PipeClose2Proc(
 	if (pipePtr->errorFile) {
 	    WinFile *filePtr = (WinFile *) pipePtr->errorFile;
 
-	    errChan = Tcl_MakeFileChannel((ClientData) filePtr->handle,
+	    errChan = Tcl_MakeFileChannel((void *)filePtr->handle,
 		    TCL_READABLE);
-	    ckfree(filePtr);
+	    Tcl_Free(filePtr);
+	    Tcl_SetChannelOption(NULL, errChan, "-profile", "replace");
 	} else {
 	    errChan = NULL;
 	}
@@ -2128,14 +2145,14 @@ PipeClose2Proc(
     }
 
     if (pipePtr->numPids > 0) {
-	ckfree(pipePtr->pidPtr);
+	Tcl_Free(pipePtr->pidPtr);
     }
 
     if (pipePtr->writeBuf != NULL) {
-	ckfree(pipePtr->writeBuf);
+	Tcl_Free(pipePtr->writeBuf);
     }
 
-    ckfree(pipePtr);
+    Tcl_Free(pipePtr);
 
     if (errorCode == 0) {
 	return result;
@@ -2163,7 +2180,7 @@ PipeClose2Proc(
 
 static int
 PipeInputProc(
-    ClientData instanceData,	/* Pipe state. */
+    void *instanceData,	/* Pipe state. */
     char *buf,			/* Where to store data read. */
     int bufSize,		/* How much space is available in the
 				 * buffer? */
@@ -2228,7 +2245,7 @@ PipeInputProc(
 	return bytesRead;
     }
 
-    TclWinConvertError(GetLastError());
+    Tcl_WinConvertError(GetLastError());
     if (errno == EPIPE) {
 	infoPtr->readFlags |= PIPE_EOF;
 	return 0;
@@ -2257,7 +2274,7 @@ PipeInputProc(
 
 static int
 PipeOutputProc(
-    ClientData instanceData,	/* Pipe state. */
+    void *instanceData,	/* Pipe state. */
     const char *buf,		/* The data buffer. */
     int toWrite,		/* How many bytes to write? */
     int *errorCode)		/* Where to store error code. */
@@ -2287,7 +2304,7 @@ PipeOutputProc(
      */
 
     if (infoPtr->writeError) {
-	TclWinConvertError(infoPtr->writeError);
+	Tcl_WinConvertError(infoPtr->writeError);
 	infoPtr->writeError = 0;
 	goto error;
     }
@@ -2304,10 +2321,10 @@ PipeOutputProc(
 	     */
 
 	    if (infoPtr->writeBuf) {
-		ckfree(infoPtr->writeBuf);
+		Tcl_Free(infoPtr->writeBuf);
 	    }
 	    infoPtr->writeBufLen = toWrite;
-	    infoPtr->writeBuf = (char *)ckalloc(toWrite);
+	    infoPtr->writeBuf = (char *)Tcl_Alloc(toWrite);
 	}
 	memcpy(infoPtr->writeBuf, buf, toWrite);
 	infoPtr->toWrite = toWrite;
@@ -2322,7 +2339,7 @@ PipeOutputProc(
 
 	if (WriteFile(filePtr->handle, (LPVOID) buf, (DWORD) toWrite,
 		&bytesWritten, (LPOVERLAPPED) NULL) == FALSE) {
-	    TclWinConvertError(GetLastError());
+	    Tcl_WinConvertError(GetLastError());
 	    goto error;
 	}
     }
@@ -2439,7 +2456,7 @@ PipeEventProc(
 
 static void
 PipeWatchProc(
-    ClientData instanceData,	/* Pipe state. */
+    void *instanceData,	/* Pipe state. */
     int mask)			/* What events to watch for, OR-ed combination
 				 * of TCL_READABLE, TCL_WRITABLE and
 				 * TCL_EXCEPTION. */
@@ -2501,21 +2518,21 @@ PipeWatchProc(
 
 static int
 PipeGetHandleProc(
-    ClientData instanceData,	/* The pipe state. */
+    void *instanceData,	/* The pipe state. */
     int direction,		/* TCL_READABLE or TCL_WRITABLE */
-    ClientData *handlePtr)	/* Where to store the handle.  */
+    void **handlePtr)	/* Where to store the handle.  */
 {
     PipeInfo *infoPtr = (PipeInfo *) instanceData;
     WinFile *filePtr;
 
     if (direction == TCL_READABLE && infoPtr->readFile) {
 	filePtr = (WinFile*) infoPtr->readFile;
-	*handlePtr = (ClientData) filePtr->handle;
+	*handlePtr = (void *)filePtr->handle;
 	return TCL_OK;
     }
     if (direction == TCL_WRITABLE && infoPtr->writeFile) {
 	filePtr = (WinFile*) infoPtr->writeFile;
-	*handlePtr = (ClientData) filePtr->handle;
+	*handlePtr = (void *)filePtr->handle;
 	return TCL_OK;
     }
     return TCL_ERROR;
@@ -2569,7 +2586,7 @@ Tcl_WaitPid(
     prevPtrPtr = &procList;
     for (infoPtr = procList; infoPtr != NULL;
 	    prevPtrPtr = &infoPtr->nextPtr, infoPtr = infoPtr->nextPtr) {
-	 if (infoPtr->hProcess == (HANDLE) pid) {
+	 if (infoPtr->dwProcessId == (Tcl_Size)pid) {
 	    *prevPtrPtr = infoPtr->nextPtr;
 	    break;
 	}
@@ -2679,7 +2696,7 @@ Tcl_WaitPid(
     } else {
 	errno = ECHILD;
 	*statPtr = 0xC0000000 | ECHILD;
-	result = (Tcl_Pid) -1;
+	result = (Tcl_Pid)-1;
     }
 
     /*
@@ -2687,7 +2704,7 @@ Tcl_WaitPid(
      */
 
     CloseHandle(infoPtr->hProcess);
-    ckfree(infoPtr);
+    Tcl_Free(infoPtr);
 
     return result;
 }
@@ -2713,9 +2730,9 @@ Tcl_WaitPid(
 void
 TclWinAddProcess(
     void *hProcess,		/* Handle to process */
-    unsigned long id)		/* Global process identifier */
+    Tcl_Size id)		/* Global process identifier */
 {
-    ProcInfo *procPtr = (ProcInfo *)ckalloc(sizeof(ProcInfo));
+    ProcInfo *procPtr = (ProcInfo *)Tcl_Alloc(sizeof(ProcInfo));
 
     PipeInit();
 
@@ -2746,7 +2763,7 @@ TclWinAddProcess(
 
 int
 Tcl_PidObjCmd(
-    ClientData dummy,		/* Not used. */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj *const *objv)	/* Argument strings. */
@@ -2754,17 +2771,17 @@ Tcl_PidObjCmd(
     Tcl_Channel chan;
     const Tcl_ChannelType *chanTypePtr;
     PipeInfo *pipePtr;
-    int i;
+    size_t i;
     Tcl_Obj *resultPtr;
 
     if (objc > 2) {
-	Tcl_WrongNumArgs(interp, 1, objv, "?channelId?");
+	Tcl_WrongNumArgs(interp, 1, objv, "?channel?");
 	return TCL_ERROR;
     }
     if (objc == 1) {
-	Tcl_SetObjResult(interp, Tcl_NewWideIntObj((unsigned) getpid()));
+	Tcl_SetObjResult(interp, Tcl_NewWideIntObj(getpid()));
     } else {
-	chan = Tcl_GetChannel(interp, Tcl_GetString(objv[1]),
+	chan = Tcl_GetChannel(interp, TclGetString(objv[1]),
 		NULL);
 	if (chan == (Tcl_Channel) NULL) {
 	    return TCL_ERROR;
@@ -2778,7 +2795,7 @@ Tcl_PidObjCmd(
 	TclNewObj(resultPtr);
 	for (i = 0; i < pipePtr->numPids; i++) {
 	    Tcl_ListObjAppendElement(/*interp*/ NULL, resultPtr,
-		    Tcl_NewWideIntObj((unsigned)
+		    Tcl_NewWideIntObj(
 			    TclpGetPid(pipePtr->pidPtr[i])));
 	}
 	Tcl_SetObjResult(interp, resultPtr);
@@ -2854,7 +2871,7 @@ WaitForRead(
 
 	if (PeekNamedPipe(handle, (LPVOID) NULL, (DWORD) 0,
 		(LPDWORD) NULL, &count, (LPDWORD) NULL) != TRUE) {
-	    TclWinConvertError(GetLastError());
+	    Tcl_WinConvertError(GetLastError());
 
 	    /*
 	     * Check to see if the peek failed because of EOF.
@@ -3140,7 +3157,7 @@ PipeWriterThread(
 
 static void
 PipeThreadActionProc(
-    ClientData instanceData,
+    void *instanceData,
     int action)
 {
     PipeInfo *infoPtr = (PipeInfo *) instanceData;
@@ -3192,16 +3209,17 @@ PipeThreadActionProc(
 
 Tcl_Channel
 TclpOpenTemporaryFile(
-    Tcl_Obj *dirObj,
+    TCL_UNUSED(Tcl_Obj *) /*dirObj*/,
     Tcl_Obj *basenameObj,
-    Tcl_Obj *extensionObj,
+    TCL_UNUSED(Tcl_Obj *) /*extensionObj*/,
     Tcl_Obj *resultingNameObj)
 {
     WCHAR name[MAX_PATH];
     char *namePtr;
     HANDLE handle;
     DWORD flags = FILE_ATTRIBUTE_TEMPORARY;
-    int length, counter, counter2;
+    Tcl_Size length;
+    int counter, counter2;
     Tcl_DString buf;
 
     if (!resultingNameObj) {
@@ -3215,9 +3233,10 @@ TclpOpenTemporaryFile(
     }
     namePtr += length * sizeof(WCHAR);
     if (basenameObj) {
-	const char *string = Tcl_GetString(basenameObj);
+	const char *string = TclGetStringFromObj(basenameObj, &length);
 
-	Tcl_WinUtfToTChar(string, basenameObj->length, &buf);
+	Tcl_DStringInit(&buf);
+	Tcl_UtfToWCharDString(string, length, &buf);
 	memcpy(namePtr, Tcl_DStringValue(&buf), Tcl_DStringLength(&buf));
 	namePtr += Tcl_DStringLength(&buf);
 	Tcl_DStringFree(&buf);
@@ -3237,7 +3256,8 @@ TclpOpenTemporaryFile(
 
 	snprintf(number, sizeof(number), "%d.TMP", counter);
 	counter = (unsigned short) (counter + 1);
-	Tcl_WinUtfToTChar(number, strlen(number), &buf);
+	Tcl_DStringInit(&buf);
+	Tcl_UtfToWCharDString(number, strlen(number), &buf);
 	Tcl_DStringSetLength(&buf, Tcl_DStringLength(&buf) + 1);
 	memcpy(namePtr, Tcl_DStringValue(&buf), Tcl_DStringLength(&buf) + 1);
 	Tcl_DStringFree(&buf);
@@ -3258,11 +3278,11 @@ TclpOpenTemporaryFile(
 	TclDecrRefCount(tmpObj);
     }
 
-    return Tcl_MakeFileChannel((ClientData) handle,
+    return Tcl_MakeFileChannel((void *)handle,
 	    TCL_READABLE|TCL_WRITABLE);
 
   gotError:
-    TclWinConvertError(GetLastError());
+    Tcl_WinConvertError(GetLastError());
     return NULL;
 }
 
@@ -3282,19 +3302,17 @@ TclpOpenTemporaryFile(
 TclPipeThreadInfo *
 TclPipeThreadCreateTI(
     TclPipeThreadInfo **pipeTIPtr,
-    ClientData clientData,
-    HANDLE wakeEvent)
+    void *clientData)
 {
     TclPipeThreadInfo *pipeTI;
 #ifndef _PTI_USE_CKALLOC
     pipeTI = (TclPipeThreadInfo *)malloc(sizeof(TclPipeThreadInfo));
 #else
-    pipeTI = (TclPipeThreadInfo *)ckalloc(sizeof(TclPipeThreadInfo));
+    pipeTI = (TclPipeThreadInfo *)Tcl_Alloc(sizeof(TclPipeThreadInfo));
 #endif /* !_PTI_USE_CKALLOC */
     pipeTI->evControl = CreateEventW(NULL, FALSE, FALSE, NULL);
     pipeTI->state = PTI_STATE_IDLE;
     pipeTI->clientData = clientData;
-    pipeTI->evWakeUp = wakeEvent;
     return (*pipeTIPtr = pipeTI);
 }
 
@@ -3322,13 +3340,10 @@ TclPipeThreadWaitForSignal(
     TclPipeThreadInfo *pipeTI = *pipeTIPtr;
     LONG state;
     DWORD waitResult;
-    HANDLE wakeEvent;
 
     if (!pipeTI) {
 	return 0;
     }
-
-    wakeEvent = pipeTI->evWakeUp;
 
     /*
      * Wait for the main thread to signal before attempting to do the work.
@@ -3389,11 +3404,6 @@ TclPipeThreadWaitForSignal(
 
     if (state != PTI_STATE_STOP) {
 	*pipeTIPtr = NULL;
-    } else {
-    	pipeTI->evWakeUp = NULL;
-    }
-    if (wakeEvent) {
-    	SetEvent(wakeEvent);
     }
     return 0;
 }
@@ -3416,8 +3426,7 @@ TclPipeThreadWaitForSignal(
 
 int
 TclPipeThreadStopSignal(
-    TclPipeThreadInfo **pipeTIPtr,
-    HANDLE wakeEvent)
+    TclPipeThreadInfo **pipeTIPtr)
 {
     TclPipeThreadInfo *pipeTI = *pipeTIPtr;
     HANDLE evControl;
@@ -3427,7 +3436,6 @@ TclPipeThreadStopSignal(
 	return 1;
     }
     evControl = pipeTI->evControl;
-    pipeTI->evWakeUp = wakeEvent;
     state = InterlockedCompareExchange(&pipeTI->state, PTI_STATE_STOP,
 	    PTI_STATE_IDLE);
     switch (state) {
@@ -3438,7 +3446,7 @@ TclPipeThreadStopSignal(
 
 	SetEvent(evControl);
 	*pipeTIPtr = NULL;
-	/* FALLTHRU */
+	TCL_FALLTHROUGH();
     case PTI_STATE_DOWN:
 	return 1;
 
@@ -3491,7 +3499,6 @@ TclPipeThreadStop(
     }
     pipeTI = *pipeTIPtr;
     evControl = pipeTI->evControl;
-    pipeTI->evWakeUp = NULL;
 
     /*
      * Try to sane stop the pipe worker, corresponding its current state
@@ -3576,9 +3583,7 @@ TclPipeThreadStop(
 	     * Cancel all sync-IO of this thread (may be blocked there).
 	     */
 
-	    if (tclWinProcs.cancelSynchronousIo) {
-		tclWinProcs.cancelSynchronousIo(hThread);
-	    }
+	    CancelSynchronousIo(hThread);
 
 	    /*
 	     * Wait at most 20 milliseconds for the reader thread to close
@@ -3645,14 +3650,11 @@ TclPipeThreadStop(
 
     *pipeTIPtr = NULL;
     if (pipeTI) {
-	if (pipeTI->evWakeUp) {
-	    SetEvent(pipeTI->evWakeUp);
-	}
 	CloseHandle(pipeTI->evControl);
 #ifndef _PTI_USE_CKALLOC
 	free(pipeTI);
 #else
-	ckfree(pipeTI);
+	Tcl_Free(pipeTI);
 #endif /* !_PTI_USE_CKALLOC */
     }
 }
@@ -3696,13 +3698,10 @@ TclPipeThreadExit(
     state = InterlockedExchange(&pipeTI->state, PTI_STATE_DOWN);
     if (state == PTI_STATE_STOP) {
 	CloseHandle(pipeTI->evControl);
-	if (pipeTI->evWakeUp) {
-	    SetEvent(pipeTI->evWakeUp);
-	}
 #ifndef _PTI_USE_CKALLOC
 	free(pipeTI);
 #else
-	ckfree(pipeTI);
+	Tcl_Free(pipeTI);
 	/* be sure all subsystems used are finalized */
 	Tcl_FinalizeThread();
 #endif /* !_PTI_USE_CKALLOC */

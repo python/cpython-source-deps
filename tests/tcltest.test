@@ -2,8 +2,8 @@
 # built-in commands.  Sourcing this file into Tcl runs the tests and
 # generates output for errors.  No output means no errors were found.
 #
-# Copyright (c) 1998-1999 Scriptics Corporation.
-# Copyright (c) 2000 Ajuba Solutions
+# Copyright © 1998-1999 Scriptics Corporation.
+# Copyright © 2000 Ajuba Solutions
 # All rights reserved.
 
 # Note that there are several places where the value of
@@ -18,7 +18,7 @@
 #
 
 if {"::tcltest" ni [namespace children]} {
-    package require tcltest 2.1
+    package require tcltest 2.5
     namespace import -force ::tcltest::*
 }
 
@@ -353,7 +353,7 @@ set printerror [makeFile {
 	    \"Path/that/is/really/long/and/contains/no/spaces\""
     ::tcltest::PrintError "a really really long string containing a \
 	    \"Really/Long/Path/that/contains/no/spaces/and/is/longer/than/eighty/characters/to/see/what/happens\""
-    ::tcltest::PrintError "Problem renaming file: error renaming \"Z:/ws/tcl8.2/win32-ix86/tests/core\" to \"Z:/ws/tcl8.2/win32-ix86/tests/movecore-core\""
+    ::tcltest::PrintError "Problem renaming file: error renaming \"Z:/ws/tcl9.0/win32-ix86/tests/core\" to \"Z:/ws/tcl9.0/win32-ix86/tests/movecore-core\""
     exit
 } printerror.tcl]
 
@@ -547,6 +547,7 @@ set notReadableDir [file join [temporaryDirectory] notreadable]
 set notWritableDir [file join [temporaryDirectory] notwritable]
 makeDirectory notreadable
 makeDirectory notwritable
+
 switch -- $::tcl_platform(platform) {
     unix {
 	file attributes $notReadableDir -permissions 0o333
@@ -705,10 +706,10 @@ test tcltest-8.60 {::workingDirectory}  {
 	list $f1 $f2 $f3 $f4 $f5
     }
     -result "[list $normaldirectory \
-                   $normaldirectory \
-                   $current \
-                   $current \
-                   $current]"
+		   $normaldirectory \
+		   $current \
+		   $current \
+		   $current]"
     -cleanup {
 	set ::tcltest::workingDirectory $old
 	cd $current
@@ -1317,9 +1318,9 @@ test tcltest-21.7a {expect with glob} \
 test tcltest-21.8 {force a test command failure} \
     -setup {set fail $::tcltest::currentFailure} \
     -body {
-        test tcltest-21.8.0 {
-            return 2
-        } {1}
+	test tcltest-21.8.0 {
+	    return 2
+	} {1}
     } \
     -returnCodes 1 \
     -cleanup {set ::tcltest::currentFailure $fail} \
@@ -1516,8 +1517,8 @@ proc matchNegative { expected actual } {
    set match 0
    foreach a $actual e $expected {
       if { $a != $e } {
-         set match 1
-        break
+	 set match 1
+	break
       }
    }
    return $match

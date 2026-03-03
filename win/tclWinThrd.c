@@ -3,17 +3,15 @@
  *
  *	This file implements the Windows-specific thread operations.
  *
- * Copyright (c) 1998 Sun Microsystems, Inc.
- * Copyright (c) 1999 Scriptics Corporation
- * Copyright (c) 2008 George Peter Staplin
+ * Copyright © 1998 Sun Microsystems, Inc.
+ * Copyright © 1999 Scriptics Corporation
+ * Copyright © 2008 George Peter Staplin
  *
  * See the file "license.terms" for information on usage and redistribution of
  * this file, and for a DISCLAIMER OF ALL WARRANTIES.
  */
 
 #include "tclWinInt.h"
-
-#include <float.h>
 
 /* Workaround for mingw versions which don't provide this in float.h */
 #ifndef _MCW_EM
@@ -43,12 +41,21 @@ static CRITICAL_SECTION initLock;
  * obvious reasons, cannot use any dynamically allocated storage.
  */
 
-#ifdef TCL_THREADS
+#if TCL_THREADS
 
-static struct Tcl_Mutex_ {
+/*
+ * Although CRITICAL_SECTIONs can be nested, we need to keep track
+ * of their lock counts for condition variables.
+ */
+
+typedef struct WMutex {
     CRITICAL_SECTION crit;
-} allocLock;
-static Tcl_Mutex allocLockPtr = &allocLock;
+    volatile LONG thread;
+    int counter;
+} WMutex;
+
+static struct WMutex allocLock;
+static WMutex *allocLockPtr = &allocLock;
 static int allocOnce = 0;
 
 #endif /* TCL_THREADS */
@@ -78,13 +85,13 @@ static CRITICAL_SECTION joinLock;
  * The per-thread event and queue pointers.
  */
 
-#ifdef TCL_THREADS
+#if TCL_THREADS
 
 typedef struct ThreadSpecificData {
-    HANDLE condEvent;			/* Per-thread condition event */
+    HANDLE condEvent;		/* Per-thread condition event */
     struct ThreadSpecificData *nextPtr;	/* Queue pointers */
     struct ThreadSpecificData *prevPtr;
-    int flags;				/* See flags below */
+    int flags;			/* See ThreadStateFlags below */
 } ThreadSpecificData;
 static Tcl_ThreadDataKey dataKey;
 
@@ -92,26 +99,24 @@ static Tcl_ThreadDataKey dataKey;
 
 /*
  * State bits for the thread.
- * WIN_THREAD_UNINIT		Uninitialized. Must be zero because of the way
- *				ThreadSpecificData is created.
- * WIN_THREAD_RUNNING		Running, not waiting.
- * WIN_THREAD_BLOCKED		Waiting, or trying to wait.
  */
-
-#define WIN_THREAD_UNINIT	0x0
-#define WIN_THREAD_RUNNING	0x1
-#define WIN_THREAD_BLOCKED	0x2
+enum ThreadStateFlags {
+    WIN_THREAD_UNINIT = 0x0,	/* Uninitialized. Must be zero because of the
+				 * way ThreadSpecificData is created. */
+    WIN_THREAD_RUNNING = 0x1,	/* Running, not waiting. */
+    WIN_THREAD_BLOCKED = 0x2	/* Waiting, or trying to wait. */
+};
 
 /*
  * The per condition queue pointers and the Mutex used to serialize access to
  * the queue.
  */
 
-typedef struct WinCondition {
+typedef struct {
     CRITICAL_SECTION condLock;	/* Lock to serialize queuing on the
 				 * condition. */
-    struct ThreadSpecificData *firstPtr;	/* Queue pointers */
-    struct ThreadSpecificData *lastPtr;
+    ThreadSpecificData *firstPtr;	/* Queue pointers */
+    ThreadSpecificData *lastPtr;
 } WinCondition;
 
 /*
@@ -119,27 +124,29 @@ typedef struct WinCondition {
  */
 
 #ifdef USE_THREAD_ALLOC
-static int once;
 static DWORD tlsKey;
 
-typedef struct allocMutex {
-    Tcl_Mutex	     tlock;
-    CRITICAL_SECTION wlock;
+typedef struct {
+    Tcl_Mutex tlock;
+    WMutex wm;
 } allocMutex;
 #endif /* USE_THREAD_ALLOC */
+
+static void WMutexInit(WMutex *);
+static void WMutexDestroy(WMutex *);
 
 /*
  * The per thread data passed from TclpThreadCreate
  * to TclWinThreadStart.
  */
 
-typedef struct WinThread {
-  LPTHREAD_START_ROUTINE lpStartAddress; /* Original startup routine */
-  LPVOID lpParameter;		/* Original startup data */
-  unsigned int fpControl;	/* Floating point control word from the
+typedef struct {
+    LPTHREAD_START_ROUTINE lpStartAddress;
+				/* Original startup routine */
+    LPVOID lpParameter;		/* Original startup data */
+    unsigned int fpControl;	/* Floating point control word from the
 				 * main thread */
 } WinThread;
-
 
 /*
  *----------------------------------------------------------------------
@@ -181,7 +188,7 @@ TclWinThreadStart(
     lpOrigStartAddress = winThreadPtr->lpStartAddress;
     lpOrigParameter = winThreadPtr->lpParameter;
 
-    ckfree((char *)winThreadPtr);
+    Tcl_Free(winThreadPtr);
     return lpOrigStartAddress(lpOrigParameter);
 }
 
@@ -206,26 +213,26 @@ int
 TclpThreadCreate(
     Tcl_ThreadId *idPtr,	/* Return, the ID of the thread. */
     Tcl_ThreadCreateProc *proc,	/* Main() function of the thread. */
-    ClientData clientData,	/* The one argument to Main(). */
-    int stackSize,		/* Size of stack for the new thread. */
+    void *clientData,		/* The one argument to Main(). */
+    size_t stackSize,		/* Size of stack for the new thread. */
     int flags)			/* Flags controlling behaviour of the new
 				 * thread. */
 {
     WinThread *winThreadPtr;	/* Per-thread startup info */
     HANDLE tHandle;
 
-    winThreadPtr = (WinThread *)ckalloc(sizeof(WinThread));
+    winThreadPtr = (WinThread *)Tcl_Alloc(sizeof(WinThread));
     winThreadPtr->lpStartAddress = (LPTHREAD_START_ROUTINE) proc;
     winThreadPtr->lpParameter = clientData;
     winThreadPtr->fpControl = _controlfp(0, 0);
 
     EnterCriticalSection(&joinLock);
 
-    *idPtr = 0; /* must initialize as Tcl_Thread is a pointer and
-                 * on WIN64 sizeof void* != sizeof unsigned */
+    *idPtr = 0;		/* must initialize as Tcl_Thread is a pointer and
+			 * on WIN64 sizeof void* != sizeof unsigned */
 
-#if defined(_MSC_VER) || defined(__MSVCRT__) || defined(__BORLANDC__)
-    tHandle = (HANDLE) _beginthreadex(NULL, (unsigned) stackSize,
+#if defined(_MSC_VER) || defined(__MSVCRT__)
+    tHandle = (HANDLE) _beginthreadex(NULL, (unsigned)stackSize,
 	    (Tcl_ThreadCreateProc*) TclWinThreadStart, winThreadPtr,
 	    0, (unsigned *)idPtr);
 #else
@@ -302,7 +309,7 @@ TclpThreadExit(
     TclSignalExitThread(Tcl_GetCurrentThread(), status);
     LeaveCriticalSection(&joinLock);
 
-#if defined(_MSC_VER) || defined(__MSVCRT__) || defined(__BORLANDC__)
+#if defined(_MSC_VER) || defined(__MSVCRT__)
     _endthreadex((unsigned) status);
 #else
     ExitThread((DWORD) status);
@@ -476,12 +483,12 @@ TclpGlobalUnlock(void)
 Tcl_Mutex *
 Tcl_GetAllocMutex(void)
 {
-#ifdef TCL_THREADS
+#if TCL_THREADS
     if (!allocOnce) {
-	InitializeCriticalSection(&allocLock.crit);
+	WMutexInit(&allocLock);
 	allocOnce = 1;
     }
-    return &allocLockPtr;
+    return (Tcl_Mutex *) &allocLockPtr;
 #else
     return NULL;
 #endif
@@ -518,9 +525,9 @@ TclFinalizeLock(void)
     DeleteCriticalSection(&globalLock);
     initialized = 0;
 
-#ifdef TCL_THREADS
+#if TCL_THREADS
     if (allocOnce) {
-	DeleteCriticalSection(&allocLock.crit);
+	WMutexDestroy(&allocLock);
 	allocOnce = 0;
     }
 #endif
@@ -534,10 +541,57 @@ TclFinalizeLock(void)
     DeleteCriticalSection(&initLock);
 }
 
-#ifdef TCL_THREADS
+#if TCL_THREADS
+
+static void
+WMutexInit(
+    WMutex *wmPtr)
+{
+    wmPtr->thread = 0;
+    wmPtr->counter = 0;
+    InitializeCriticalSection(&wmPtr->crit);
+}
+
+static void
+WMutexDestroy(
+    WMutex *wmPtr)
+{
+    DeleteCriticalSection(&wmPtr->crit);
+    assert(wmPtr->thread == 0 && wmPtr->counter == 0);
+}
+
+static void
+WMutexLock(
+    WMutex *wmPtr)
+{
+    LONG mythread = GetCurrentThreadId();
+
+    if (wmPtr->thread == mythread) {
+	// We owned the lock already, so it's recursive.
+	wmPtr->counter++;
+    } else {
+	// We don't own the lock, so we can safely lock it. Then we own it.
+	EnterCriticalSection(&wmPtr->crit);
+	wmPtr->thread = mythread;
+    }
+}
+
+static void
+WMutexUnlock(
+    WMutex *wmPtr)
+{
+    assert(wmPtr->thread == GetCurrentThreadId());
+    if (wmPtr->counter) {
+	// It's recursive
+	wmPtr->counter--;
+    } else {
+	wmPtr->thread = 0;
+	LeaveCriticalSection(&wmPtr->crit);
+    }
+}
 
 /* locally used prototype */
-static void		FinalizeConditionEvent(ClientData data);
+static void		FinalizeConditionEvent(void *data);
 
 /*
  *----------------------------------------------------------------------
@@ -558,9 +612,9 @@ static void		FinalizeConditionEvent(ClientData data);
 
 void
 Tcl_MutexLock(
-    Tcl_Mutex *mutexPtr)	/* The lock */
+    Tcl_Mutex *mutexPtr)	/* Really (WMutex **) */
 {
-    CRITICAL_SECTION *csPtr;
+    WMutex *wmPtr;
 
     if (*mutexPtr == NULL) {
 	TclpGlobalLock();
@@ -570,15 +624,15 @@ Tcl_MutexLock(
 	 */
 
 	if (*mutexPtr == NULL) {
-	    csPtr = (CRITICAL_SECTION *)ckalloc(sizeof(CRITICAL_SECTION));
-	    InitializeCriticalSection(csPtr);
-	    *mutexPtr = (Tcl_Mutex)csPtr;
+	    wmPtr = (WMutex *) Tcl_Alloc(sizeof(WMutex));
+	    WMutexInit(wmPtr);
+	    *mutexPtr = (Tcl_Mutex) wmPtr;
 	    TclRememberMutex(mutexPtr);
 	}
 	TclpGlobalUnlock();
     }
-    csPtr = *((CRITICAL_SECTION **)mutexPtr);
-    EnterCriticalSection(csPtr);
+    wmPtr = *((WMutex **)mutexPtr);
+    WMutexLock(wmPtr);
 }
 
 /*
@@ -599,11 +653,10 @@ Tcl_MutexLock(
 
 void
 Tcl_MutexUnlock(
-    Tcl_Mutex *mutexPtr)	/* The lock */
+    Tcl_Mutex *mutexPtr)	/* Really (WMutex **) */
 {
-    CRITICAL_SECTION *csPtr = *((CRITICAL_SECTION **)mutexPtr);
-
-    LeaveCriticalSection(csPtr);
+    WMutex *wmPtr = *((WMutex **)mutexPtr);
+    WMutexUnlock(wmPtr);
 }
 
 /*
@@ -625,13 +678,13 @@ Tcl_MutexUnlock(
 
 void
 TclpFinalizeMutex(
-    Tcl_Mutex *mutexPtr)
+    Tcl_Mutex *mutexPtr)	/* Really (WMutex **) */
 {
-    CRITICAL_SECTION *csPtr = *(CRITICAL_SECTION **)mutexPtr;
+    WMutex *wmPtr = *(WMutex **)mutexPtr;
 
-    if (csPtr != NULL) {
-	DeleteCriticalSection(csPtr);
-	ckfree(csPtr);
+    if (wmPtr != NULL) {
+	WMutexDestroy(wmPtr);
+	Tcl_Free(wmPtr);
 	*mutexPtr = NULL;
     }
 }
@@ -662,12 +715,13 @@ void
 Tcl_ConditionWait(
     Tcl_Condition *condPtr,	/* Really (WinCondition **) */
     Tcl_Mutex *mutexPtr,	/* Really (CRITICAL_SECTION **) */
-    const Tcl_Time *timePtr) /* Timeout on waiting period */
+    const Tcl_Time *timePtr)	/* Timeout on waiting period */
 {
     WinCondition *winCondPtr;	/* Per-condition queue head */
-    CRITICAL_SECTION *csPtr;	/* Caller's Mutex, after casting */
+    WMutex *wmPtr;		/* Caller's Mutex, after casting */
     DWORD wtime;		/* Windows time value */
     int timeout;		/* True if we got a timeout */
+    int counter;		/* Caller's Mutex counter */
     int doExit = 0;		/* True if we need to do exit setup */
     ThreadSpecificData *tsdPtr = TCL_TSD_INIT(&dataKey);
 
@@ -713,7 +767,7 @@ Tcl_ConditionWait(
 	 */
 
 	if (*condPtr == NULL) {
-	    winCondPtr = (WinCondition *)ckalloc(sizeof(WinCondition));
+	    winCondPtr = (WinCondition *)Tcl_Alloc(sizeof(WinCondition));
 	    InitializeCriticalSection(&winCondPtr->condLock);
 	    winCondPtr->firstPtr = NULL;
 	    winCondPtr->lastPtr = NULL;
@@ -722,12 +776,12 @@ Tcl_ConditionWait(
 	}
 	TclpGlobalUnlock();
     }
-    csPtr = *((CRITICAL_SECTION **)mutexPtr);
+    wmPtr = *((WMutex **)mutexPtr);
     winCondPtr = *((WinCondition **)condPtr);
     if (timePtr == NULL) {
 	wtime = INFINITE;
     } else {
-	wtime = timePtr->sec * 1000 + timePtr->usec / 1000;
+	wtime = (DWORD)timePtr->sec * 1000 + (DWORD)timePtr->usec / 1000;
     }
 
     /*
@@ -757,7 +811,12 @@ Tcl_ConditionWait(
      * thread.
      */
 
-    LeaveCriticalSection(csPtr);
+    counter = wmPtr->counter;
+    wmPtr->counter = 0;
+    LONG mythread = GetCurrentThreadId();
+    assert(wmPtr->thread == mythread);
+    wmPtr->thread = 0;
+    LeaveCriticalSection(&wmPtr->crit);
     timeout = 0;
     while (!timeout && (tsdPtr->flags & WIN_THREAD_BLOCKED)) {
 	ResetEvent(tsdPtr->condEvent);
@@ -800,7 +859,9 @@ Tcl_ConditionWait(
     }
 
     LeaveCriticalSection(&winCondPtr->condLock);
-    EnterCriticalSection(csPtr);
+    EnterCriticalSection(&wmPtr->crit);
+    wmPtr->counter = counter;
+    wmPtr->thread = mythread;
 }
 
 /*
@@ -882,7 +943,7 @@ Tcl_ConditionNotify(
 
 static void
 FinalizeConditionEvent(
-    ClientData data)
+    void *data)
 {
     ThreadSpecificData *tsdPtr = (ThreadSpecificData *) data;
 
@@ -924,13 +985,10 @@ TclpFinalizeCondition(
 
     if (winCondPtr != NULL) {
 	DeleteCriticalSection(&winCondPtr->condLock);
-	ckfree(winCondPtr);
+	Tcl_Free(winCondPtr);
 	*condPtr = NULL;
     }
 }
-
-
-
 
 /*
  * Additions by AOL for specialized thread memory allocator.
@@ -940,14 +998,14 @@ TclpFinalizeCondition(
 Tcl_Mutex *
 TclpNewAllocMutex(void)
 {
-    struct allocMutex *lockPtr;
+    allocMutex *lockPtr;
 
-    lockPtr = (struct allocMutex *)malloc(sizeof(struct allocMutex));
+    lockPtr = (allocMutex *)malloc(sizeof(allocMutex));
     if (lockPtr == NULL) {
 	Tcl_Panic("could not allocate lock");
     }
-    lockPtr->tlock = (Tcl_Mutex) &lockPtr->wlock;
-    InitializeCriticalSection(&lockPtr->wlock);
+    lockPtr->tlock = (Tcl_Mutex)&lockPtr->wm;
+    WMutexInit(&lockPtr->wm);
     return &lockPtr->tlock;
 }
 
@@ -957,31 +1015,32 @@ TclpFreeAllocMutex(
 {
     allocMutex *lockPtr = (allocMutex *) mutex;
 
-    if (!lockPtr) {
+    if (!lockPtr || !lockPtr->tlock) {
 	return;
     }
-    DeleteCriticalSection(&lockPtr->wlock);
+    lockPtr->tlock = NULL;
+    WMutexDestroy(&lockPtr->wm);
     free(lockPtr);
+}
+
+void
+TclpInitAllocCache(void)
+{
+    /*
+     * We need to make sure that TclpFreeAllocCache is called on each
+     * thread that calls this, but only on threads that call this.
+     */
+
+    tlsKey = TlsAlloc();
+    if (tlsKey == TLS_OUT_OF_INDEXES) {
+	Tcl_Panic("could not allocate thread local storage");
+    }
 }
 
 void *
 TclpGetAllocCache(void)
 {
     void *result;
-
-    if (!once) {
-	/*
-	 * We need to make sure that TclpFreeAllocCache is called on each
-	 * thread that calls this, but only on threads that call this.
-	 */
-
-	tlsKey = TlsAlloc();
-	once = 1;
-	if (tlsKey == TLS_OUT_OF_INDEXES) {
-	    Tcl_Panic("could not allocate thread local storage");
-	}
-    }
-
     result = TlsGetValue(tlsKey);
     if ((result == NULL) && (GetLastError() != NO_ERROR)) {
 	Tcl_Panic("TlsGetValue failed from TclpGetAllocCache");
@@ -1019,7 +1078,7 @@ TclpFreeAllocCache(
 	if (!success) {
 	    Tcl_Panic("TlsSetValue failed from TclpFreeAllocCache");
 	}
-    } else if (once) {
+    } else {
 	/*
 	 * Called by us in TclFinalizeThreadAlloc() during the library
 	 * finalization initiated from Tcl_Finalize()
@@ -1029,19 +1088,16 @@ TclpFreeAllocCache(
 	if (!success) {
 	    Tcl_Panic("TlsFree failed from TclpFreeAllocCache");
 	}
-	once = 0; /* reset for next time. */
     }
-
 }
 #endif /* USE_THREAD_ALLOC */
-
 
 void *
 TclpThreadCreateKey(void)
 {
     DWORD *key;
 
-    key = (DWORD *)TclpSysAlloc(sizeof *key, 0);
+    key = (DWORD *)TclpSysAlloc(sizeof *key);
     if (key == NULL) {
 	Tcl_Panic("unable to allocate thread key!");
     }

@@ -3,8 +3,8 @@
  *
  *	Contains the Windows-specific interpreter initialization functions.
  *
- * Copyright (c) 1994-1997 Sun Microsystems, Inc.
- * Copyright (c) 1998-1999 Scriptics Corporation.
+ * Copyright © 1994-1997 Sun Microsystems, Inc.
+ * Copyright © 1998-1999 Scriptics Corporation.
  * All rights reserved.
  *
  * See the file "license.terms" for information on usage and redistribution of
@@ -15,6 +15,9 @@
 #include <winnt.h>
 #include <winbase.h>
 #include <lmcons.h>
+#if defined (__clang__) && (__clang_major__ > 20)
+#pragma clang diagnostic ignored "-Wc++-keyword"
+#endif
 
 /*
  * GetUserNameW() is found in advapi32.dll
@@ -36,11 +39,6 @@ typedef struct {
 } OemId;
 
 /*
- * Windows version dependend functions
- */
-TclWinProcs tclWinProcs;
-
-/*
  * The following arrays contain the human readable strings for the
  * processor values.
  */
@@ -48,23 +46,150 @@ TclWinProcs tclWinProcs;
 #define NUMPROCESSORS 15
 static const char *const processors[NUMPROCESSORS] = {
     "intel", "mips", "alpha", "ppc", "shx", "arm", "ia64", "alpha64", "msil",
-    "amd64", "ia32_on_win64", "neutral", "arm64", "arm32_on_win64", "ia32_on_arm64"
+    "amd64", "ia32_on_win64", "neutral", "arm64", "arm32_on_win64",
+    "ia32_on_arm64"
 };
+
+/*
+ * Forward declarations
+ */
+
+static TclInitProcessGlobalValueProc	InitializeDefaultLibraryDir;
+static TclInitProcessGlobalValueProc	InitializeSourceLibraryDir;
+static void		AppendEnvironment(Tcl_Obj *listPtr, const char *lib);
 
 /*
  * The default directory in which the init.tcl file is expected to be found.
  */
 
-static TclInitProcessGlobalValueProc	InitializeDefaultLibraryDir;
 static ProcessGlobalValue defaultLibraryDir =
 	{0, 0, NULL, NULL, InitializeDefaultLibraryDir, NULL, NULL};
-
-static TclInitProcessGlobalValueProc	InitializeSourceLibraryDir;
 static ProcessGlobalValue sourceLibraryDir =
 	{0, 0, NULL, NULL, InitializeSourceLibraryDir, NULL, NULL};
 
-static void		AppendEnvironment(Tcl_Obj *listPtr, const char *lib);
 
+/*
+ * TclpGetWindowsVersionOnce --
+ *
+ *	Callback to retrieve Windows version information. To be invoked only
+ *	through InitOnceExecuteOnce for thread safety.
+ *
+ * Results:
+ *	None.
+ */
+static BOOL CALLBACK TclpGetWindowsVersionOnce(
+    TCL_UNUSED(PINIT_ONCE),
+    TCL_UNUSED(PVOID),
+    PVOID *lpContext)
+{
+    typedef int(__stdcall getVersionProc)(void *);
+    static OSVERSIONINFOW osInfo;
+
+    /*
+     * GetVersionExW will not return the "real" Windows version so use
+     * RtlGetVersion if available and falling back.
+     */
+    HMODULE handle = GetModuleHandleW(L"NTDLL");
+    getVersionProc *getVersion =
+	(getVersionProc *)(void *)GetProcAddress(handle, "RtlGetVersion");
+
+    osInfo.dwOSVersionInfoSize = sizeof(OSVERSIONINFOW);
+    if (getVersion == NULL || getVersion(&osInfo)) {
+	if (!GetVersionExW(&osInfo)) {
+	    /* Should never happen but ...*/
+	    return FALSE;
+	}
+    }
+    *lpContext = (LPVOID)&osInfo;
+    return TRUE;
+}
+
+/*
+ * TclpGetWindowsVersion --
+ *
+ *	Returns a pointer to the OSVERSIONINFOW structure containing the
+ *	version information for the current Windows version.
+ *
+ * Results:
+ *	Pointer to OSVERSIONINFOW structure.
+ */
+static const OSVERSIONINFOW *TclpGetWindowsVersion(void)
+{
+    static INIT_ONCE osInfoOnce = INIT_ONCE_STATIC_INIT;
+    OSVERSIONINFOW *osInfoPtr = NULL;
+    BOOL result = InitOnceExecuteOnce(
+	&osInfoOnce, TclpGetWindowsVersionOnce, NULL, (LPVOID *)&osInfoPtr);
+    return result ? osInfoPtr : NULL;
+}
+
+/*
+ * TclpGetCodePageOnce --
+ *
+ *	Callback to retrieve user code page. To be invoked only
+ *	through InitOnceExecuteOnce for thread safety.
+ *
+ * Results:
+ *	None.
+ */
+static BOOL CALLBACK
+TclpGetCodePageOnce(
+    TCL_UNUSED(PINIT_ONCE),
+    TCL_UNUSED(PVOID),
+    PVOID *lpContext)
+{
+    static char codePage[20];
+    codePage[0] = 'c';
+    codePage[1] = 'p';
+    DWORD size = sizeof(codePage) - 2;
+
+    /*
+     * When retrieving code page from registry,
+     *  - use ANSI API's since all values will be ASCII and saves conversion
+     *  - use RegGetValue, not RegQueryValueEx, since the latter does not
+     *    guarantee the value is null terminated
+     *  - added bonus, RegGetValue is much more convenient to use
+     */
+    if (RegGetValueA(HKEY_LOCAL_MACHINE,
+	    "SYSTEM\\CurrentControlSet\\Control\\Nls\\CodePage",
+	    "ACP", RRF_RT_REG_SZ, NULL, codePage+2,
+	    &size) != ERROR_SUCCESS) {
+	/* On failure, fallback to GetACP() */
+	UINT acp = GetACP();
+	snprintf(codePage, sizeof(codePage), "cp%u", acp);
+    }
+    if (strcmp(codePage, "cp65001") == 0) {
+	strcpy(codePage, "utf-8");
+    }
+    *lpContext = (LPVOID)&codePage[0];
+    return TRUE;
+}
+
+/*
+ * TclpGetCodePage --
+ *
+ *  Returns a pointer to the string identifying the user code page.
+ *
+ *  For consistency with Windows, which caches the code page at program
+ *  startup, the code page is not updated even if the value in the registry
+ *  changes. (This is similar to environment variables.)
+ */
+static const char *
+TclpGetCodePage(void)
+{
+    static INIT_ONCE codePageOnce = INIT_ONCE_STATIC_INIT;
+    const char *codePagePtr = NULL;
+    BOOL result = InitOnceExecuteOnce(
+	&codePageOnce, TclpGetCodePageOnce, NULL, (LPVOID *)&codePagePtr);
+#ifdef NDEBUG
+    (void) result; /* Keep gcc unused variable quiet */
+#else
+    assert(result == TRUE);
+#endif
+    assert(codePagePtr != NULL);
+    return codePagePtr;
+}
+
+
 /*
  *---------------------------------------------------------------------------
  *
@@ -89,7 +214,6 @@ TclpInitPlatform(void)
 {
     WSADATA wsaData;
     WORD wVersionRequested = MAKEWORD(2, 2);
-    HMODULE handle;
 
     tclPlatform = TCL_PLATFORM_WINDOWS;
 
@@ -109,18 +233,10 @@ TclpInitPlatform(void)
     TclWinInit(GetModuleHandleW(NULL));
 #endif
 
-    /*
-     * Fill available functions depending on windows version
-     */
-    handle = GetModuleHandleW(L"KERNEL32");
-    tclWinProcs.cancelSynchronousIo =
-	    (BOOL (WINAPI *)(HANDLE))(void *)GetProcAddress(handle,
-	    "CancelSynchronousIo");
-    tclWinProcs.createSymbolicLink =
-	    (BOOLEAN (WINAPI *)(LPCWSTR, LPCWSTR, DWORD))(void *)GetProcAddress(handle,
-	    "CreateSymbolicLinkW");
+    /* Initialize code page once at startup, will not be updated */
+    (void)TclpGetCodePage();
 }
-
+
 /*
  *-------------------------------------------------------------------------
  *
@@ -141,13 +257,14 @@ TclpInitPlatform(void)
 void
 TclpInitLibraryPath(
     char **valuePtr,
-    int *lengthPtr,
+    size_t *lengthPtr,
     Tcl_Encoding *encodingPtr)
 {
 #define LIBRARY_SIZE	    64
     Tcl_Obj *pathPtr;
     char installLib[LIBRARY_SIZE];
     const char *bytes;
+    Tcl_Size length;
 
     TclNewObj(pathPtr);
 
@@ -183,9 +300,10 @@ TclpInitLibraryPath(
 	    TclGetProcessGlobalValue(&sourceLibraryDir));
 
     *encodingPtr = NULL;
-    bytes = Tcl_GetStringFromObj(pathPtr, lengthPtr);
-    *valuePtr = (char *)ckalloc(*lengthPtr + 1);
-    memcpy(*valuePtr, bytes, *lengthPtr + 1);
+    bytes = TclGetStringFromObj(pathPtr, &length);
+    *lengthPtr = length++;
+    *valuePtr = (char *)Tcl_Alloc(length);
+    memcpy(*valuePtr, bytes, length);
     Tcl_DecrRefCount(pathPtr);
 }
 
@@ -196,8 +314,8 @@ TclpInitLibraryPath(
  *
  *	Append the value of the TCL_LIBRARY environment variable onto the path
  *	pointer. If the env variable points to another version of tcl (e.g.
- *	"tcl7.6") also append the path to this version (e.g.,
- *	"tcl7.6/../tcl8.2")
+ *	"tcl8.6") also append the path to this version (e.g.,
+ *	"tcl8.6/../tcl9.0")
  *
  * Results:
  *	None.
@@ -213,8 +331,9 @@ AppendEnvironment(
     Tcl_Obj *pathPtr,
     const char *lib)
 {
-    int pathc;
+    Tcl_Size pathc;
     WCHAR wBuf[MAX_PATH];
+    DWORD dw;
     char buf[MAX_PATH * 3];
     Tcl_Obj *objPtr;
     Tcl_DString ds;
@@ -223,7 +342,7 @@ AppendEnvironment(
 
     /*
      * The shortlib value needs to be the tail component of the lib path. For
-     * example, "lib/tcl8.4" -> "tcl8.4" while "usr/share/tcl8.5" -> "tcl8.5".
+     * example, "lib/tcl9.0" -> "tcl9.0" while "usr/share/tcl9.0" -> "tcl9.0".
      */
 
     for (shortlib = (char *) &lib[strlen(lib)-1]; shortlib>lib ; shortlib--) {
@@ -239,16 +358,17 @@ AppendEnvironment(
 	Tcl_Panic("no '/' character found in lib");
     }
 
-    /*
-     * The "L" preceding the TCL_LIBRARY string is used to tell VC++ that
-     * this is a Unicode string.
-     */
-
-    GetEnvironmentVariableW(L"TCL_LIBRARY", wBuf, MAX_PATH);
-    WideCharToMultiByte(CP_UTF8, 0, wBuf, -1, buf, MAX_PATH * 3, NULL, NULL);
+    dw = GetEnvironmentVariableW(L"TCL_LIBRARY", wBuf, MAX_PATH);
+    if (dw <= 0 || dw >= MAX_PATH) {
+	return;
+    }
+    if (WideCharToMultiByte(
+	    CP_UTF8, 0, wBuf, -1, buf, MAX_PATH * 3, NULL, NULL) == 0) {
+	return;
+    }
 
     if (buf[0] != '\0') {
-	objPtr = Tcl_NewStringObj(buf, -1);
+	objPtr = Tcl_NewStringObj(buf, TCL_INDEX_NONE);
 	Tcl_ListObjAppendElement(NULL, pathPtr, objPtr);
 
 	TclWinNoBackslash(buf);
@@ -270,12 +390,12 @@ AppendEnvironment(
 	    pathv[pathc - 1] = shortlib;
 	    Tcl_DStringInit(&ds);
 	    (void) Tcl_JoinPath(pathc, pathv, &ds);
-	    objPtr = TclDStringToObj(&ds);
+	    objPtr = Tcl_DStringToObj(&ds);
 	} else {
-	    objPtr = Tcl_NewStringObj(buf, -1);
+	    objPtr = Tcl_NewStringObj(buf, TCL_INDEX_NONE);
 	}
 	Tcl_ListObjAppendElement(NULL, pathPtr, objPtr);
-	ckfree(pathv);
+	Tcl_Free((void *)pathv);
     }
 }
 
@@ -299,10 +419,10 @@ AppendEnvironment(
 static void
 InitializeDefaultLibraryDir(
     char **valuePtr,
-    int *lengthPtr,
+    size_t *lengthPtr,
     Tcl_Encoding *encodingPtr)
 {
-    HMODULE hModule = TclWinGetTclInstance();
+    HMODULE hModule = (HMODULE)TclWinGetTclInstance();
     WCHAR wName[MAX_PATH + LIBRARY_SIZE];
     char name[(MAX_PATH + LIBRARY_SIZE) * 3];
     char *end, *p;
@@ -321,7 +441,7 @@ InitializeDefaultLibraryDir(
     TclWinNoBackslash(name);
     snprintf(end + 1, LIBRARY_SIZE, "lib/tcl%s", TCL_VERSION);
     *lengthPtr = strlen(name);
-    *valuePtr = (char *)ckalloc(*lengthPtr + 1);
+    *valuePtr = (char *)Tcl_Alloc(*lengthPtr + 1);
     *encodingPtr = NULL;
     memcpy(*valuePtr, name, *lengthPtr + 1);
 }
@@ -347,10 +467,10 @@ InitializeDefaultLibraryDir(
 static void
 InitializeSourceLibraryDir(
     char **valuePtr,
-    int *lengthPtr,
+    size_t *lengthPtr,
     Tcl_Encoding *encodingPtr)
 {
-    HMODULE hModule = TclWinGetTclInstance();
+    HMODULE hModule = (HMODULE)TclWinGetTclInstance();
     WCHAR wName[MAX_PATH + LIBRARY_SIZE];
     char name[(MAX_PATH + LIBRARY_SIZE) * 3];
     char *end, *p;
@@ -369,7 +489,7 @@ InitializeSourceLibraryDir(
     TclWinNoBackslash(name);
     snprintf(end + 1, LIBRARY_SIZE, "../library");
     *lengthPtr = strlen(name);
-    *valuePtr = (char *)ckalloc(*lengthPtr + 1);
+    *valuePtr = (char *)Tcl_Alloc(*lengthPtr + 1);
     *encodingPtr = NULL;
     memcpy(*valuePtr, name, *lengthPtr + 1);
 }
@@ -408,29 +528,33 @@ TclpSetInitialEncodings(void)
     Tcl_DStringFree(&encodingName);
 }
 
-void TclWinSetInterfaces(
-    int dummy)			/* Not used. */
+const char *
+Tcl_GetEncodingNameForUser(
+    Tcl_DString *bufPtr)
 {
-    (void)dummy;
+    Tcl_DStringInit(bufPtr);
+    Tcl_DStringAppend(bufPtr, TclpGetCodePage(), -1);
+    return Tcl_DStringValue(bufPtr);
 }
 
 const char *
 Tcl_GetEncodingNameFromEnvironment(
     Tcl_DString *bufPtr)
 {
-    UINT acp = GetACP();
-
-    Tcl_DStringInit(bufPtr);
-    if (acp == CP_UTF8) {
+    const OSVERSIONINFOW *osInfoPtr = TclpGetWindowsVersion();
+    /*
+     * TIP 716 - for Build 18362 or higher, force utf-8. Note Windows build
+     * numbers always increase, so no need to check major / minor versions.
+     */
+    if (osInfoPtr && osInfoPtr->dwBuildNumber >= 18362) {
+	Tcl_DStringInit(bufPtr);
 	Tcl_DStringAppend(bufPtr, "utf-8", 5);
+	return Tcl_DStringValue(bufPtr);
     } else {
-	Tcl_DStringSetLength(bufPtr, 2+TCL_INTEGER_SPACE);
-	snprintf(Tcl_DStringValue(bufPtr), 2+TCL_INTEGER_SPACE, "cp%d", GetACP());
-	Tcl_DStringSetLength(bufPtr, strlen(Tcl_DStringValue(bufPtr)));
+	return Tcl_GetEncodingNameForUser(bufPtr);
     }
-    return Tcl_DStringValue(bufPtr);
 }
-
+
 const char *
 TclpGetUserName(
     Tcl_DString *bufferPtr)	/* Uninitialized or free DString filled with
@@ -446,12 +570,12 @@ TclpGetUserName(
 	    return NULL;
 	}
 	cchUserNameLen--;
-	cchUserNameLen *= sizeof(WCHAR);
-	Tcl_WinTCharToUtf((TCHAR *)szUserName, cchUserNameLen, bufferPtr);
+	Tcl_DStringInit(bufferPtr);
+	Tcl_WCharToUtfDString(szUserName, cchUserNameLen, bufferPtr);
     }
     return Tcl_DStringValue(bufferPtr);
 }
-
+
 /*
  *---------------------------------------------------------------------------
  *
@@ -473,6 +597,7 @@ void
 TclpSetVariables(
     Tcl_Interp *interp)		/* Interp to initialize. */
 {
+    typedef int(__stdcall getVersionProc)(void *);
     const char *ptr;
     char buffer[TCL_INTEGER_SPACE * 2];
     union {
@@ -488,10 +613,11 @@ TclpSetVariables(
 
     if (!osInfoInitialized) {
 	HMODULE handle = GetModuleHandleW(L"NTDLL");
-	int(__stdcall *getversion)(void *) =
-		(int(__stdcall *)(void *))(void *)GetProcAddress(handle, "RtlGetVersion");
+	getVersionProc *getVersion = (getVersionProc *) (void *)
+		GetProcAddress(handle, "RtlGetVersion");
+
 	osInfo.dwOSVersionInfoSize = sizeof(OSVERSIONINFOW);
-	if (!getversion || getversion(&osInfo)) {
+	if (!getVersion || getVersion(&osInfo)) {
 	    GetVersionExW(&osInfo);
 	}
 	osInfoInitialized = 1;
@@ -504,31 +630,18 @@ TclpSetVariables(
 
     Tcl_SetVar2(interp, "tcl_platform", "platform", "windows",
 	    TCL_GLOBAL_ONLY);
-    Tcl_SetVar2(interp, "tcl_platform", "os",
-	    "Windows NT", TCL_GLOBAL_ONLY);
+    Tcl_SetVar2(interp, "tcl_platform", "os", "Windows NT", TCL_GLOBAL_ONLY);
     if (osInfo.dwMajorVersion == 10 && osInfo.dwBuildNumber >= 22000) {
 	osInfo.dwMajorVersion = 11;
     }
-    snprintf(buffer, sizeof(buffer), "%ld.%ld", osInfo.dwMajorVersion, osInfo.dwMinorVersion);
+    snprintf(buffer, sizeof(buffer), "%ld.%ld",
+	    osInfo.dwMajorVersion, osInfo.dwMinorVersion);
     Tcl_SetVar2(interp, "tcl_platform", "osVersion", buffer, TCL_GLOBAL_ONLY);
     if (sys.oemId.wProcessorArchitecture < NUMPROCESSORS) {
 	Tcl_SetVar2(interp, "tcl_platform", "machine",
 		processors[sys.oemId.wProcessorArchitecture],
 		TCL_GLOBAL_ONLY);
     }
-
-#ifndef NDEBUG
-    /*
-     * The existence of the "debug" element of the tcl_platform array
-     * indicates that this particular Tcl shell has been compiled with debug
-     * information. Using "info exists tcl_platform(debug)" a Tcl script can
-     * direct the interpreter to load debug versions of DLLs with the load
-     * command.
-     */
-
-    Tcl_SetVar2(interp, "tcl_platform", "debug", "1",
-	    TCL_GLOBAL_ONLY);
-#endif
 
     /*
      * Set up the HOME environment variable from the HOMEDRIVE & HOMEPATH
@@ -540,24 +653,24 @@ TclpSetVariables(
     if (ptr == NULL) {
 	ptr = Tcl_GetVar2(interp, "env", "HOMEDRIVE", TCL_GLOBAL_ONLY);
 	if (ptr != NULL) {
-	    Tcl_DStringAppend(&ds, ptr, -1);
+	    Tcl_DStringAppend(&ds, ptr, TCL_INDEX_NONE);
 	}
 	ptr = Tcl_GetVar2(interp, "env", "HOMEPATH", TCL_GLOBAL_ONLY);
 	if (ptr != NULL) {
-	    Tcl_DStringAppend(&ds, ptr, -1);
+	    Tcl_DStringAppend(&ds, ptr, TCL_INDEX_NONE);
 	}
 	if (Tcl_DStringLength(&ds) > 0) {
 	    Tcl_SetVar2(interp, "env", "HOME", Tcl_DStringValue(&ds),
 		    TCL_GLOBAL_ONLY);
 	} else {
-            /* None of HOME, HOMEDRIVE, HOMEPATH exists. Try USERPROFILE */
-            ptr = Tcl_GetVar2(interp, "env", "USERPROFILE", TCL_GLOBAL_ONLY);
-            if (ptr != NULL && ptr[0]) {
-                Tcl_SetVar2(interp, "env", "HOME", ptr, TCL_GLOBAL_ONLY);
-            } else {
-                /* Last resort */
-                Tcl_SetVar2(interp, "env", "HOME", "c:\\", TCL_GLOBAL_ONLY);
-            }
+	    /* None of HOME, HOMEDRIVE, HOMEPATH exists. Try USERPROFILE */
+	    ptr = Tcl_GetVar2(interp, "env", "USERPROFILE", TCL_GLOBAL_ONLY);
+	    if (ptr != NULL && ptr[0]) {
+		Tcl_SetVar2(interp, "env", "HOME", ptr, TCL_GLOBAL_ONLY);
+	    } else {
+		/* Last resort */
+		Tcl_SetVar2(interp, "env", "HOME", "c:\\", TCL_GLOBAL_ONLY);
+	    }
 	}
     }
 
@@ -576,7 +689,7 @@ TclpSetVariables(
      * Define what the platform PATH separator is. [TIP #315]
      */
 
-    Tcl_SetVar2(interp, "tcl_platform","pathSeparator", ";", TCL_GLOBAL_ONLY);
+    Tcl_SetVar2(interp, "tcl_platform", "pathSeparator", ";", TCL_GLOBAL_ONLY);
 }
 
 /*
@@ -589,9 +702,10 @@ TclpSetVariables(
  *
  * Results:
  *	The return value is the index in environ of an entry with the name
- *	"name", or -1 if there is no such entry. The integer at *lengthPtr is
- *	filled in with the length of name (if a matching entry is found) or
- *	the length of the environ array (if no matching entry is found).
+ *	"name", or -1 if there is no such entry. The integer
+ *	at *lengthPtr is filled in with the length of name (if a matching
+ *	entry is found) or the length of the environ array (if no
+ *	matching entry is found).
  *
  * Side effects:
  *	None.
@@ -599,16 +713,16 @@ TclpSetVariables(
  *----------------------------------------------------------------------
  */
 
-int
+Tcl_Size
 TclpFindVariable(
     const char *name,		/* Name of desired environment variable
 				 * (UTF-8). */
-    int *lengthPtr)		/* Used to return length of name (for
+    Tcl_Size *lengthPtr)	/* Used to return length of name (for
 				 * successful searches) or number of non-NULL
 				 * entries in environ (for unsuccessful
 				 * searches). */
 {
-    int i, length, result = -1;
+    Tcl_Size i, length, result = TCL_INDEX_NONE;
     const WCHAR *env;
     const char *p1, *p2;
     char *envUpper, *nameUpper;
@@ -619,26 +733,25 @@ TclpFindVariable(
      */
 
     length = strlen(name);
-    nameUpper = (char *)ckalloc(length + 1);
+    nameUpper = (char *)Tcl_Alloc(length + 1);
     memcpy(nameUpper, name, length+1);
     Tcl_UtfToUpper(nameUpper);
 
     Tcl_DStringInit(&envString);
-    for (i = 0, env = _wenviron[i];
-	env != NULL;
-	i++, env = _wenviron[i]) {
+    for (i = 0, env = _wenviron[i]; env != NULL; i++, env = _wenviron[i]) {
 	/*
 	 * Chop the env string off after the equal sign, then Convert the name
 	 * to all upper case, so we do not have to convert all the characters
 	 * after the equal sign.
 	 */
 
-	envUpper = Tcl_WinTCharToUtf((TCHAR *)env, -1, &envString);
+	Tcl_DStringInit(&envString);
+	envUpper = Tcl_WCharToUtfDString(env, TCL_INDEX_NONE, &envString);
 	p1 = strchr(envUpper, '=');
 	if (p1 == NULL) {
 	    continue;
 	}
-	length = (int) (p1 - envUpper);
+	length = p1 - envUpper;
 	Tcl_DStringSetLength(&envString, length+1);
 	Tcl_UtfToUpper(envUpper);
 
@@ -660,7 +773,7 @@ TclpFindVariable(
 
   done:
     Tcl_DStringFree(&envString);
-    ckfree(nameUpper);
+    Tcl_Free(nameUpper);
     return result;
 }
 

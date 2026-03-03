@@ -104,7 +104,7 @@ PROJECT			:= tcl
 PRODUCT_NAME		:= Tcl
 
 UNIX_DIR		:= ${CURDIR}/../unix
-VERSION			:= $(shell awk -F= '/^TCL_VERSION/ {print $$2; nextfile}' ${UNIX_DIR}/configure.in)
+VERSION			:= $(shell awk -F= '/^TCL_VERSION/ {print $$2; nextfile}' ${UNIX_DIR}/configure.ac)
 TCLSH			:= tclsh${VERSION}
 
 BUILD_TARGET		:= all tcltest
@@ -144,7 +144,7 @@ ${objdir}/Makefile: ${UNIX_DIR}/Makefile.in ${UNIX_DIR}/configure \
 	mkdir -p "${OBJ_DIR}" && cd "${OBJ_DIR}" && \
 	if [ ${UNIX_DIR}/configure -nt config.status ]; then ${UNIX_DIR}/configure -C \
 	--prefix="${PREFIX}" --bindir="${BINDIR}" --libdir="${LIBDIR}" \
-	--mandir="${MANDIR}" --enable-threads --enable-framework --enable-dtrace \
+	--mandir="${MANDIR}" --enable-framework --enable-dtrace --disable-zipfs \
 	${CONFIGURE_ARGS} ${EXTRA_CONFIGURE_ARGS}; else ./config.status; fi
 
 build-${PROJECT}: ${objdir}/Makefile

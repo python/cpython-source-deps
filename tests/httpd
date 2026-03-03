@@ -2,8 +2,8 @@
 #
 # The httpd_ procedures implement a stub http server.
 #
-# Copyright (c) 1997-1998 Sun Microsystems, Inc.
-# Copyright (c) 1999-2000 Scriptics Corporation
+# Copyright © 1997-1998 Sun Microsystems, Inc.
+# Copyright © 1999-2000 Scriptics Corporation
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -16,7 +16,12 @@
 set HOST localhost
 
 proc httpd_init {{port 8015}} {
-    socket -server httpdAccept $port
+    set s [socket -server httpdAccept $port]
+    # Save the actual port number in a global variable.
+    # This is important when we're called with port 0
+    # for picking an unused port at random.
+    set ::port [lindex [chan configure $s -sockname] 2]
+    return $s
 }
 proc httpd_log {args} {
     global httpLog
@@ -79,9 +84,9 @@ proc httpdRead { sock } {
 	# Read the HTTP headers
 
 	set readCount [gets $sock line]
-        if {[regexp {^([^:]+):(.*)$} $line -> key val]} {
-            lappend data(meta) $key [string trim $val]
-        }
+	if {[regexp {^([^:]+):(.*)$} $line -> key val]} {
+	    lappend data(meta) $key [string trim $val]
+	}
 
     } elseif {$data(state) == "query"} {
 
@@ -223,20 +228,20 @@ proc httpdRespond { sock } {
 	if {$data(proto) == "HEAD"} {
 	    puts $sock "HTTP/1.0 200 OK"
 	} else {
-            # Split the response to test for [Bug 26245326]
+	    # Split the response to test for [Bug 26245326]
 	    puts -nonewline $sock "HT"
-            flush $sock
-            puts $sock "TP/1.0 200 Data follows"
+	    flush $sock
+	    puts $sock "TP/1.0 200 Data follows"
 	}
 	puts $sock "Date: [clock format [clock seconds] \
-                              -format {%a, %d %b %Y %H:%M:%S %Z}]"
+			      -format {%a, %d %b %Y %H:%M:%S %Z}]"
 	puts $sock "Content-Type: $type"
 	puts $sock "Content-Length: [string length $html]"
-        foreach {key val} $data(meta) {
-            if {[string match "X-*" $key]} {
-                puts $sock "$key: $val"
-            }
-        }
+	foreach {key val} $data(meta) {
+	    if {[string match "X-*" $key]} {
+		puts $sock "$key: $val"
+	    }
+	}
 	puts $sock ""
 	flush $sock
 	if {$data(proto) != "HEAD"} {

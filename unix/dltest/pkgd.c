@@ -5,7 +5,7 @@
  *	testing the Tcl dynamic loading facilities. It can be used in both
  *	safe and unsafe interpreters.
  *
- * Copyright (c) 1995 Sun Microsystems, Inc.
+ * Copyright © 1995 Sun Microsystems, Inc.
  *
  * See the file "license.terms" for information on usage and redistribution of
  * this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -33,7 +33,7 @@
 
 static int
 Pkgd_SubObjCmd(
-    ClientData dummy,		/* Not used. */
+    void *dummy,		/* Not used. */
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj *const objv[])	/* Argument objects. */
@@ -72,7 +72,7 @@ Pkgd_SubObjCmd(
 
 static int
 Pkgd_UnsafeObjCmd(
-    ClientData dummy,		/* Not used. */
+    void *dummy,		/* Not used. */
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj *const objv[])	/* Argument objects. */
@@ -81,7 +81,7 @@ Pkgd_UnsafeObjCmd(
     (void)objc;
     (void)objv;
 
-    Tcl_SetObjResult(interp, Tcl_NewStringObj("unsafe command invoked", -1));
+    Tcl_SetObjResult(interp, Tcl_NewStringObj("unsafe command invoked", TCL_INDEX_NONE));
     return TCL_OK;
 }
 

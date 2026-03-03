@@ -2,9 +2,9 @@
  * tclPkgConfig.c --
  *
  *	This file contains the configuration information to embed into the tcl
- *	binary library.
+ *	library.
  *
- * Copyright (c) 2002 Andreas Kupries <andreas_kupries@users.sourceforge.net>
+ * Copyright © 2002 Andreas Kupries <andreas_kupries@users.sourceforge.net>
  *
  * See the file "license.terms" for information on usage and redistribution of
  * this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -22,7 +22,7 @@
  * - TCL_COMPILE_STATS		OSCMa bytecode compiler statistics.
  *
  * - TCL_CFG_DO64BIT		NSCMdt tcl is compiled for a 64bit system.
- * - NDEBUG		NSCMdt tcl is compiled with symbol info off.
+ * - NDEBUG			NSCMdt tcl is compiled with symbol info off.
  * - TCL_CFG_OPTIMIZED		NSCMdt tcl is compiled with cc optimizations on
  * - TCL_CFG_PROFILED		NSCMdt tcl is compiled with profiling info.
  *
@@ -36,11 +36,7 @@
 #include "tclInt.h"
 
 #ifndef TCL_CFGVAL_ENCODING
-#   ifdef _WIN32
-#	define TCL_CFGVAL_ENCODING "cp1252"
-#   else
-#	define TCL_CFGVAL_ENCODING "iso8859-1"
-#   endif
+#   define TCL_CFGVAL_ENCODING "utf-8"
 #endif
 
 /*
@@ -48,7 +44,7 @@
  * configuration information.
  */
 
-#ifdef TCL_THREADS
+#if TCL_THREADS
 #  define  CFG_THREADED		"1"
 #else
 #  define  CFG_THREADED		"0"
@@ -113,6 +109,9 @@ static Tcl_Config const cfg[] = {
     {"scriptdir,runtime",	CFG_RUNTIME_SCRDIR},
     {"includedir,runtime",	CFG_RUNTIME_INCDIR},
     {"docdir,runtime",		CFG_RUNTIME_DOCDIR},
+#if !defined(STATIC_BUILD)
+    {"dllfile,runtime",		CFG_RUNTIME_DLLFILE},
+#endif
 
     /* Installation paths to various stuff */
 

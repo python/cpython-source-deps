@@ -4,17 +4,21 @@
 # commands. Sourcing this file into Tcl runs the tests and generates output
 # for errors. No output means no errors were found.
 #
-# Copyright (c) 1991-1993 The Regents of the University of California.
-# Copyright (c) 1994 Sun Microsystems, Inc.
-# Copyright (c) 1998-1999 by Scriptics Corporation.
+# Copyright © 1991-1993 The Regents of the University of California.
+# Copyright © 1994 Sun Microsystems, Inc.
+# Copyright © 1998-1999 Scriptics Corporation.
 #
 # See the file "license.terms" for information on usage and redistribution of
 # this file, and for a DISCLAIMER OF ALL WARRANTIES.
 
-if {[catch {package require tcltest 2.1}]} {
-    puts stderr "Skipping tests in [info script]. tcltest 2.1 required."
-    return
+if {"::tcltest" ni [namespace children]} {
+    package require tcltest 2.5
+    namespace import -force ::tcltest::*
 }
+
+testConstraint noappverifier [expr {
+	[llength [info commands testappverifierpresent]] == 0
+	|| ![testappverifierpresent]}]
 
 namespace eval ::tcl::test::cmdMZ {
     namespace import ::tcltest::cleanupTests
@@ -25,9 +29,7 @@ namespace eval ::tcl::test::cmdMZ {
     namespace import ::tcltest::testConstraint
     namespace import ::tcltest::test
 
-    if {[namespace which -command ::tcl::unsupported::timerate] ne ""} {
-	namespace import ::tcl::unsupported::timerate
-    }
+    testConstraint memory [llength [info commands memory]]
 
     proc ListGlobMatch {expected actual} {
 	if {[llength $expected] != [llength $actual]} {
@@ -59,11 +61,11 @@ test cmdMZ-1.4 {Tcl_PwdObjCmd: failure} -setup {
     file delete -force $foodir
     file mkdir $foodir
     cd $foodir
-} -constraints {Unix nonPortable} -body {
+} -constraints {unix nonPortable} -body {
     # This test fails on various Unix platforms (eg Linux) where permissions
     # caching causes this to fail. The caching is strictly incorrect, but we
     # have no control over that.
-    file attr . -permissions 0o000
+    file attr . -permissions 0
     pwd
 } -returnCodes error -cleanup {
     cd $cwd
@@ -162,7 +164,7 @@ test cmdMZ-return-2.11 {return option handling} {
 } {3 {-code 3 -level 0}}
 test cmdMZ-return-2.12 {return option handling} -body {
     return -level 0 -code error -options {-code ok}
-} -returnCodes ok -result {}
+} -result {}
 test cmdMZ-return-2.13 {return option handling} -body {
     return -level 0 -code error -options {-code err}
 } -returnCodes error -match glob -result {bad completion code "err": must be ok, error, return, break, continue*, or an integer}
@@ -195,6 +197,19 @@ test cmdMZ-return-2.18 {return option handling} {
 	return -code error -errorstack [list CALL a CALL b] yo
     } -> foo] [dictSort $foo] [info errorstack]
 } {2 {-code 1 -errorcode NONE -errorstack {CALL a CALL b} -level 1} {CALL a CALL b}}
+test cmdMZ-return-2.19 {return option handling} -body {
+    return -level 0 -options {-options {-code break} -code continue}
+} -returnCodes continue -result {}
+test cmdMZ-return-2.20 {return option handling} {
+    list [catch {
+	return -level 0 -options {-foo 1} -options {-bar 2}
+    } -> foo] $foo
+} {0 {-foo 1 -bar 2 -code 0 -level 0}}
+test cmdMZ-return-2.21 {return option handling} {
+    list [catch {
+	return -level 0 -options {-options {-foo 1} -options {-bar 2}}
+    } -> foo] $foo
+} {0 {-foo 1 -bar 2 -code 0 -level 0}}
 
 # Check that the result of a [return -options $opts $result] is
 # indistinguishable from that of the originally caught script, no matter what
@@ -239,7 +254,7 @@ test cmdMZ-3.3 {Tcl_SourceObjCmd: error conditions} -constraints {
 test cmdMZ-3.4 {Tcl_SourceObjCmd: error conditions} -constraints {
     unixOrWin
 } -returnCodes error -body {
-    source a b
+    source a b c d e f
 } -match glob -result {wrong # args: should be "source*fileName"}
 test cmdMZ-3.5 {Tcl_SourceObjCmd: error in script} -body {
     set file [makeFile {
@@ -294,28 +309,28 @@ test cmdMZ-4.9 {Tcl_SplitObjCmd: basic split commands} {
 } {{} {} {} {}}
 test cmdMZ-4.10 {Tcl_SplitObjCmd: basic split commands} {
     apply {{} {
-        set x {}
-        foreach f [split {]\n} {}] {
-            append x $f
-        }
-        return $x
+	set x {}
+	foreach f [split {]\n} {}] {
+	    append x $f
+	}
+	return $x
     }}
 } {]\n}
 test cmdMZ-4.11 {Tcl_SplitObjCmd: basic split commands} {
     apply {{} {
-        set x ab\000c
-        set y [split $x {}]
+	set x ab\x00c
+	set y [split $x {}]
 	binary scan $y c* z
-        return $z
+	return $z
     }}
 } {97 32 98 32 0 32 99}
 test cmdMZ-4.12 {Tcl_SplitObjCmd: basic split commands} {
-    split "a0ab1b2bbb3\000c4" ab\000c
+    split "a0ab1b2bbb3\x00c4" ab\x00c
 } {{} 0 {} 1 2 {} {} 3 {} 4}
 test cmdMZ-4.13 {Tcl_SplitObjCmd: basic split commands} {
-    # if not UTF-8 aware, result is "a {} {} b qw\xe5 {} N wq"
-    split "a\u4e4eb qw\u5e4e\x4e wq" " \u4e4e"
-} "a b qw\u5e4eN wq"
+    # if not UTF-8 aware, result is "a {} {} b qwå {} N wq"
+    split "a乎b qw幎N wq" " 乎"
+} "a b qw幎N wq"
 
 # The tests for Tcl_StringObjCmd are in string.test
 # The tests for Tcl_SubstObjCmd are in subst.test
@@ -409,7 +424,10 @@ test cmdMZ-6.5a {Tcl_TimeRateObjCmd: result format and one iteration} {
 test cmdMZ-6.5b {Tcl_TimeRateObjCmd: result format without iterations} {
     regexp {^0 \ws/# 0 # 0 #/sec 0 net-ms$} [timerate {} 0 0]
 } 1
-test cmdMZ-6.6 {Tcl_TimeRateObjCmd: slower commands take longer, but it remains almost the same time of measurement} -body {
+test cmdMZ-6.6 {
+    Tcl_TimeRateObjCmd: slower commands take longer, but it
+    remains almost the same time of measurement
+} -constraints noappverifier -body {
     set m1 [timerate {_nrt_sleep 0.01} 50]
     set m2 [timerate {_nrt_sleep 1.00} 50]
     if {[testConstraint valgrind] && ([lindex $m1 0] >= 100 || [lindex $m1 2] <= 500)} {
@@ -489,6 +507,45 @@ test cmdMZ-6.12 {Tcl_TimeRateObjCmd: done optimization: nested call of self insi
     }
     list [lindex [timerate $m1 1000 5] 2] $x
 } {5 20}
+test cmdMZ-6.13 {Tcl_TimeRateObjCmd: stability by O(n**2), avoid long execution time on growing iteration time} {!memory} {
+    # don't run this test on memory-debug builds - it seems to be very time-consuming there,
+    # what may led to an unexpectedly high increase by such complexity and it'd fail...
+    set result {}
+    # test the function with quadratic complexity (iteration growth 2x, 10x, 100x):
+    foreach e {2 10 100} {
+	set x 1
+	set m1 [timerate {
+	    apply {x {
+		while {[incr x -1]} {}
+	    }} [set x [expr {$x*$e}]]
+	} 50]
+	lappend result "${e}x"
+	# check it was too slow (it is OK to use factor 10 to prevent sporadic
+	# errors on some slow systems or timing issues, because if it is not fixed,
+	# the execution time may grow hundreds and thousand times):
+	if {[lindex $m1 6] > 50 * 10} {
+	    lappend result "unexpected long: $m1"
+	}
+    }
+    set result
+} {2x 10x 100x}
+
+test cmdMZ-try-1.0 {
+
+    fix for issue 45b9faf103f2
+
+    [try] interaction with local variable names produces segmentation violation
+
+} -body {
+    ::apply {{} {
+	set cmd try
+	$cmd {
+	    lindex 5
+	} on ok res {}
+	set res
+    }}
+} -result 5
+
 
 # The tests for Tcl_WhileObjCmd are in while.test
 

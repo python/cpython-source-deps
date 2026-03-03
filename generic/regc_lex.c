@@ -2,7 +2,7 @@
  * lexical analyzer
  * This file is #included by regcomp.c.
  *
- * Copyright (c) 1998, 1999 Henry Spencer.  All rights reserved.
+ * Copyright © 1998, 1999 Henry Spencer.  All rights reserved.
  *
  * Development of this software was funded, in part, by Cray Research Inc.,
  * UUNET Communications Services Inc., Sun Microsystems Inc., and Scriptics
@@ -457,7 +457,7 @@ next(
 	    if (ATEOS()) {
 		FAILW(REG_EESCAPE);
 	    }
-	    (DISCARD)lexescape(v);
+	    (void)lexescape(v);
 	    switch (v->nexttype) {	/* not all escapes okay here */
 	    case PLAIN:
 		return 1;
@@ -716,7 +716,7 @@ next(
 	}
 	RETV(PLAIN, *v->now++);
     }
-    (DISCARD)lexescape(v);
+    (void)lexescape(v);
     if (ISERR()) {
 	FAILW(REG_EESCAPE);
     }
@@ -775,7 +775,7 @@ lexescape(
     NOTE(REG_UNONPOSIX);
     switch (c) {
     case CHR('a'):
-	RETV(PLAIN, chrnamed(v, alert, ENDOF(alert), CHR('\007')));
+	RETV(PLAIN, chrnamed(v, alert, ENDOF(alert), CHR('\x07')));
 	break;
     case CHR('A'):
 	RETV(SBEGIN, 0);
@@ -803,7 +803,7 @@ lexescape(
 	break;
     case CHR('e'):
 	NOTE(REG_UUNPORT);
-	RETV(PLAIN, chrnamed(v, esc, ENDOF(esc), CHR('\033')));
+	RETV(PLAIN, chrnamed(v, esc, ENDOF(esc), CHR('\x1B')));
 	break;
     case CHR('f'):
 	RETV(PLAIN, CHR('\f'));
@@ -842,11 +842,6 @@ lexescape(
 	i = lexdigits(v, 16, 1, 8);
 	if (ISERR()) {
 	    FAILW(REG_EESCAPE);
-	}
-	if (i > 0xFFFF) {
-	    /* TODO: output a Surrogate pair
-	     */
-	    i = 0xFFFD;
 	}
 	RETV(PLAIN, (uchr) i);
 	break;
@@ -894,7 +889,7 @@ lexescape(
 	 * Ugly heuristic (first test is "exactly 1 digit?")
 	 */
 
-	if (v->now - save == 0 || ((int) c > 0 && (int)c <= v->nsubexp)) {
+	if (v->now - save == 0 || ((int) c > 0 && (size_t)c <= v->nsubexp)) {
 	    NOTE(REG_UBACKREF);
 	    RETV(BACKREF, (chr)c);
 	}
@@ -1141,7 +1136,7 @@ skip(
 /*
  - newline - return the chr for a newline
  * This helps confine use of CHR to this source file.
- ^ static chr newline(NOPARMS);
+ ^ static chr newline(void);
  */
 static chr
 newline(void)

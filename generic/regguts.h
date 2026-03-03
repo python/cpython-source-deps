@@ -49,41 +49,15 @@
 #include <assert.h>
 #endif
 
-/* voids */
-#ifndef VOID
-#define	VOID	void		/* for function return values */
-#endif
-#ifndef DISCARD
-#define	DISCARD	void		/* for throwing values away */
-#endif
-#ifndef PVOID
-#define	PVOID	void *		/* generic pointer */
-#endif
-#ifndef VS
-#define	VS(x)	((void*)(x))	/* cast something to generic ptr */
-#endif
-#ifndef NOPARMS
-#define	NOPARMS	void		/* for empty parm lists */
-#endif
-
-/* function-pointer declarator */
-#ifndef FUNCPTR
-#if __STDC__ >= 1
-#define	FUNCPTR(name, args)	(*name)args
-#else
-#define	FUNCPTR(name, args)	(*name)()
-#endif
-#endif
-
 /* memory allocation */
 #ifndef MALLOC
 #define	MALLOC(n)	malloc(n)
 #endif
 #ifndef REALLOC
-#define	REALLOC(p, n)	realloc(VS(p), n)
+#define	REALLOC(p, n)	realloc(p, n)
 #endif
 #ifndef FREE
-#define	FREE(p)		free(VS(p))
+#define	FREE(p)		free(p)
 #endif
 
 /* want size of a char in bits, and max value in bounded quantifiers */
@@ -96,7 +70,6 @@
  */
 
 #define	NOTREACHED	0
-#define	xxx		1
 
 #define	DUPMAX	_POSIX2_RE_DUP_MAX
 #define	DUPINF	(DUPMAX+1)
@@ -230,11 +203,11 @@ struct colormap {
 
 /* Representation of a set of characters. */
 struct cvec {
-    int nchrs;			/* number of chrs */
-    int chrspace;		/* number of chrs possible */
+    size_t nchrs;		/* number of chrs */
+    size_t chrspace;		/* number of chrs possible */
     chr *chrs;			/* pointer to vector of chrs */
-    int nranges;		/* number of ranges (chr pairs) */
-    int rangespace;		/* number of chrs possible */
+    size_t nranges;		/* number of ranges (chr pairs) */
+    size_t rangespace;		/* number of chrs possible */
     chr *ranges;		/* pointer to vector of chr pairs */
 };
 
@@ -269,19 +242,19 @@ struct arcbatch {		/* for bulk allocation of arcs */
 };
 
 struct state {
-    int no;
-#define	FREESTATE	(-1)
+    size_t no;
+#define	FREESTATE	((size_t)-1)
     char flag;			/* marks special states */
-    int nins;			/* number of inarcs */
+    size_t nins;		/* number of inarcs */
     struct arc *ins;		/* chain of inarcs */
-    int nouts;			/* number of outarcs */
+    size_t nouts;		/* number of outarcs */
     struct arc *outs;		/* chain of outarcs */
     struct arc *free;		/* chain of free arcs */
     struct state *tmp;		/* temporary for traversal algorithms */
     struct state *next;		/* chain for traversing all */
     struct state *prev;		/* back chain */
     struct arcbatch oas;	/* first arcbatch, avoid malloc in easy case */
-    int noas;			/* number of arcs used in first arcbatch */
+    size_t noas;		/* number of arcs used in first arcbatch */
 };
 
 struct nfa {
@@ -289,7 +262,7 @@ struct nfa {
     struct state *init;		/* initial state */
     struct state *final;	/* final state */
     struct state *post;		/* postfinal state */
-    int nstates;		/* for numbering states */
+    size_t nstates;		/* for numbering states */
     struct state *states;	/* state-chain header */
     struct state *slast;	/* tail of the chain */
     struct state *free;		/* free list */
@@ -317,16 +290,16 @@ struct nfa {
 
 struct carc {
     color co;			/* COLORLESS is list terminator */
-    int to;			/* next-state number */
+    size_t to;			/* next-state number */
 };
 
 struct cnfa {
-    int nstates;		/* number of states */
+    size_t nstates;	/* number of states */
     int ncolors;		/* number of colors */
     int flags;
 #define	HASLACONS	01	/* uses lookahead constraints */
-    int pre;			/* setup state number */
-    int post;			/* teardown state number */
+    size_t pre;			/* setup state number */
+    size_t post;			/* teardown state number */
     color bos[2];		/* colors, if any, assigned to BOS and BOL */
     color eos[2];		/* colors, if any, assigned to EOS and EOL */
     char *stflags;		/* vector of per-state flags bytes */
@@ -408,7 +381,7 @@ struct subre {
  */
 
 struct fns {
-    void FUNCPTR(free, (regex_t *));
+    void (*free) (regex_t *);
 };
 
 /*
@@ -423,11 +396,11 @@ struct guts {
     size_t nsub;		/* copy of re_nsub */
     struct subre *tree;
     struct cnfa search;		/* for fast preliminary search */
-    int ntree;			/* number of subre's, plus one */
+    size_t ntree;		/* number of subre's, plus one */
     struct colormap cmap;
-    int FUNCPTR(compare, (const chr *, const chr *, size_t));
+    int (*compare) (const chr *, const chr *, size_t);
     struct subre *lacons;	/* lookahead-constraint vector */
-    int nlacons;		/* size of lacons */
+    size_t nlacons;		/* size of lacons */
 };
 
 /*

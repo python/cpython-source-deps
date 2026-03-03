@@ -22,10 +22,13 @@
 #
 #----------------------------------------------------------------------
 #
-# Copyright (c) 2004 Kevin B. Kenny.  All rights reserved.
+# Copyright © 2004 Kevin B. Kenny.  All rights reserved.
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #----------------------------------------------------------------------
+
+puts stdout "TODO: output in UTF-8 in stead of using \\uhhhh sequences"
+exit; # Remove those two lines after modifying this tool.
 
 # Calculate the Chinese numerals from zero to ninety-nine.
 

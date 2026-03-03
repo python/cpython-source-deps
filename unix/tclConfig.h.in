@@ -7,14 +7,14 @@
 /* Is gettimeofday() actually declared in <sys/time.h>? */
 #undef GETTOD_NOT_DECLARED
 
-/* Define to 1 if you have the <AvailabilityMacros.h> header file. */
-#undef HAVE_AVAILABILITYMACROS_H
-
 /* Define to 1 if the system has the type 'blkcnt_t'. */
 #undef HAVE_BLKCNT_T
 
 /* Defined when compiler supports casting to union type. */
 #undef HAVE_CAST_TO_UNION
+
+/* Define to 1 if you have the 'cfmakeraw' function. */
+#undef HAVE_CFMAKERAW
 
 /* Define to 1 if you have the 'chflags' function. */
 #undef HAVE_CHFLAGS
@@ -41,6 +41,9 @@
 
 /* Is 'DIR64' in <sys/types.h>? */
 #undef HAVE_DIR64
+
+/* Is eventfd(2) supported? */
+#undef HAVE_EVENTFD
 
 /* Define to 1 if you have the 'freeaddrinfo' function. */
 #undef HAVE_FREEADDRINFO
@@ -126,7 +129,7 @@
 /* Compiler support for module scope symbols */
 #undef HAVE_HIDDEN
 
-/* Do we have the intptr_t type? */
+/* Define to 1 if the system has the type 'intptr_t'. */
 #undef HAVE_INTPTR_T
 
 /* Define to 1 if you have the <inttypes.h> header file. */
@@ -150,9 +153,6 @@
 /* Define to 1 if you have the 'mkstemps' function. */
 #undef HAVE_MKSTEMPS
 
-/* Define to 1 if you have the 'mktime' function. */
-#undef HAVE_MKTIME
-
 /* Do we have MT-safe gethostbyaddr() ? */
 #undef HAVE_MTSAFE_GETHOSTBYADDR
 
@@ -165,9 +165,6 @@
 /* Define to 1 if you have the 'open64' function. */
 #undef HAVE_OPEN64
 
-/* Define to 1 if you have the 'opendir' function. */
-#undef HAVE_OPENDIR
-
 /* Define to 1 if you have the 'OSSpinLockLock' function. */
 #undef HAVE_OSSPINLOCKLOCK
 
@@ -179,6 +176,9 @@
 
 /* Define to 1 if you have the 'posix_spawn_file_actions_adddup2' function. */
 #undef HAVE_POSIX_SPAWN_FILE_ACTIONS_ADDDUP2
+
+/* Should we use pselect()? */
+#undef HAVE_PSELECT
 
 /* Define to 1 if you have the 'pthread_atfork' function. */
 #undef HAVE_PTHREAD_ATFORK
@@ -207,9 +207,6 @@
 /* Define to 1 if you have the <string.h> header file. */
 #undef HAVE_STRING_H
 
-/* Define to 1 if you have the 'strtol' function. */
-#undef HAVE_STRTOL
-
 /* Define to 1 if the system has the type 'struct addrinfo'. */
 #undef HAVE_STRUCT_ADDRINFO
 
@@ -225,14 +222,23 @@
 /* Define to 1 if the system has the type 'struct sockaddr_storage'. */
 #undef HAVE_STRUCT_SOCKADDR_STORAGE
 
-/* Is 'struct stat64' in <sys/stat.h>? */
-#undef HAVE_STRUCT_STAT64
-
 /* Define to 1 if 'st_blksize' is a member of 'struct stat'. */
 #undef HAVE_STRUCT_STAT_ST_BLKSIZE
 
 /* Define to 1 if 'st_blocks' is a member of 'struct stat'. */
 #undef HAVE_STRUCT_STAT_ST_BLOCKS
+
+/* Define to 1 if 'st_rdev' is a member of 'struct stat'. */
+#undef HAVE_STRUCT_STAT_ST_RDEV
+
+/* Define to 1 if you have the <sys/epoll.h> header file. */
+#undef HAVE_SYS_EPOLL_H
+
+/* Define to 1 if you have the <sys/eventfd.h> header file. */
+#undef HAVE_SYS_EVENTFD_H
+
+/* Define to 1 if you have the <sys/event.h> header file. */
+#undef HAVE_SYS_EVENT_H
 
 /* Define to 1 if you have the <sys/filio.h> header file. */
 #undef HAVE_SYS_FILIO_H
@@ -273,7 +279,7 @@
 /* Is off64_t in <sys/types.h>? */
 #undef HAVE_TYPE_OFF64_T
 
-/* Do we have the uintptr_t type? */
+/* Define to 1 if the system has the type 'uintptr_t'. */
 #undef HAVE_UINTPTR_T
 
 /* Define to 1 if you have the <unistd.h> header file. */
@@ -287,9 +293,6 @@
 
 /* Is weak import available? */
 #undef HAVE_WEAK_IMPORT
-
-/* Is there an installed zlib? */
-#undef HAVE_ZLIB
 
 /* Is this a Mac I see before me? */
 #undef MAC_OSX_TCL
@@ -306,20 +309,20 @@
 /* Use compat implementation of getaddrinfo() and friends */
 #undef NEED_FAKE_RFC2553
 
+/* Is epoll(7) supported? */
+#undef NOTIFIER_EPOLL
+
+/* Is kqueue(2) supported? */
+#undef NOTIFIER_KQUEUE
+
 /* Is Darwin CoreFoundation unavailable for 64-bit? */
 #undef NO_COREFOUNDATION_64
-
-/* Do we have <dirent.h>? */
-#undef NO_DIRENT_H
 
 /* Do we have <dlfcn.h>? */
 #undef NO_DLFCN_H
 
 /* Do we have fd_set? */
 #undef NO_FD_SET
-
-/* Do we have <float.h>? */
-#undef NO_FLOAT_H
 
 /* Do we have fork() */
 #undef NO_FORK
@@ -333,26 +336,14 @@
 /* Do we have getwd() */
 #undef NO_GETWD
 
-/* Do we have a usable 'isnan'? */
-#undef NO_ISNAN
-
-/* Do we have memmove()? */
-#undef NO_MEMMOVE
-
 /* Do we have mknod() */
 #undef NO_MKNOD
 
 /* Do we have realpath() */
 #undef NO_REALPATH
 
-/* Do we have <stdlib.h>? */
-#undef NO_STDLIB_H
-
 /* Do we have strerror() */
 #undef NO_STRERROR
-
-/* Do we have <string.h>? */
-#undef NO_STRING_H
 
 /* Do we have <sys/wait.h>? */
 #undef NO_SYS_WAIT_H
@@ -365,9 +356,6 @@
 
 /* Do we have a usable 'union wait'? */
 #undef NO_UNION_WAIT
-
-/* Do we have <values.h>? */
-#undef NO_VALUES_H
 
 /* Do we have wait3() */
 #undef NO_WAIT3
@@ -413,9 +401,6 @@
 /* Are bytecode statistics enabled? */
 #undef TCL_COMPILE_STATS
 
-/* Are we to override what our default encoding is? */
-#undef TCL_DEFAULT_ENCODING
-
 /* Is Tcl built as a framework? */
 #undef TCL_FRAMEWORK
 
@@ -428,39 +413,29 @@
 /* What is the default extension for shared libraries? */
 #undef TCL_SHLIB_EXT
 
-/* Are we building with threads enabled? */
-#undef TCL_THREADS
-
 /* Do we allow unloading of shared libraries? */
 #undef TCL_UNLOAD_DLLS
 
 /* Does this platform have wide high-resolution clicks? */
 #undef TCL_WIDE_CLICKS
 
-/* Are wide integers to be implemented with C 'long's? */
+/* Do 'long' and 'long long' have the same size (64-bit)? */
 #undef TCL_WIDE_INT_IS_LONG
 
-/* What type should be used to define wide integers? */
-#undef TCL_WIDE_INT_TYPE
+/* Tcl with external libtommath */
+#undef TCL_WITH_EXTERNAL_TOMMATH
 
-/* Define to 1 if you can safely include both <sys/time.h> and <time.h>. This
-   macro is obsolete. */
-#undef TIME_WITH_SYS_TIME
+/* Tcl with internal zlib */
+#undef TCL_WITH_INTERNAL_ZLIB
 
 /* Is getcwd Posix-compliant? */
 #undef USEGETWD
-
-/* May we include <dirent2.h>? */
-#undef USE_DIRENT2_H
 
 /* Are we building with DTrace support? */
 #undef USE_DTRACE
 
 /* Should we use FIONBIO? */
 #undef USE_FIONBIO
-
-/* Do we want to use the threaded memory allocator? */
-#undef USE_THREAD_ALLOC
 
 /* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
    significant byte first (like Motorola and SPARC, unlike Intel). */
@@ -474,8 +449,14 @@
 # endif
 #endif
 
+/* Are we building with zipfs enabled? */
+#undef ZIPFS_BUILD
+
 /* Are Darwin SUSv3 extensions available? */
 #undef _DARWIN_C_SOURCE
+
+/* Add the _FILE_OFFSET_BITS flag when building */
+#undef _FILE_OFFSET_BITS
 
 /* Add the _ISOC99_SOURCE flag when building */
 #undef _ISOC99_SOURCE
@@ -494,6 +475,9 @@
 
 /* Do we want the thread-safe OS API? */
 #undef _THREAD_SAFE
+
+/* _TIME_BITS=64 enables 64-bit time_t. */
+#undef _TIME_BITS
 
 /* Do we want to use the XOPEN network library? */
 #undef _XOPEN_SOURCE
@@ -516,9 +500,6 @@
 #undef inline
 #endif
 
-/* Signed integer type wide enough to hold a pointer. */
-#undef intptr_t
-
 /* Define to 'int' if <sys/types.h> does not define. */
 #undef mode_t
 
@@ -533,9 +514,6 @@
 
 /* Define as 'int' if <sys/types.h> doesn't define. */
 #undef uid_t
-
-/* Unsigned integer type wide enough to hold a pointer. */
-#undef uintptr_t
 
 
     /* Undef unused package specific autoheader defines so that we can

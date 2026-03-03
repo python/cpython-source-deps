@@ -3,7 +3,7 @@
  *
  *	This file implements Unix specific event related routines.
  *
- * Copyright (c) 1997 Sun Microsystems, Inc.
+ * Copyright © 1997 Sun Microsystems, Inc.
  *
  * See the file "license.terms" for information on usage and redistribution of
  * this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -64,7 +64,7 @@ Tcl_Sleep(
 	}
 
 	if ((vdelay.sec != 0) || (vdelay.usec != 0)) {
-	    tclScaleTimeProcPtr(&vdelay, tclTimeClientData);
+	    TclScaleTime(&vdelay);
 	}
 
 	delay.tv_sec  = vdelay.sec;

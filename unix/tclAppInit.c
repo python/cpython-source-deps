@@ -12,17 +12,24 @@
  * this file, and for a DISCLAIMER OF ALL WARRANTIES.
  */
 
-#undef BUILD_tcl
-#undef STATIC_BUILD
 #include "tcl.h"
-#if TCL_MAJOR_VERSION < 9 && TCL_MINOR_VERSION < 7
+#if TCL_MAJOR_VERSION < 9
+#   if defined(USE_TCL_STUBS)
+#	error "Don't build with USE_TCL_STUBS!"
+#   endif
 #   define Tcl_LibraryInitProc Tcl_PackageInitProc
 #   define Tcl_StaticLibrary Tcl_StaticPackage
 #endif
 
 #ifdef TCL_TEST
+#ifdef __cplusplus
+extern "C" {
+#endif
 extern Tcl_LibraryInitProc Tcltest_Init;
 extern Tcl_LibraryInitProc Tcltest_SafeInit;
+#ifdef __cplusplus
+}
+#endif
 #endif /* TCL_TEST */
 
 #ifdef TCL_XT_TEST
@@ -83,8 +90,8 @@ main(
 
 #ifdef TCL_LOCAL_MAIN_HOOK
     TCL_LOCAL_MAIN_HOOK(&argc, &argv);
-#elif (TCL_MAJOR_VERSION > 8 || TCL_MINOR_VERSION > 6) && (!defined(_WIN32) || defined(UNICODE))
-    /* New in Tcl 8.7. This doesn't work on Windows without UNICODE */
+#elif TCL_MAJOR_VERSION > 8 && (!defined(_WIN32) || defined(UNICODE))
+    /* New in Tcl 9.0. This doesn't work on Windows without UNICODE */
     TclZipfs_AppHook(&argc, &argv);
 #endif
 
@@ -115,7 +122,7 @@ int
 Tcl_AppInit(
     Tcl_Interp *interp)		/* Interpreter for application. */
 {
-    if ((Tcl_Init)(interp) == TCL_ERROR) {
+    if (Tcl_Init(interp) == TCL_ERROR) {
 	return TCL_ERROR;
     }
 
@@ -145,7 +152,7 @@ Tcl_AppInit(
      */
 
     /*
-     * Call Tcl_CreateCommand for application-specific commands, if they
+     * Call Tcl_CreateObjCommand for application-specific commands, if they
      * weren't already created by the init procedures called above.
      */
 
@@ -155,15 +162,15 @@ Tcl_AppInit(
      * is the name of the application. If this line is deleted then no
      * user-specific startup file will be run under any conditions.
      */
-
 #ifdef DJGPP
-    (Tcl_ObjSetVar2)(interp, Tcl_NewStringObj("tcl_rcFileName", -1), NULL,
-	    Tcl_NewStringObj("~/tclsh.rc", -1), TCL_GLOBAL_ONLY);
+#define INITFILENAME "tclshrc.tcl"
 #else
-    (Tcl_ObjSetVar2)(interp, Tcl_NewStringObj("tcl_rcFileName", -1), NULL,
-	    Tcl_NewStringObj("~/.tclshrc", -1), TCL_GLOBAL_ONLY);
+#define INITFILENAME ".tclshrc"
 #endif
 
+    (void) Tcl_EvalEx(interp,
+	    "set tcl_rcFileName [file tildeexpand ~/" INITFILENAME "]",
+	    -1, TCL_EVAL_GLOBAL);
     return TCL_OK;
 }
 

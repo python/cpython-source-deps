@@ -32,42 +32,6 @@ typedef struct TCLEXCEPTION_REGISTRATION {
 #endif
 
 /*
- * Windows version dependend functions
- */
-typedef struct TclWinProcs {
-    BOOL (WINAPI *cancelSynchronousIo)(HANDLE);
-    BOOLEAN (WINAPI *createSymbolicLink)(LPCWSTR, LPCWSTR, DWORD);
-} TclWinProcs;
-
-MODULE_SCOPE TclWinProcs tclWinProcs;
-
-/*
- * Some versions of Borland C have a define for the OSVERSIONINFO for
- * Win32s and for NT, but not for Windows 95.
- * Define VER_PLATFORM_WIN32_CE for those without newer headers.
- */
-
-#ifndef VER_PLATFORM_WIN32_WINDOWS
-#define VER_PLATFORM_WIN32_WINDOWS 1
-#endif
-#ifndef VER_PLATFORM_WIN32_CE
-#define VER_PLATFORM_WIN32_CE 3
-#endif
-
-#ifndef TCL_Z_MODIFIER
-#   ifdef _WIN64
-#	if defined(__USE_MINGW_ANSI_STDIO) && __USE_MINGW_ANSI_STDIO
-#         define TCL_Z_MODIFIER        "ll"
-#	else
-#         define TCL_Z_MODIFIER        "I"
-#	endif
-#   else
-#         define TCL_Z_MODIFIER        ""
-#   endif
-#endif
-#define TCL_I_MODIFIER TCL_Z_MODIFIER
-
-/*
  * Declarations of functions that are not accessible by way of the
  * stubs table.
  */
@@ -88,14 +52,8 @@ MODULE_SCOPE int	TclWinSymLinkCopyDirectory(const WCHAR *LinkOriginal,
 MODULE_SCOPE int	TclWinSymLinkDelete(const WCHAR *LinkOriginal,
 			    int linkOnly);
 MODULE_SCOPE int        TclWinFileOwned(Tcl_Obj *);
-#if defined(TCL_THREADS) && defined(USE_THREAD_ALLOC)
-MODULE_SCOPE void	TclWinFreeAllocCache(void);
-MODULE_SCOPE void	TclFreeAllocCache(void *);
-MODULE_SCOPE Tcl_Mutex *TclpNewAllocMutex(void);
-MODULE_SCOPE void *	TclpGetAllocCache(void);
-MODULE_SCOPE void	TclpSetAllocCache(void *);
-#endif /* TCL_THREADS */
-
+MODULE_SCOPE void	TclWinGenerateChannelName(char channelName[],
+			    const char *channelTypeName, void *channelImpl);
 MODULE_SCOPE const char*TclpGetUserName(Tcl_DString *bufferPtr);
 
 /* Needed by tclWinFile.c and tclWinFCmd.c */
@@ -117,12 +75,10 @@ typedef struct TclPipeThreadInfo {
 				 * to do read/write operation. Additionally
 				 * used as signal to stop (state set to -1) */
     volatile LONG state;	/* Indicates current state of the thread */
-    ClientData clientData;	/* Referenced data of the main thread */
-    HANDLE evWakeUp;		/* Optional wake-up event worker set by shutdown */
+    void *clientData;		/* Referenced data of the main thread */
 } TclPipeThreadInfo;
 
-
-/* If pipe-workers will use some tcl subsystem, we can use ckalloc without
+/* If pipe-workers will use some tcl subsystem, we can use Tcl_Alloc without
  * more overhead for finalize thread (should be executed anyway)
  *
  * #define _PTI_USE_CKALLOC 1
@@ -134,18 +90,19 @@ typedef struct TclPipeThreadInfo {
  * State PTI_STATE_STOP possible from idle state only, worker owns TI structure.
  * Otherwise PTI_STATE_END used (main thread hold ownership of the TI).
  */
-
-#define PTI_STATE_IDLE	0	/* idle or not yet initialzed */
-#define PTI_STATE_WORK	1	/* in work */
-#define PTI_STATE_STOP	2	/* thread should stop work (owns TI structure) */
-#define PTI_STATE_END	4	/* thread should stop work (worker is busy) */
-#define PTI_STATE_DOWN  8	/* worker is down */
-
+enum PipeWorkerStates {
+    PTI_STATE_IDLE = 0,		/* idle or not yet initialzed */
+    PTI_STATE_WORK = 1,		/* in work */
+    PTI_STATE_STOP = 2,		/* thread should stop work (owns TI structure) */
+    PTI_STATE_END = 4,		/* thread should stop work (worker is busy) */
+    PTI_STATE_DOWN = 8		/* worker is down */
+};
 
 MODULE_SCOPE
 TclPipeThreadInfo *	TclPipeThreadCreateTI(TclPipeThreadInfo **pipeTIPtr,
-			    ClientData clientData, HANDLE wakeEvent);
-MODULE_SCOPE int	TclPipeThreadWaitForSignal(TclPipeThreadInfo **pipeTIPtr);
+			    void *clientData);
+MODULE_SCOPE int	TclPipeThreadWaitForSignal(
+			    TclPipeThreadInfo **pipeTIPtr);
 
 static inline void
 TclPipeThreadSignal(
@@ -165,8 +122,9 @@ TclPipeThreadIsAlive(
     return (pipeTI && pipeTI->state != PTI_STATE_DOWN);
 };
 
-MODULE_SCOPE int	TclPipeThreadStopSignal(TclPipeThreadInfo **pipeTIPtr, HANDLE wakeEvent);
-MODULE_SCOPE void	TclPipeThreadStop(TclPipeThreadInfo **pipeTIPtr, HANDLE hThread);
+MODULE_SCOPE int	TclPipeThreadStopSignal(TclPipeThreadInfo **pipeTIPtr);
+MODULE_SCOPE void	TclPipeThreadStop(TclPipeThreadInfo **pipeTIPtr,
+			    HANDLE hThread);
 MODULE_SCOPE void	TclPipeThreadExit(TclPipeThreadInfo **pipeTIPtr);
 
 #endif	/* _TCLWININT */

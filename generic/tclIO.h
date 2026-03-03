@@ -36,21 +36,21 @@
  */
 
 typedef struct ChannelBuffer {
-    int refCount;		/* Current uses count */
-    int nextAdded;		/* The next position into which a character
+    Tcl_Size refCount;		/* Current uses count */
+    Tcl_Size nextAdded;		/* The next position into which a character
 				 * will be put in the buffer. */
-    int nextRemoved;		/* Position of next byte to be removed from
+    Tcl_Size nextRemoved;	/* Position of next byte to be removed from
 				 * the buffer. */
-    int bufLength;		/* How big is the buffer? */
+    Tcl_Size bufLength;		/* How big is the buffer? */
     struct ChannelBuffer *nextPtr;
-    				/* Next buffer in chain. */
-    char buf[TCLFLEXARRAY];		/* Placeholder for real buffer. The real
+				/* Next buffer in chain. */
+    char buf[TCLFLEXARRAY];	/* Placeholder for real buffer. The real
 				 * buffer occupies this space + bufSize-1
 				 * bytes. This must be the last field in the
 				 * structure. */
 } ChannelBuffer;
 
-#define CHANNELBUFFER_HEADER_SIZE	TclOffset(ChannelBuffer, buf)
+#define CHANNELBUFFER_HEADER_SIZE	offsetof(ChannelBuffer, buf)
 
 /*
  * How much extra space to allocate in buffer to hold bytes from previous
@@ -96,7 +96,7 @@ typedef struct EventScriptRecord {
 
 typedef struct Channel {
     struct ChannelState *state; /* Split out state information */
-    ClientData instanceData;	/* Instance-specific data provided by creator
+    void *instanceData;		/* Instance-specific data provided by creator
 				 * of channel. */
     const Tcl_ChannelType *typePtr; /* Pointer to channel type structure. */
     struct Channel *downChanPtr;/* Refers to channel this one was stacked
@@ -113,7 +113,7 @@ typedef struct Channel {
     ChannelBuffer *inQueueHead;	/* Points at first buffer in input queue. */
     ChannelBuffer *inQueueTail;	/* Points at last buffer in input queue. */
 
-    int refCount;
+    Tcl_Size refCount;
 } Channel;
 
 /*
@@ -158,12 +158,15 @@ typedef struct ChannelState {
 				 * of line sequences in output? */
     int inEofChar;		/* If nonzero, use this as a signal of EOF on
 				 * input. */
+#if TCL_MAJOR_VERSION < 9
     int outEofChar;		/* If nonzero, append this to the channel when
-				 * it is closed if it is open for writing. */
+				 * it is closed if it is open for writing.
+				 * For Tcl 8.x only */
+#endif
     int unreportedError;	/* Non-zero if an error report was deferred
 				 * because it happened in the background. The
 				 * value is the POSIX error code. */
-    int refCount;		/* How many interpreters hold references to
+    Tcl_Size refCount;		/* How many interpreters hold references to
 				 * this IO channel? */
     struct CloseCallback *closeCbPtr;
 				/* Callbacks registered to be called when the
@@ -186,11 +189,11 @@ typedef struct ChannelState {
     EventScriptRecord *scriptRecordPtr;
 				/* Chain of all scripts registered for event
 				 * handlers ("fileevent") on this channel. */
-    int bufSize;		/* What size buffers to allocate? */
+    Tcl_Size bufSize;		/* What size buffers to allocate? */
     Tcl_TimerToken timer;	/* Handle to wakeup timer for this channel. */
     Channel *timerChanPtr;	/* Needed in order to decrement the refCount of
-				   the right channel when the timer is
-				   deleted. */
+				 * the right channel when the timer is
+				 * deleted. */
     struct CopyState *csPtrR;	/* State of background copy for which channel
 				 * is input, or NULL. */
     struct CopyState *csPtrW;	/* State of background copy for which channel
@@ -212,13 +215,15 @@ typedef struct ChannelState {
      * precedence over a Posix error code returned by a channel operation.
      */
 
-    Tcl_Obj* chanMsg;
-    Tcl_Obj* unreportedMsg;     /* Non-NULL if an error report was deferred
+    Tcl_Obj *chanMsg;
+    Tcl_Obj *unreportedMsg;	/* Non-NULL if an error report was deferred
 				 * because it happened in the background. The
 				 * value is the chanMg, if any. #219's
 				 * companion to 'unreportedError'. */
-    int epoch;			/* Used to test validity of stored channelname
+    Tcl_Size epoch;		/* Used to test validity of stored channelname
 				 * lookup results. */
+    int maxPerms;		/* TIP #220: Max access privileges
+				 * the channel was created with. */
 } ChannelState;
 
 /*
@@ -228,12 +233,8 @@ typedef struct ChannelState {
  * the channel can also have TCL_READABLE (1<<1) and TCL_WRITABLE (1<<2) set.
  */
 
-#define CHANNEL_NONBLOCKING	(1<<3)	/* Channel is currently in nonblocking
+#define CHANNEL_NONBLOCKING	(1<<6)	/* Channel is currently in nonblocking
 					 * mode. */
-#define CHANNEL_LINEBUFFERED	(1<<4)	/* Output to the channel must be
-					 * flushed after every newline. */
-#define CHANNEL_UNBUFFERED	(1<<5)	/* Output to the channel must always
-					 * be flushed immediately. */
 #define BG_FLUSH_SCHEDULED	(1<<7)	/* A background flush of the queued
 					 * output buffers has been
 					 * scheduled. */
@@ -272,9 +273,14 @@ typedef struct ChannelState {
 					 * delivered for buffered data until
 					 * the state of the channel
 					 * changes. */
+#define CHANNEL_ENCODING_ERROR	(1<<15)	/* set if channel
+					 * encountered an encoding error */
 #define CHANNEL_RAW_MODE	(1<<16)	/* When set, notes that the Raw API is
 					 * being used. */
-
+#define CHANNEL_LINEBUFFERED	(1<<17)	/* Output to the channel must be
+					 * flushed after every newline. */
+#define CHANNEL_UNBUFFERED	(1<<18)	/* Output to the channel must always
+					 * be flushed immediately. */
 #define CHANNEL_INCLOSE		(1<<19)	/* Channel is currently being closed.
 					 * Its structures are still live and
 					 * usable, but it may not be closed

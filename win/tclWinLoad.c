@@ -5,13 +5,16 @@
  *	the Windows "LoadLibrary" and "GetProcAddress" API for dynamic
  *	loading.
  *
- * Copyright (c) 1995-1997 Sun Microsystems, Inc.
+ * Copyright © 1995-1997 Sun Microsystems, Inc.
  *
  * See the file "license.terms" for information on usage and redistribution of
  * this file, and for a DISCLAIMER OF ALL WARRANTIES.
  */
 
 #include "tclWinInt.h"
+#if defined (__clang__) && (__clang_major__ > 20)
+#pragma clang diagnostic ignored "-Wc++-keyword"
+#endif
 
 /*
  * Native name of the directory in the native filesystem where DLLs used in
@@ -20,7 +23,9 @@
  */
 
 static WCHAR *dllDirectoryName = NULL;
+#if TCL_THREADS
 static Tcl_Mutex dllDirectoryNameMutex;
+#endif
 
 /*
  * Static functions defined within this file.
@@ -61,13 +66,12 @@ TclpDlopen(
 				/* Filled with address of Tcl_FSUnloadFileProc
 				 * function which should be used for this
 				 * file. */
-    int flags)
+    TCL_UNUSED(int) /*flags*/)
 {
     HINSTANCE hInstance = NULL;
     const WCHAR *nativeName;
     Tcl_LoadHandle handlePtr;
     DWORD firstError;
-    (void)flags;
 
     /*
      * First try the full path the user gave us. This is particularly
@@ -89,14 +93,15 @@ TclpDlopen(
 
 	Tcl_DString ds;
 
-        /*
-         * Remember the first error on load attempt to be used if the
-         * second load attempt below also fails.
-        */
-        firstError = (nativeName == NULL) ?
+	/*
+	 * Remember the first error on load attempt to be used if the
+	 * second load attempt below also fails.
+	*/
+	firstError = (nativeName == NULL) ?
 		ERROR_MOD_NOT_FOUND : GetLastError();
 
-	nativeName = (WCHAR *)Tcl_WinUtfToTChar(Tcl_GetString(pathPtr), -1, &ds);
+	Tcl_DStringInit(&ds);
+	nativeName = Tcl_UtfToWCharDString(TclGetString(pathPtr), TCL_INDEX_NONE, &ds);
 	hInstance = LoadLibraryExW(nativeName, NULL,
 		LOAD_WITH_ALTERED_SEARCH_PATH);
 	Tcl_DStringFree(&ds);
@@ -104,22 +109,22 @@ TclpDlopen(
 
     if (hInstance == NULL) {
 	DWORD lastError;
-        Tcl_Obj *errMsg;
+	Tcl_Obj *errMsg;
 
-        /*
-         * We choose to only use the error from the second call if the first
-         * call failed due to the file not being found. Else stick to the
-         * first error for reporting purposes.
-         */
-        if (firstError == ERROR_MOD_NOT_FOUND ||
-            firstError == ERROR_DLL_NOT_FOUND) {
-            lastError = GetLastError();
-        } else {
-            lastError = firstError;
-        }
+	/*
+	 * We choose to only use the error from the second call if the first
+	 * call failed due to the file not being found. Else stick to the
+	 * first error for reporting purposes.
+	 */
+	if (firstError == ERROR_MOD_NOT_FOUND ||
+		firstError == ERROR_DLL_NOT_FOUND) {
+	    lastError = GetLastError();
+	} else {
+	    lastError = firstError;
+	}
 
 	errMsg = Tcl_ObjPrintf("couldn't load library \"%s\": ",
-		Tcl_GetString(pathPtr));
+		TclGetString(pathPtr));
 
 	/*
 	 * Check for possible DLL errors. This doesn't work quite right,
@@ -131,37 +136,37 @@ TclpDlopen(
 	if (interp) {
 	    switch (lastError) {
 	    case ERROR_MOD_NOT_FOUND:
-		Tcl_SetErrorCode(interp, "WIN_LOAD", "MOD_NOT_FOUND", NULL);
+		Tcl_SetErrorCode(interp, "WIN_LOAD", "MOD_NOT_FOUND", (char *)NULL);
 		goto notFoundMsg;
 	    case ERROR_DLL_NOT_FOUND:
-		Tcl_SetErrorCode(interp, "WIN_LOAD", "DLL_NOT_FOUND", NULL);
+		Tcl_SetErrorCode(interp, "WIN_LOAD", "DLL_NOT_FOUND", (char *)NULL);
 	    notFoundMsg:
 		Tcl_AppendToObj(errMsg, "this library or a dependent library"
-			" could not be found in library path", -1);
+			" could not be found in library path", TCL_INDEX_NONE);
 		break;
 	    case ERROR_PROC_NOT_FOUND:
-		Tcl_SetErrorCode(interp, "WIN_LOAD", "PROC_NOT_FOUND", NULL);
+		Tcl_SetErrorCode(interp, "WIN_LOAD", "PROC_NOT_FOUND", (char *)NULL);
 		Tcl_AppendToObj(errMsg, "A function specified in the import"
 			" table could not be resolved by the system. Windows"
-			" is not telling which one, I'm sorry.", -1);
+			" is not telling which one, I'm sorry.", TCL_INDEX_NONE);
 		break;
 	    case ERROR_INVALID_DLL:
-		Tcl_SetErrorCode(interp, "WIN_LOAD", "INVALID_DLL", NULL);
+		Tcl_SetErrorCode(interp, "WIN_LOAD", "INVALID_DLL", (char *)NULL);
 		Tcl_AppendToObj(errMsg, "this library or a dependent library"
-			" is damaged", -1);
+			" is damaged", TCL_INDEX_NONE);
 		break;
 	    case ERROR_DLL_INIT_FAILED:
-		Tcl_SetErrorCode(interp, "WIN_LOAD", "DLL_INIT_FAILED", NULL);
+		Tcl_SetErrorCode(interp, "WIN_LOAD", "DLL_INIT_FAILED", (char *)NULL);
 		Tcl_AppendToObj(errMsg, "the library initialization"
-			" routine failed", -1);
+			" routine failed", TCL_INDEX_NONE);
 		break;
-            case ERROR_BAD_EXE_FORMAT:
-		Tcl_SetErrorCode(interp, "WIN_LOAD", "BAD_EXE_FORMAT", NULL);
-		Tcl_AppendToObj(errMsg, "Bad exe format. Possibly a 32/64-bit mismatch.", -1);
-                break;
-            default:
-		TclWinConvertError(lastError);
-		Tcl_AppendToObj(errMsg, Tcl_PosixError(interp), -1);
+	    case ERROR_BAD_EXE_FORMAT:
+		Tcl_SetErrorCode(interp, "WIN_LOAD", "BAD_EXE_FORMAT", (char *)NULL);
+		Tcl_AppendToObj(errMsg, "Bad exe format. Possibly a 32/64-bit mismatch.", TCL_INDEX_NONE);
+		break;
+	    default:
+		Tcl_WinConvertError(lastError);
+		Tcl_AppendToObj(errMsg, Tcl_PosixError(interp), TCL_INDEX_NONE);
 	    }
 	    Tcl_SetObjResult(interp, errMsg);
 	}
@@ -172,8 +177,8 @@ TclpDlopen(
      * Succeded; package everything up for Tcl.
      */
 
-    handlePtr = (Tcl_LoadHandle)ckalloc(sizeof(struct Tcl_LoadHandle_));
-    handlePtr->clientData = (ClientData) hInstance;
+    handlePtr = (Tcl_LoadHandle)Tcl_Alloc(sizeof(struct Tcl_LoadHandle_));
+    handlePtr->clientData = (void *)hInstance;
     handlePtr->findSymbolProcPtr = &FindSymbol;
     handlePtr->unloadFileProcPtr = &UnloadFile;
     *loadHandle = handlePtr;
@@ -218,14 +223,14 @@ FindSymbol(
 
 	Tcl_DStringInit(&ds);
 	TclDStringAppendLiteral(&ds, "_");
-	sym2 = Tcl_DStringAppend(&ds, symbol, -1);
+	sym2 = Tcl_DStringAppend(&ds, symbol, TCL_INDEX_NONE);
 	proc = (void *)GetProcAddress(hInstance, sym2);
 	Tcl_DStringFree(&ds);
     }
     if (proc == NULL && interp != NULL) {
 	Tcl_SetObjResult(interp, Tcl_ObjPrintf(
 		"cannot find symbol \"%s\"", symbol));
-	Tcl_SetErrorCode(interp, "TCL", "LOOKUP", "LOAD_SYMBOL", symbol, NULL);
+	Tcl_SetErrorCode(interp, "TCL", "LOOKUP", "LOAD_SYMBOL", symbol, (char *)NULL);
     }
     return proc;
 }
@@ -257,40 +262,7 @@ UnloadFile(
     HINSTANCE hInstance = (HINSTANCE) loadHandle->clientData;
 
     FreeLibrary(hInstance);
-    ckfree(loadHandle);
-}
-
-/*
- *----------------------------------------------------------------------
- *
- * TclGuessPackageName --
- *
- *	If the "load" command is invoked without providing a package name,
- *	this function is invoked to try to figure it out.
- *
- * Results:
- *	Always returns 0 to indicate that we couldn't figure out a package
- *	name; generic code will then try to guess the package from the file
- *	name. A return value of 1 would have meant that we figured out the
- *	package name and put it in bufPtr.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-int
-TclGuessPackageName(
-    const char *fileName,	/* Name of file containing package (already
-				 * translated to local form if needed). */
-    Tcl_DString *bufPtr)	/* Initialized empty dstring. Append package
-				 * name to this if possible. */
-{
-    (void)fileName;
-    (void)bufPtr;
-
-    return 0;
+    Tcl_Free(loadHandle);
 }
 
 /*
@@ -413,7 +385,7 @@ InitDLLDirectoryName(void)
 	id *= 16777619;
     }
 
-    TclWinConvertError(lastError);
+    Tcl_WinConvertError(lastError);
     return TCL_ERROR;
 
     /*
@@ -421,11 +393,40 @@ InitDLLDirectoryName(void)
      */
 
   copyToGlobalBuffer:
-    dllDirectoryName = (WCHAR *)ckalloc((nameLen+1) * sizeof(WCHAR));
+    dllDirectoryName = (WCHAR *)Tcl_Alloc((nameLen+1) * sizeof(WCHAR));
     wcscpy(dllDirectoryName, name);
     return TCL_OK;
 }
 
+/*
+ * These functions are fallbacks if we somehow determine that the platform can
+ * do loading from memory but the user wishes to disable it. They just report
+ * (gracefully) that they fail.
+ */
+
+#ifdef TCL_LOAD_FROM_MEMORY
+
+MODULE_SCOPE void *
+TclpLoadMemoryGetBuffer(
+    TCL_UNUSED(size_t))
+{
+    return NULL;
+}
+
+MODULE_SCOPE int
+TclpLoadMemory(
+    TCL_UNUSED(void *),
+    TCL_UNUSED(size_t),
+    TCL_UNUSED(Tcl_Size),
+    TCL_UNUSED(const char *),
+    TCL_UNUSED(Tcl_LoadHandle *),
+    TCL_UNUSED(Tcl_FSUnloadFileProc **),
+    TCL_UNUSED(int))
+{
+    return TCL_ERROR;
+}
+
+#endif /* TCL_LOAD_FROM_MEMORY */
 /*
  * Local Variables:
  * mode: c

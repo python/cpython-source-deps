@@ -4,14 +4,13 @@
  *	This file contains a simple Tcl package "pkgua" that is intended for
  *	testing the Tcl dynamic unloading facilities.
  *
- * Copyright (c) 1995 Sun Microsystems, Inc.
- * Copyright (c) 2004 Georgios Petasis
+ * Copyright © 1995 Sun Microsystems, Inc.
+ * Copyright © 2004 Georgios Petasis
  *
  * See the file "license.terms" for information on usage and redistribution of
  * this file, and for a DISCLAIMER OF ALL WARRANTIES.
  */
 
-#undef STATIC_BUILD
 #include "tcl.h"
 
 /*
@@ -32,7 +31,7 @@ static Tcl_ThreadDataKey dataKey;
 #define MAX_REGISTERED_COMMANDS 2
 
 static void
-CommandDeleted(ClientData clientData)
+CommandDeleted(void *clientData)
 {
     Tcl_Command *cmdToken = (Tcl_Command *)clientData;
     *cmdToken = NULL;
@@ -93,7 +92,7 @@ PkguaDeleteTokens(
 {
     ThreadSpecificData *tsdPtr = (ThreadSpecificData *)Tcl_GetThreadData((&dataKey), sizeof(ThreadSpecificData));
     Tcl_HashEntry *entryPtr =
-	    Tcl_FindHashEntry(&tsdPtr->interpTokenMap, (char *) interp);
+	    Tcl_FindHashEntry(&tsdPtr->interpTokenMap, interp);
 
     if (entryPtr) {
 	Tcl_Free((char *) Tcl_GetHashValue(entryPtr));
@@ -121,14 +120,14 @@ PkguaDeleteTokens(
 
 static int
 PkguaEqObjCmd(
-    ClientData dummy,		/* Not used. */
+    void *dummy,		/* Not used. */
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj *const objv[])	/* Argument objects. */
 {
     int result;
     const char *str1, *str2;
-    int len1, len2;
+    Tcl_Size len1, len2;
     (void)dummy;
 
     if (objc != 3) {
@@ -168,7 +167,7 @@ PkguaEqObjCmd(
 
 static int
 PkguaQuoteObjCmd(
-    ClientData dummy,		/* Not used. */
+    void *dummy,		/* Not used. */
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj *const objv[])	/* Argument strings. */

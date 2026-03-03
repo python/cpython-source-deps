@@ -1,21 +1,20 @@
 # all.tcl --
 #
 # This file contains a top-level script to run all of the Tcl
-# tests.  Execute it by invoking "source all.test" when running tcltest
+# tests.  Execute it by invoking "source all.tcl" when running tcltest
 # in this directory.
 #
-# Copyright (c) 1998-1999 by Scriptics Corporation.
-# Copyright (c) 2000 by Ajuba Solutions
+# Copyright © 1998-1999 Scriptics Corporation.
+# Copyright © 2000 Ajuba Solutions
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 
-package require Tcl 8.5-
+package prefer latest
 package require tcltest 2.5
 namespace import ::tcltest::*
 
-configure {*}$argv -testdir [file dirname [file dirname [file normalize [
-    info script]/...]]]
+configure -testdir [file normalize [file dirname [info script]]] {*}$argv
 
 if {[singleProcess]} {
     interp debug {} -frame 1

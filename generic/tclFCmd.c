@@ -4,7 +4,7 @@
  *	This file implements the generic portion of file manipulation
  *	subcommands of the "file" command.
  *
- * Copyright (c) 1996-1998 Sun Microsystems, Inc.
+ * Copyright © 1996-1998 Sun Microsystems, Inc.
  *
  * See the file "license.terms" for information on usage and redistribution of
  * this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -47,7 +47,7 @@ static int		FileForceOption(Tcl_Interp *interp,
 
 int
 TclFileRenameCmd(
-    ClientData clientData,	/* Unused */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* Interp for error reporting or recursive
 				 * calls in the case of a tricky rename. */
     int objc,			/* Number of arguments. */
@@ -76,7 +76,7 @@ TclFileRenameCmd(
 
 int
 TclFileCopyCmd(
-    ClientData clientData,	/* Unused */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* Used for error reporting or recursive calls
 				 * in the case of a tricky copy. */
     int objc,			/* Number of arguments. */
@@ -113,6 +113,7 @@ FileCopyRename(
     int i, result, force;
     Tcl_StatBuf statBuf;
     Tcl_Obj *target;
+    Tcl_DString ds;
 
     i = FileForceOption(interp, objc - 1, objv + 1, &force);
     if (i < 0) {
@@ -134,6 +135,12 @@ FileCopyRename(
     if (Tcl_FSConvertToPathType(interp, target) != TCL_OK) {
 	return TCL_ERROR;
     }
+    if (Tcl_UtfToExternalDStringEx(interp, TCLFSENCODING, TclGetString(target),
+	    TCL_INDEX_NONE, 0, &ds, NULL) != TCL_OK) {
+	Tcl_DStringFree(&ds);
+	return TCL_ERROR;
+    }
+    Tcl_DStringFree(&ds);
 
     result = TCL_OK;
 
@@ -214,16 +221,18 @@ FileCopyRename(
 
 int
 TclFileMakeDirsCmd(
-    ClientData clientData,	/* Unused */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* Used for error reporting. */
     int objc,			/* Number of arguments */
     Tcl_Obj *const objv[])	/* Argument strings passed to Tcl_FileCmd. */
 {
     Tcl_Obj *errfile = NULL;
-    int result, i, j, pobjc;
+    int result, i;
+    Tcl_Size j, pobjc;
     Tcl_Obj *split = NULL;
     Tcl_Obj *target = NULL;
     Tcl_StatBuf statBuf;
+    Tcl_DString ds;
 
     result = TCL_OK;
     for (i = 1; i < objc; i++) {
@@ -231,6 +240,13 @@ TclFileMakeDirsCmd(
 	    result = TCL_ERROR;
 	    break;
 	}
+	if (Tcl_UtfToExternalDStringEx(interp, TCLFSENCODING, TclGetString(objv[i]),
+		TCL_INDEX_NONE, 0, &ds, NULL) != TCL_OK) {
+	    Tcl_DStringFree(&ds);
+	    result = TCL_ERROR;
+	    break;
+	}
+	Tcl_DStringFree(&ds);
 
 	split = Tcl_FSSplitPath(objv[i], &pobjc);
 	Tcl_IncrRefCount(split);
@@ -338,7 +354,7 @@ TclFileMakeDirsCmd(
 
 int
 TclFileDeleteCmd(
-    ClientData clientData,	/* Unused */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* Used for error reporting */
     int objc,			/* Number of arguments */
     Tcl_Obj *const objv[])	/* Argument strings passed to Tcl_FileCmd. */
@@ -346,6 +362,7 @@ TclFileDeleteCmd(
     int i, force, result;
     Tcl_Obj *errfile;
     Tcl_Obj *errorBuffer = NULL;
+    Tcl_DString ds;
 
     i = FileForceOption(interp, objc - 1, objv + 1, &force);
     if (i < 0) {
@@ -363,6 +380,13 @@ TclFileDeleteCmd(
 	    result = TCL_ERROR;
 	    goto done;
 	}
+	if (Tcl_UtfToExternalDStringEx(interp, TCLFSENCODING, TclGetString(objv[i]),
+		TCL_INDEX_NONE, 0, &ds, NULL) != TCL_OK) {
+	    Tcl_DStringFree(&ds);
+	    result = TCL_ERROR;
+	    goto done;
+	}
+	Tcl_DStringFree(&ds);
 
 	/*
 	 * Call lstat() to get info so can delete symbolic link itself.
@@ -482,13 +506,26 @@ CopyRenameOneFile(
     Tcl_Obj *actualSource=NULL;	/* If source is a link, then this is the real
 				 * file/directory. */
     Tcl_StatBuf sourceStatBuf, targetStatBuf;
+    Tcl_DString ds;
 
     if (Tcl_FSConvertToPathType(interp, source) != TCL_OK) {
 	return TCL_ERROR;
     }
+    if (Tcl_UtfToExternalDStringEx(interp, TCLFSENCODING, TclGetString(source),
+	    TCL_INDEX_NONE, 0, &ds, NULL) != TCL_OK) {
+	Tcl_DStringFree(&ds);
+	return TCL_ERROR;
+    }
+    Tcl_DStringFree(&ds);
     if (Tcl_FSConvertToPathType(interp, target) != TCL_OK) {
 	return TCL_ERROR;
     }
+    if (Tcl_UtfToExternalDStringEx(interp, TCLFSENCODING, TclGetString(target),
+	    TCL_INDEX_NONE, 0, &ds, NULL) != TCL_OK) {
+	Tcl_DStringFree(&ds);
+	return TCL_ERROR;
+    }
+    Tcl_DStringFree(&ds);
 
     errfile = NULL;
     errorBuffer = NULL;
@@ -870,10 +907,10 @@ FileForceOption(
 
 static Tcl_Obj *
 FileBasename(
-    Tcl_Interp *interp,		/* Interp, for error return. */
+    TCL_UNUSED(Tcl_Interp *),	/* Interp, for error return. */
     Tcl_Obj *pathPtr)		/* Path whose basename to extract. */
 {
-    int objc;
+    Tcl_Size objc;
     Tcl_Obj *splitPtr;
     Tcl_Obj *resultPtr = NULL;
 
@@ -881,15 +918,6 @@ FileBasename(
     Tcl_IncrRefCount(splitPtr);
 
     if (objc != 0) {
-	if ((objc == 1) && (*TclGetString(pathPtr) == '~')) {
-	    Tcl_DecrRefCount(splitPtr);
-	    if (Tcl_FSConvertToPathType(interp, pathPtr) != TCL_OK) {
-		return NULL;
-	    }
-	    splitPtr = Tcl_FSSplitPath(pathPtr, &objc);
-	    Tcl_IncrRefCount(splitPtr);
-	}
-
 	/*
 	 * Return the last component, unless it is the only component, and it
 	 * is the root of an absolute path.
@@ -946,7 +974,7 @@ FileBasename(
 
 int
 TclFileAttrsCmd(
-    ClientData clientData,	/* Unused */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* The interpreter for error reporting. */
     int objc,			/* Number of command line arguments. */
     Tcl_Obj *const objv[])	/* The command line objects. */
@@ -955,8 +983,9 @@ TclFileAttrsCmd(
     const char *const *attributeStrings;
     const char **attributeStringsAllocated = NULL;
     Tcl_Obj *objStrings = NULL;
-    int numObjStrings = -1;
+    Tcl_Size numObjStrings = TCL_INDEX_NONE;
     Tcl_Obj *filePtr;
+    Tcl_DString ds;
 
     if (objc < 2) {
 	Tcl_WrongNumArgs(interp, 1, objv, "name ?-option value ...?");
@@ -967,6 +996,12 @@ TclFileAttrsCmd(
     if (Tcl_FSConvertToPathType(interp, filePtr) != TCL_OK) {
 	return TCL_ERROR;
     }
+    if (Tcl_UtfToExternalDStringEx(interp, TCLFSENCODING, TclGetString(filePtr),
+	    TCL_INDEX_NONE, 0, &ds, NULL) != TCL_OK) {
+	Tcl_DStringFree(&ds);
+	return TCL_ERROR;
+    }
+    Tcl_DStringFree(&ds);
 
     objc -= 2;
     objv += 2;
@@ -979,7 +1014,7 @@ TclFileAttrsCmd(
 
     attributeStrings = Tcl_FSFileAttrStrings(filePtr, &objStrings);
     if (attributeStrings == NULL) {
-	int index;
+	Tcl_Size index;
 	Tcl_Obj *objPtr;
 
 	if (objStrings == NULL) {
@@ -1085,11 +1120,8 @@ TclFileAttrsCmd(
 	}
 
 	if (Tcl_GetIndexFromObj(interp, objv[0], attributeStrings,
-		"option", 0, &index) != TCL_OK) {
+		"option", TCL_INDEX_TEMP_TABLE, &index) != TCL_OK) {
 	    goto end;
-	}
-	if (attributeStringsAllocated != NULL) {
-	    TclFreeIntRep(objv[0]);
 	}
 	if (Tcl_FSFileAttrsGet(interp, index, filePtr,
 		&objPtr) != TCL_OK) {
@@ -1113,11 +1145,8 @@ TclFileAttrsCmd(
 
 	for (i = 0; i < objc ; i += 2) {
 	    if (Tcl_GetIndexFromObj(interp, objv[i], attributeStrings,
-		    "option", 0, &index) != TCL_OK) {
+		    "option", TCL_INDEX_TEMP_TABLE, &index) != TCL_OK) {
 		goto end;
-	    }
-	    if (attributeStringsAllocated != NULL) {
-		TclFreeIntRep(objv[i]);
 	    }
 	    if (i + 1 == objc) {
 		Tcl_SetObjResult(interp, Tcl_ObjPrintf(
@@ -1168,13 +1197,14 @@ TclFileAttrsCmd(
 
 int
 TclFileLinkCmd(
-    ClientData clientData,
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,
     int objc,
     Tcl_Obj *const objv[])
 {
     Tcl_Obj *contents;
     int index;
+    Tcl_DString ds;
 
     if (objc < 2 || objc > 4) {
 	Tcl_WrongNumArgs(interp, 1, objv, "?-linktype? linkname ?target?");
@@ -1217,6 +1247,12 @@ TclFileLinkCmd(
 	if (Tcl_FSConvertToPathType(interp, objv[index]) != TCL_OK) {
 	    return TCL_ERROR;
 	}
+	if (Tcl_UtfToExternalDStringEx(interp, TCLFSENCODING, TclGetString(objv[index]),
+		TCL_INDEX_NONE, 0, &ds, NULL) != TCL_OK) {
+	    Tcl_DStringFree(&ds);
+	    return TCL_ERROR;
+	}
+	Tcl_DStringFree(&ds);
 
 	/*
 	 * Create link from source to target.
@@ -1274,6 +1310,12 @@ TclFileLinkCmd(
 	if (Tcl_FSConvertToPathType(interp, objv[index]) != TCL_OK) {
 	    return TCL_ERROR;
 	}
+	if (Tcl_UtfToExternalDStringEx(interp, TCLFSENCODING, TclGetString(objv[index]),
+		TCL_INDEX_NONE, 0, &ds, NULL) != TCL_OK) {
+	    Tcl_DStringFree(&ds);
+	    return TCL_ERROR;
+	}
+	Tcl_DStringFree(&ds);
 
 	/*
 	 * Read link
@@ -1319,12 +1361,13 @@ TclFileLinkCmd(
 
 int
 TclFileReadLinkCmd(
-    ClientData clientData,
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,
     int objc,
     Tcl_Obj *const objv[])
 {
     Tcl_Obj *contents;
+    Tcl_DString ds;
 
     if (objc != 2) {
 	Tcl_WrongNumArgs(interp, 1, objv, "name");
@@ -1334,6 +1377,12 @@ TclFileReadLinkCmd(
     if (Tcl_FSConvertToPathType(interp, objv[1]) != TCL_OK) {
 	return TCL_ERROR;
     }
+    if (Tcl_UtfToExternalDStringEx(interp, TCLFSENCODING, TclGetString(objv[1]),
+	    TCL_INDEX_NONE, 0, &ds, NULL) != TCL_OK) {
+	Tcl_DStringFree(&ds);
+	return TCL_ERROR;
+    }
+    Tcl_DStringFree(&ds);
 
     contents = Tcl_FSLink(objv[1], NULL, 0);
 
@@ -1351,7 +1400,7 @@ TclFileReadLinkCmd(
 /*
  *---------------------------------------------------------------------------
  *
- * TclFileTemporaryCmd
+ * TclFileTemporaryCmd --
  *
  *	This function implements the "tempfile" subcommand of the "file"
  *	command.
@@ -1370,7 +1419,7 @@ TclFileReadLinkCmd(
 
 int
 TclFileTemporaryCmd(
-    ClientData clientData,
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,
     int objc,
     Tcl_Obj *const objv[])
@@ -1395,7 +1444,7 @@ TclFileTemporaryCmd(
 	TclNewObj(nameObj);
     }
     if (objc > 2) {
-	int length;
+	Tcl_Size length;
 	Tcl_Obj *templateObj = objv[2];
 	const char *string = TclGetStringFromObj(templateObj, &length);
 
@@ -1507,6 +1556,227 @@ TclFileTemporaryCmd(
 	}
     }
     Tcl_SetObjResult(interp, Tcl_NewStringObj(Tcl_GetChannelName(chan), -1));
+    return TCL_OK;
+}
+
+/*
+ *---------------------------------------------------------------------------
+ *
+ * TclFileTempDirCmd --
+ *
+ *	This function implements the "tempdir" subcommand of the "file"
+ *	command.
+ *
+ * Results:
+ *	Returns a standard Tcl result.
+ *
+ * Side effects:
+ *	Creates a temporary directory.
+ *
+ *---------------------------------------------------------------------------
+ */
+
+int
+TclFileTempDirCmd(
+    TCL_UNUSED(void *),
+    Tcl_Interp *interp,
+    int objc,
+    Tcl_Obj *const objv[])
+{
+    Tcl_Obj *dirNameObj;	/* Object that will contain the directory
+				 * name. */
+    Tcl_Obj *baseDirObj = NULL, *nameBaseObj = NULL;
+				/* Pieces of template. Each piece is NULL if
+				 * it is omitted. The platform temporary file
+				 * engine might ignore some pieces. */
+
+    if (objc < 1 || objc > 2) {
+	Tcl_WrongNumArgs(interp, 1, objv, "?template?");
+	return TCL_ERROR;
+    }
+
+    if (objc > 1) {
+	Tcl_Size length;
+	Tcl_Obj *templateObj = objv[1];
+	const char *string = TclGetStringFromObj(templateObj, &length);
+	const int onWindows = (tclPlatform == TCL_PLATFORM_WINDOWS);
+
+	/*
+	 * Treat an empty string as if it wasn't there.
+	 */
+
+	if (length == 0) {
+	    goto makeTemporary;
+	}
+
+	/*
+	 * The template only gives a directory if there is a directory
+	 * separator in it, and only gives a base name if there's at least one
+	 * character after the last directory separator.
+	 */
+
+	if (strchr(string, '/') == NULL
+		&& (!onWindows || strchr(string, '\\') == NULL)) {
+	    /*
+	     * No directory separator, so just assume we have a file name.
+	     * This is a bit wrong on Windows where we could have problems
+	     * with disk name prefixes... but those are much less common in
+	     * naked form so we just pass through and let the OS figure it out
+	     * instead.
+	     */
+
+	    nameBaseObj = templateObj;
+	    Tcl_IncrRefCount(nameBaseObj);
+	} else if (string[length-1] != '/'
+		&& (!onWindows || string[length-1] != '\\')) {
+	    /*
+	     * If the template has a non-terminal directory separator, split
+	     * into dirname and tail.
+	     */
+
+	    baseDirObj = TclPathPart(interp, templateObj, TCL_PATH_DIRNAME);
+	    nameBaseObj = TclPathPart(interp, templateObj, TCL_PATH_TAIL);
+	} else {
+	    /*
+	     * Otherwise, there must be a terminal directory separator, so
+	     * just the directory is given.
+	     */
+
+	    baseDirObj = templateObj;
+	    Tcl_IncrRefCount(baseDirObj);
+	}
+
+	/*
+	 * Only allow creation of temporary directories in the native
+	 * filesystem since they are frequently used for integration with
+	 * external tools or system libraries.
+	 */
+
+	if (baseDirObj != NULL && Tcl_FSGetFileSystemForPath(baseDirObj)
+		!= &tclNativeFilesystem) {
+	    TclDecrRefCount(baseDirObj);
+	    baseDirObj = NULL;
+	}
+    }
+
+    /*
+     * Convert empty parts of the template into unspecified parts.
+     */
+
+    if (baseDirObj && !TclGetString(baseDirObj)[0]) {
+	TclDecrRefCount(baseDirObj);
+	baseDirObj = NULL;
+    }
+    if (nameBaseObj && !TclGetString(nameBaseObj)[0]) {
+	TclDecrRefCount(nameBaseObj);
+	nameBaseObj = NULL;
+    }
+
+    /*
+     * Create and open the temporary file.
+     */
+
+  makeTemporary:
+    dirNameObj = TclpCreateTemporaryDirectory(baseDirObj, nameBaseObj);
+
+    /*
+     * If we created pieces of template, get rid of them now.
+     */
+
+    if (baseDirObj) {
+	TclDecrRefCount(baseDirObj);
+    }
+    if (nameBaseObj) {
+	TclDecrRefCount(nameBaseObj);
+    }
+
+    /*
+     * Deal with results.
+     */
+
+    if (dirNameObj == NULL) {
+	Tcl_SetObjResult(interp, Tcl_ObjPrintf(
+		"can't create temporary directory: %s",
+		Tcl_PosixError(interp)));
+	return TCL_ERROR;
+    }
+    Tcl_SetObjResult(interp, dirNameObj);
+    return TCL_OK;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * TclFileHomeCmd --
+ *
+ *	This function is invoked to process the "file home" Tcl command.
+ *	See the user documentation for details on what it does.
+ *
+ * Results:
+ *	A standard Tcl result.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+TclFileHomeCmd(
+    TCL_UNUSED(void *),
+    Tcl_Interp *interp,
+    int objc,
+    Tcl_Obj *const objv[])
+{
+    Tcl_Obj *homeDirObj;
+
+    if (objc != 1 && objc != 2) {
+	Tcl_WrongNumArgs(interp, 1, objv, "?user?");
+	return TCL_ERROR;
+    }
+    homeDirObj = TclGetHomeDirObj(interp, objc == 1 ? NULL : Tcl_GetString(objv[1]));
+    if (homeDirObj == NULL) {
+	return TCL_ERROR;
+    }
+    Tcl_SetObjResult(interp, homeDirObj);
+    return TCL_OK;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * TclFileTildeExpandCmd --
+ *
+ *	This function is invoked to process the "file tildeexpand" Tcl command.
+ *	See the user documentation for details on what it does.
+ *
+ * Results:
+ *	A standard Tcl result.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+TclFileTildeExpandCmd(
+    TCL_UNUSED(void *),
+    Tcl_Interp *interp,
+    int objc,
+    Tcl_Obj *const objv[])
+{
+    Tcl_Obj *expandedPathObj;
+
+    if (objc != 2) {
+	Tcl_WrongNumArgs(interp, 1, objv, "path");
+	return TCL_ERROR;
+    }
+    expandedPathObj = TclResolveTildePath(interp, objv[1]);
+    if (expandedPathObj == NULL) {
+	return TCL_ERROR;
+    }
+    Tcl_SetObjResult(interp, expandedPathObj);
     return TCL_OK;
 }
 

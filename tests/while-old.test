@@ -6,9 +6,9 @@
 # into Tcl runs the tests and generates output for errors.
 # No output means no errors were found.
 #
-# Copyright (c) 1991-1993 The Regents of the University of California.
-# Copyright (c) 1994-1996 Sun Microsystems, Inc.
-# Copyright (c) 1998-1999 by Scriptics Corporation.
+# Copyright © 1991-1993 The Regents of the University of California.
+# Copyright © 1994-1996 Sun Microsystems, Inc.
+# Copyright © 1998-1999 Scriptics Corporation.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -42,8 +42,8 @@ test while-old-1.4 {basic while loops, multiline test expr} {
     set value 1
     while {($tcl_platform(platform) != "foobar1") && \
 	    ($tcl_platform(platform) != "foobar2")} {
-        incr value
-        break
+	incr value
+	break
     }
     set value
 } {2}
@@ -92,7 +92,7 @@ test while-old-4.3 {errors in while loops} {
 test while-old-4.4 {errors in while loops} {
     set err [catch {while {"a"+"b"} {error "loop aborted"}} msg]
     list $err $msg
-} {1 {can't use non-numeric string as operand of "+"}}
+} {1 {cannot use non-numeric string "a" as left operand of "+"}}
 test while-old-4.5 {errors in while loops} {
     catch {unset x}
     set x 1

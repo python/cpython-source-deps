@@ -3,8 +3,8 @@
 # utility procs formerly in init.tcl which can be loaded on demand
 # for package management.
 #
-# Copyright (c) 1991-1993 The Regents of the University of California.
-# Copyright (c) 1994-1998 Sun Microsystems, Inc.
+# Copyright © 1991-1993 The Regents of the University of California.
+# Copyright © 1994-1998 Sun Microsystems, Inc.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -136,6 +136,9 @@ proc pkg_mkIndex {args} {
 		{*}$patternList]
     } on error {msg opt} {
 	return -options $opt $msg
+    }
+    if {[llength $fileList] == 0} {
+	return -code error "no files matched glob pattern \"$patternList\""
     }
     foreach file $fileList {
 	# For each file, figure out what commands and packages it provides.
@@ -291,7 +294,7 @@ proc pkg_mkIndex {args} {
 		    set ::tcl::type load
 		} else {
 		    set ::tcl::debug sourcing
-		    source -encoding utf-8 [file join $::tcl::dir $::tcl::file]
+		    source [file join $::tcl::dir $::tcl::file]
 		    set ::tcl::type source
 		}
 
@@ -409,6 +412,7 @@ proc pkg_mkIndex {args} {
     }
 
     set f [open [file join $dir pkgIndex.tcl] w]
+    fconfigure $f -encoding utf-8 -translation lf
     puts $f $index
     close $f
 }
@@ -441,7 +445,7 @@ proc tclPkgSetup {dir pkg version files} {
 	    if {$type eq "load"} {
 		set auto_index($cmd) [list load [file join $dir $f] $pkg]
 	    } else {
-		set auto_index($cmd) [list source -encoding utf-8 [file join $dir $f]]
+		set auto_index($cmd) [list source [file join $dir $f]]
 	    }
 	}
     }
@@ -491,11 +495,15 @@ proc tclPkgUnknown {name args} {
 		set dir [file dirname $file]
 		if {![info exists procdDirs($dir)]} {
 		    try {
-			source -encoding utf-8 $file
+			::tcl::Pkg::source $file
 		    } trap {POSIX EACCES} {} {
 			# $file was not readable; silently ignore
 			continue
 		    } on error msg {
+			if {[regexp {version conflict for package} $msg]} {
+			    # In case of version conflict, silently ignore
+			    continue
+			}
 			tclLog "error reading package index file $file: $msg"
 		    } on ok {} {
 			set procdDirs($dir) 1
@@ -509,11 +517,15 @@ proc tclPkgUnknown {name args} {
 	    # safe interps usually don't have "file exists",
 	    if {([interp issafe] || [file exists $file])} {
 		try {
-		    source -encoding utf-8 $file
+		    ::tcl::Pkg::source $file
 		} trap {POSIX EACCES} {} {
 		    # $file was not readable; silently ignore
 		    continue
 		} on error msg {
+		    if {[regexp {version conflict for package} $msg]} {
+			# In case of version conflict, silently ignore
+			continue
+		    }
 		    tclLog "error reading package index file $file: $msg"
 		} on ok {} {
 		    set procdDirs($dir) 1
@@ -594,11 +606,15 @@ proc tcl::MacOSXPkgUnknown {original name args} {
 	    set dir [file dirname $file]
 	    if {![info exists procdDirs($dir)]} {
 		try {
-		    source $file
+		    ::tcl::Pkg::source $file
 		} trap {POSIX EACCES} {} {
 		    # $file was not readable; silently ignore
 		    continue
 		} on error msg {
+		    if {[regexp {version conflict for package} $msg]} {
+			# In case of version conflict, silently ignore
+			continue
+		    }
 		    tclLog "error reading package index file $file: $msg"
 		} on ok {} {
 		    set procdDirs($dir) 1

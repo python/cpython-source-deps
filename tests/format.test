@@ -4,8 +4,8 @@
 # built-in commands.  Sourcing this file into Tcl runs the tests and
 # generates output for errors.  No output means no errors were found.
 #
-# Copyright (c) 1991-1994 The Regents of the University of California.
-# Copyright (c) 1994-1998 Sun Microsystems, Inc.
+# Copyright © 1991-1994 The Regents of the University of California.
+# Copyright © 1994-1998 Sun Microsystems, Inc.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -15,30 +15,22 @@ if {"::tcltest" ni [namespace children]} {
     namespace import -force ::tcltest::*
 }
 
-# %u output depends on word length, so this test is not portable.
-testConstraint longIs32bit [expr {int(0x80000000) < 0}]
-testConstraint longIs64bit [expr {int(0x8000000000000000) < 0}]
-testConstraint wideIs64bit [expr {
-    (wide(0x80000000) > 0) && (wide(0x8000000000000000) < 0)}]
-testConstraint wideBiggerThanInt [expr {wide(0x80000000) != int(0x80000000)}]
+# %z/%t/%p output depends on pointerSize, so some tests are not portable.
+testConstraint pointerIs64bit [expr {$tcl_platform(pointerSize) >= 8}]
 # MSVC uses a broken libc that gets sprintf("%g") wrong. This is a pain
 # particularly in Continuous Integration, and there isn't anything much we can
 # do about it.
-testConstraint notWinCI [expr {
-    ($::tcl_platform(platform) ne "windows") || ![info exists ::env(CI)]}]
-
+testConstraint knownMsvcBug [expr {[tcl::build-info msvc] eq 0}]
+
 test format-1.1 {integer formatting} {
     format "%*d %d %d %d" 6 34 16923 -12 -1
 } {    34 16923 -12 -1}
 test format-1.2 {integer formatting} {
     format "%4d %4d %4d %4d %d %#x %#X" 6 34 16923 -12 -1 14 12
-} {   6   34 16923  -12 -1 0xe 0XC}
-test format-1.3 {integer formatting} longIs32bit {
+} {   6   34 16923  -12 -1 0xe 0xC}
+test format-1.3 {integer formatting} {
     format "%4u %4u %4u %4u %d %#o" 6 34 16923 -12 -1 0
 } {   6   34 16923 4294967284 -1 0}
-test format-1.3.1 {integer formatting} longIs64bit {
-    format "%4u %4u %4u %4u %d %#o" 6 34 16923 -12 -1 0
-} {   6   34 16923 18446744073709551604 -1 0}
 test format-1.4 {integer formatting} {
     format "%-4d %-4i %-4d %-4ld" 6 34 16923 -12 -1
 } {6    34   16923 -12 }
@@ -50,48 +42,33 @@ test format-1.6 {integer formatting} {
 } {000034}
 # Printing negative numbers in hex or octal format depends on word
 # length, so these tests are not portable.
-test format-1.7 {integer formatting} longIs32bit {
+test format-1.7 {integer formatting} {
     format "%4x %4x %4x %4x" 6 34 16923 -12 -1
 } {   6   22 421b fffffff4}
-test format-1.7.1 {integer formatting} longIs64bit {
-    format "%4x %4x %4x %4x" 6 34 16923 -12 -1
-} {   6   22 421b fffffffffffffff4}
-test format-1.8 {integer formatting} longIs32bit {
+test format-1.8 {integer formatting} {
     format "%#x %#x %#X %#X %#x" 0 6 34 16923 -12 -1
-} {0x0 0x6 0X22 0X421B 0xfffffff4}
-test format-1.8.1 {integer formatting} longIs64bit {
-    format "%#x %#x %#X %#X %#x" 0 6 34 16923 -12 -1
-} {0x0 0x6 0X22 0X421B 0xfffffffffffffff4}
-test format-1.9 {integer formatting} longIs32bit {
+} {0 0x6 0x22 0x421B 0xfffffff4}
+test format-1.9 {integer formatting} {
     format "%#5x %#20x %#20x %#20x %#20x" 0 6 34 16923 -12 -1
-} {  0x0                  0x6                 0x22               0x421b           0xfffffff4}
-test format-1.9.1 {integer formatting} longIs64bit {
-    format "%#5x %#20x %#20x %#20x %#20x" 0 6 34 16923 -12 -1
-} {  0x0                  0x6                 0x22               0x421b   0xfffffffffffffff4}
-test format-1.10 {integer formatting} longIs32bit {
+} {    0                  0x6                 0x22               0x421b           0xfffffff4}
+test format-1.10 {integer formatting} {
     format "%-#5x %-#20x %-#20x %-#20x %-#20x" 0 6 34 16923 -12 -1
-} {0x0   0x6                  0x22                 0x421b               0xfffffff4          }
-test format-1.10.1 {integer formatting} longIs64bit {
-    format "%-#5x %-#20x %-#20x %-#20x %-#20x" 0 6 34 16923 -12 -1
-} {0x0   0x6                  0x22                 0x421b               0xfffffffffffffff4  }
-test format-1.11 {integer formatting} longIs32bit {
+} {0     0x6                  0x22                 0x421b               0xfffffff4          }
+test format-1.11 {integer formatting} {
     format "%-#5o %-#20o %#-20o %#-20o %#-20o" 0 6 34 16923 -12 -1
-} {0     06                   042                  041033               037777777764        }
-test format-1.11.1 {integer formatting} longIs64bit {
-    format "%-#5o %-#20o %#-20o %#-20o %#-20o" 0 6 34 16923 -12 -1
-} {0     06                   042                  041033               01777777777777777777764}
+} {0     0o6                  0o42                 0o41033              0o37777777764       }
 test format-1.12 {integer formatting} {
     format "%b %#b %#b %llb" 5 0 5 [expr {2**100}]
-} {101 0b0 0b101 10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000}
+} {101 0 0b101 10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000}
 test format-1.13 {integer formatting} {
-    format "%#d %#d %#d %#d %#d" 0 6 34 16923 -12 -1
-} {0 6 34 16923 -12}
+    format "%#0d %#0d %#0d %#0d %#0d" 0 6 34 16923 -12 -1
+} {0 0d6 0d34 0d16923 -0d12}
 test format-1.14 {integer formatting} {
-    format "%#5d %#20d %#20d %#20d %#20d" 0 6 34 16923 -12 -1
-} {    0                    6                   34                16923                  -12}
+    format "%#05d %#020d %#020d %#020d %#020d" 0 6 34 16923 -12 -1
+} {00000 0d000000000000000006 0d000000000000000034 0d000000000000016923 -0d00000000000000012}
 test format-1.15 {integer formatting} {
-    format "%-#5d %-#20d %-#20d %-#20d %-#20d" 0 6 34 16923 -12 -1
-} {0     6                    34                   16923                -12                 }
+    format "%-#05d %-#020d %-#020d %-#020d %-#020d" 0 6 34 16923 -12 -1
+} {00000 0d000000000000000006 0d000000000000000034 0d000000000000016923 -0d00000000000000012}
 
 
 test format-2.1 {string formatting} {
@@ -107,8 +84,8 @@ test format-2.4 {string formatting} {
     format "%s %s %% %c %s" abcd {This is a very long test string.} 120 x
 } {abcd This is a very long test string. % x x}
 test format-2.5 {string formatting, embedded nulls} {
-    format "%10s" abc\0def
-} "   abc\0def"
+    format "%10s" abc\x00def
+} "   abc\x00def"
 test format-2.6 {string formatting, international chars} {
     format "%10s" abc\uFEFFdef
 } "   abc\uFEFFdef"
@@ -145,13 +122,19 @@ test format-2.16 {string formatting, width and precision} {
 test format-2.17 {string formatting, width and precision} {
     format "a%5.7sa" foobarbaz
 } "afoobarba"
+test format-2.18 {string formatting, surrogates} {
+    format "\uD83D%s" \uDE02
+} \uD83D\uDE02
+test format-2.19 {string formatting, surrogates} {
+    format "%s\uDE02" \uD83D
+} \uD83D\uDE02
 
 test format-3.1 {Tcl_FormatObjCmd: character formatting} {
     format "|%c|%0c|%-1c|%1c|%-6c|%6c|%*c|%*c|" 65 65 65 65 65 65 3 65 -4 65
 } "|A|A|A|A|A     |     A|  A|A   |"
 test format-3.2 {Tcl_FormatObjCmd: international character formatting} {
-    format "|%c|%0c|%-1c|%1c|%-6c|%6c|%*c|%*c|" 0xa2 0x4e4e 0x25a 0xc3 0xff08 0 3 0x6575 -4 0x4e4f
-} "|\ua2|\u4e4e|\u25a|\uc3|\uff08     |     \0|  \u6575|\u4e4f   |"
+    format "|%c|%0c|%-1c|%1c|%-6c|%6c|%*c|%*c|" 0xA2 0x4E4E 0x25A 0xC3 0xFF08 0 3 0x6575 -4 0x4E4F
+} "|¢|乎|ɚ|Ã|（     |     \x00|  敵|乏   |"
 
 test format-4.1 {e and f formats} {eformat} {
     format "%e %e %e %e" 34.2e12 68.514 -.125 -16000. .000053
@@ -269,13 +252,13 @@ test format-6.1 {floating-point zeroes} {eformat} {
 test format-6.2 {floating-point zeroes} {eformat} {
     format "%.4e %.4f %.4g" 0.0 0.0 0.0 0.0
 } {0.0000e+00 0.0000 0}
-test format-6.3 {floating-point zeroes} {eformat notWinCI} {
+test format-6.3 {floating-point zeroes} {eformat knownMsvcBug} {
     format "%#.4e %#.4f %#.4g" 0.0 0.0 0.0 0.0
 } {0.0000e+00 0.0000 0.000}
 test format-6.4 {floating-point zeroes} {eformat} {
     format "%.0e %.0f %.0g" 0.0 0.0 0.0 0.0
 } {0e+00 0 0}
-test format-6.5 {floating-point zeroes} {eformat notWinCI} {
+test format-6.5 {floating-point zeroes} {eformat knownMsvcBug} {
     format "%#.0e %#.0f %#.0g" 0.0 0.0 0.0 0.0
 } {0.e+00 0. 0.}
 test format-6.6 {floating-point zeroes} {
@@ -378,6 +361,21 @@ test format-8.23 {error conditions} {
     catch {format "%d %d" 24 xyz} msg
     set msg
 } {expected integer but got "xyz"}
+test format-8.24 {Other formats} -body {
+    format "%zd %td %d" [expr {2**30}] [expr {2**30}] [expr {2**30}]
+} -result {1073741824 1073741824 1073741824}
+test format-8.25 {Other formats} -constraints pointerIs64bit -body {
+    format "%zd %td %lld" [expr {2**33}] [expr {2**33}] [expr {2**33}]
+} -result {8589934592 8589934592 8589934592}
+test format-8.26 {Other formats} -body {
+    format "%p %#x" [expr {2**31}] [expr {2**31}]
+} -result {0x80000000 0x80000000}
+test format-8.27 {Other formats} -constraints pointerIs64bit -body {
+    format "%p %#llx" [expr {2**33}] [expr {2**33}]
+} -result {0x200000000 0x200000000}
+test format-8.28 {Internal use of TCL_COMBINE flag should not be visible at script level} {
+    format %c 0x10000041
+} \uFFFD
 
 test format-9.1 {long result} {
     set a {1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ 1 2 3 4 5 6 7 8 9 0 a b c d e f g h i j k l m n o p q r s t u v w x y z A B C D E F G H I J K L M N O P Q R S T U V W X Y Z}
@@ -438,6 +436,12 @@ test format-11.11 {XPG3 %$n specifiers} {
 test format-11.12 {XPG3 %$n specifiers} {
     list [catch {format {%2$*d} 4 5 6} msg] $msg
 } {0 {    6}}
+test format-11.13 {XPG3 %$n specifiers} {
+    format {%2$.*s %4$d} 1 -4294967298 abcdefghijklmnop 44
+} { 44}
+test format-11.14 {XPG3 %$n specifiers} {
+    format {%2$.*s %4$d} 1 4294967298 abcdefghijklmnop 44
+} {abcdefghijklmnop 44}
 
 test format-12.1 {negative width specifiers} {
     format "%*d" -47 25
@@ -526,18 +530,18 @@ for {set i 0} {$i < 290} {incr i} {
 }
 for {set i 290} {$i < 400} {incr i} {
     test format-16.[expr {$i -289}] {testing MAX_FLOAT_SIZE} {
-        format {%s} $b
+	format {%s} $b
     } $b
     append b "x"
 }
 
-test format-17.1 {testing %d with wide} {wideIs64bit wideBiggerThanInt} {
+test format-17.1 {testing %d with wide} {
     format %d 7810179016327718216
 } 1819043144
-test format-17.2 {testing %ld with wide} {wideIs64bit} {
+test format-17.2 {testing %ld with wide} {
     format %ld 7810179016327718216
 } 7810179016327718216
-test format-17.3 {testing %ld with non-wide} {wideIs64bit} {
+test format-17.3 {testing %ld with non-wide} {
     format %ld 42
 } 42
 test format-17.4 {testing %l with non-integer} {
@@ -545,7 +549,7 @@ test format-17.4 {testing %l with non-integer} {
 } 1.000000
 test format-17.5 {testing %llu with positive bignum} -body {
     format %llu 0xabcdef0123456789abcdef
-} -returnCodes 1 -result {unsigned bignum format is invalid}
+} -result 207698809136909011942886895
 test format-17.6 {testing %llu with negative number} -body {
     format %llu -1
 } -returnCodes 1 -result {unsigned bignum format is invalid}
@@ -564,7 +568,7 @@ test format-18.1 {do not demote existing numeric values} {
     format %08x $b
     lappend result [expr {$a == $b}]
 } {1 1 1 1}
-test format-18.2 {do not demote existing numeric values} {wideBiggerThanInt} {
+test format-18.2 {do not demote existing numeric values} {
     set a [expr {0xaaaaaaaaaa + 1}]
     set b 0xaaaaaaaaab
     list [format %08x $a] [expr {$a == $b}]
@@ -581,8 +585,7 @@ test format-19.3 {Bug 2830354} {
     string length [format %340f 0]
 } 340
 
-test format-19.4.1 {Bug d498578df4: width overflow should cause limit exceeded} \
--constraints {longIs32bit} -body {
+test format-19.4.1 {Bug d498578df4: width overflow should cause limit exceeded} -body {
     # in case of overflow into negative, it produces width -2 (and limit exceeded),
     # in case of width will be unsigned, it will be outside limit (2GB for 32bit)...
     # and it don't throw an error in case the bug is not fixed (and probably no segfault).

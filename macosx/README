@@ -1,7 +1,7 @@
-Tcl Mac OS X README
+Tcl macOS README
 -------------------
 
-This is the README file for the Mac OS X/Darwin version of Tcl.
+This is the README file for the macOS/Darwin version of Tcl.
 
 
 1. Where to go for support
@@ -63,14 +63,15 @@ framework directories:
 3. Building Tcl on Mac OS X
 ---------------------------
 
-- At least Mac OS X 10.3 is required to build Tcl.
-Apple's Xcode Developer Tools need to be installed (only the most recent version
-matching your OS release is supported), the Xcode installer is available on Mac
-OS X install media or may be present in /Applications/Installers on Macs that
-came with OS X preinstalled. The most recent version can always be downloaded
-from the ADC website http://connect.apple.com (free ADC membership required).
+- Tcl supports macOS 10.13 and newer.
+While Tcl may build on earlier versions of the OS, it is not tested on versions
+older than 10.13.  You will need to install an  Apple clang toolchain either by
+downloading the Xcode app from Apple's App Store, or by installing the Command
+Line Tools. The Command Line Tools can be installed by running the command:
+    xcode-select --install
+in the Terminal.
 
-- Tcl is most easily built as a Mac OS X framework via GNUmakefile in tcl/macosx
+- Tcl is most easily built as a macOS framework via the GNUmakefile in tcl/macosx
 (see below for details), but can also be built with the standard unix configure
 and make buildsystem in tcl/unix as on any other unix platform (indeed, the
 GNUmakefile is just a wrapper around the unix buildsystem).
@@ -78,53 +79,10 @@ The Mac OS X specific configure flags are --enable-framework and
 --disable-corefoundation (which disables CF and notably reverts to the standard
 select based notifier).
 
-- It is also possible to build with the Xcode IDE via the projects in
-tcl/macosx, take care to use the project matching your DevTools and OS version:
-	Tcl.xcode: 		    for Xcode 3.1 on 10.5
-	Tcl.xcodeproj:		    for Xcode 3.2 on 10.6
-These have the following targets:
-	Tcl:			    calls through to tcl/macosx/GNUMakefile.
-	tcltest:		    static build of tcltest for debugging.
-	tests:			    build tcltest target and run tcl testsuite.
-The following build configurations are available:
-	Debug:			    debug build for the active architecture,
-				    with Fix & Continue enabled.
-	Debug clang:		    use clang compiler.
-	Debug llvm-gcc:		    use llvm-gcc compiler.
-	Debug gcc40:		    use gcc 4.0 compiler.
-	DebugNoFixAndContinue:      disable Fix & Continue.
-	DebugUnthreaded:	    disable threading.
-	DebugNoCF:		    disable corefoundation.
-	DebugNoCFUnthreaded:	    disable corefoundation an threading.
-	DebugMemCompile:	    enable memory and bytecode debugging.
-	DebugLeaks:		    define PURIFY.
-	DebugGCov:		    enable generation of gcov data files.
-	Debug64bit:		    configure with --enable-64bit (requires
-				    building on a 64bit capable processor).
-	Release:		    release build for the active architecture.
-	ReleaseUniversal:	    32/64-bit universal build.
-	ReleaseUniversal clang:	    use clang compiler.
-	ReleaseUniversal llvm-gcc:  use llvm-gcc compiler.
-	ReleaseUniversal gcc40:	    use gcc 4.0 compiler.
-	ReleaseUniversal10.5SDK:    build against the 10.5 SDK (with 10.5
-				    deployment target).
-	Note that the non-SDK configurations have their deployment target set to
-	10.5 (Tcl.xcode) resp. 10.6 (Tcl.xcodeproj).
-The Xcode projects refer to the toplevel tcl source directory via the
-TCL_SRCROOT user build setting, by default this is set to the project-relative
-path '../../tcl', if your tcl source directory is named differently, e.g.
-'../../tcl8.6', you need to manually change the TCL_SRCROOT setting by editing
-your ${USER}.pbxuser file (located inside the Tcl.xcodeproj bundle directory)
-with a text editor.
-
-- To build universal binaries outside of the Xcode IDE, set CFLAGS as follows:
-	export CFLAGS="-arch i386 -arch x86_64 -arch ppc"
-This requires Mac OS X 10.4 and Xcode 2.4 (or Xcode 2.2 if -arch x86_64 is
-omitted, but _not_ Xcode 2.1) and will work on any architecture (on PowerPC
-Tiger you need to add "-isysroot /Developer/SDKs/MacOSX10.4u.sdk").
-Note that configure requires CFLAGS to contain a least one architecture that can
-be run on the build machine (i.e. ppc on G3/G4, ppc or ppc64 on G5, ppc or i386
-on Core and ppc, i386 or x86_64 on Core2/Xeon).
+- To build universal binaries for macOS 10.13 and newer set CFLAGS as follows:
+	export CFLAGS="-arch x86_64 -arch arm64 -mmacosx-version-min=10.13"
+(This will cause clang to set macOS 11 as the target OS for the arm64 architecture
+since Apple Silicon was not supported until macOS 11.)
 Universal builds of Tcl TEA extensions are also possible with CFLAGS set as
 above, they will be [load]able by universal as well as thin binaries of Tcl.
 
@@ -134,12 +92,12 @@ Detailed Instructions for building with macosx/GNUmakefile
 - Unpack the Tcl source release archive.
 
 - The following instructions assume the Tcl source tree is named "tcl${ver}",
-(where ${ver} is a shell variable containing the Tcl version number e.g. '8.6').
+(where ${ver} is a shell variable containing the Tcl version number e.g. '9.0').
 Setup this shell variable as follows:
-	ver="8.6"
+	ver="9.0"
 
-- Setup environment variables as desired, e.g. for a universal build on 10.5:
-	CFLAGS="-arch i386 -arch x86_64 -arch ppc -mmacosx-version-min=10.5"
+- Setup environment variables as desired, for example:
+	CFLAGS="-arch x86_64 -arch arm64 -mmacosx-version-min=10.13"
 	export CFLAGS
 
 - Change to the directory containing the Tcl source tree and build:

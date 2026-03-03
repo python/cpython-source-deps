@@ -4,7 +4,7 @@
  *	This file contains code for converting from Win32 errors to errno
  *	errors.
  *
- * Copyright (c) 1995-1996 Sun Microsystems, Inc.
+ * Copyright © 1995-1996 Sun Microsystems, Inc.
  *
  * See the file "license.terms" for information on usage and redistribution of
  * this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -334,7 +334,7 @@ static const unsigned char wsaErrorTable[] = {
 /*
  *----------------------------------------------------------------------
  *
- * TclWinConvertError --
+ * Tcl_WinConvertError --
  *
  *	This routine converts a Win32 error into an errno value.
  *
@@ -348,12 +348,12 @@ static const unsigned char wsaErrorTable[] = {
  */
 
 void
-TclWinConvertError(
-    DWORD errCode)		/* Win32 error code. */
+Tcl_WinConvertError(
+    unsigned errCode)		/* Win32 error code. */
 {
-    if (errCode >= sizeof(errorTable)/sizeof(errorTable[0])) {
+    if ((unsigned)errCode >= sizeof(errorTable)/sizeof(errorTable[0])) {
 	errCode -= WSAEWOULDBLOCK;
-	if (errCode >= sizeof(wsaErrorTable)/sizeof(wsaErrorTable[0])) {
+	if ((unsigned)errCode >= sizeof(wsaErrorTable)/sizeof(wsaErrorTable[0])) {
 	    Tcl_SetErrno(errorTable[1]);
 	} else {
 	    Tcl_SetErrno(wsaErrorTable[errCode]);
@@ -381,7 +381,7 @@ TclWinConvertError(
  *----------------------------------------------------------------------
  */
 
-MODULE_SCOPE TCL_NORETURN void
+MODULE_SCOPE void
 tclWinDebugPanic(
     const char *format, ...)
 {
@@ -406,16 +406,13 @@ tclWinDebugPanic(
 	}
 	OutputDebugStringW(msgString);
     } else {
+	if (!isatty(fileno(stderr))) {
+	    fprintf(stderr, "\xEF\xBB\xBF");
+	}
 	vfprintf(stderr, format, argList);
 	fprintf(stderr, "\n");
 	fflush(stderr);
     }
-#   if defined(__GNUC__)
-    __builtin_trap();
-#   else
-    DebugBreak();
-#   endif
-    abort();
 }
 #endif
 /*

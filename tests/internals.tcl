@@ -2,9 +2,9 @@
 #
 # Source this file in the related tests to include from tcl-tests:
 #
-#   source -encoding utf-8 [file join [file dirname [info script]] internals.tcl]
+#   source [file join [file dirname [info script]] internals.tcl]
 #
-# Copyright (c) 2020 Sergey G. Brester (sebres).
+# Copyright © 2020 Sergey G. Brester (sebres).
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -78,8 +78,8 @@ proc testWithLimit args {
 	return {*}$opt $result
     }
     if { ( [info exists in(-warn-on-code)] && $ret in $in(-warn-on-code) )
-      || ( $ret && [info exists in(-warn-on-alloc-error)] && $in(-warn-on-alloc-error)
-      	    && [regexp {\munable to (?:re)?alloc\M} $result] )
+	|| ( $ret && [info exists in(-warn-on-alloc-error)] && $in(-warn-on-alloc-error)
+	&& [regexp {\munable to (?:re)?alloc\M} $result] )
     } {
 	tcltest::Warn "testWithLimit: wrong limit, result: $result"
 	tcltest::Skip testWithLimit

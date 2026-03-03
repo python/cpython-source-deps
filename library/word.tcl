@@ -4,31 +4,21 @@
 # strings. This file is primarily needed so Tk text and entry widgets behave
 # properly for different platforms.
 #
-# Copyright (c) 1996 Sun Microsystems, Inc.
-# Copyright (c) 1998 Scriptics Corporation.
+# Copyright © 1996 Sun Microsystems, Inc.
+# Copyright © 1998 Scriptics Corporation.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 
 # The following variables are used to determine which characters are
-# interpreted as white space.
+# interpreted as word characters. See bug [f1253530cdd8]. Will
+# probably be removed in Tcl 9.
 
-if {$::tcl_platform(platform) eq "windows"} {
-    # Windows style - any but a Unicode space char
-    if {![info exists ::tcl_wordchars]} {
-	set ::tcl_wordchars {\S}
-    }
-    if {![info exists ::tcl_nonwordchars]} {
-	set ::tcl_nonwordchars {\s}
-    }
-} else {
-    # Motif style - any Unicode word char (number, letter, or underscore)
-    if {![info exists ::tcl_wordchars]} {
-	set ::tcl_wordchars {\w}
-    }
-    if {![info exists ::tcl_nonwordchars]} {
-	set ::tcl_nonwordchars {\W}
-    }
+if {![info exists ::tcl_wordchars]} {
+    set ::tcl_wordchars {\w}
+}
+if {![info exists ::tcl_nonwordchars]} {
+    set ::tcl_nonwordchars {\W}
 }
 
 # Arrange for caches of the real matcher REs to be kept, which enables the REs
@@ -75,6 +65,9 @@ namespace eval ::tcl {
 proc tcl_wordBreakAfter {str start} {
     variable ::tcl::WordBreakRE
     set result {-1 -1}
+    if {$start < 0} {
+	set start 0;
+    }
     regexp -indices -start $start -- $WordBreakRE(after) $str result
     return [lindex $result 1]
 }
@@ -93,7 +86,9 @@ proc tcl_wordBreakAfter {str start} {
 proc tcl_wordBreakBefore {str start} {
     variable ::tcl::WordBreakRE
     set result {-1 -1}
-    regexp -indices -- $WordBreakRE(before) [string range $str 0 $start] result
+    if {$start >= 0} {
+	regexp -indices -- $WordBreakRE(before) [string range $str 0 $start] result
+    }
     return [lindex $result 1]
 }
 
@@ -112,6 +107,9 @@ proc tcl_wordBreakBefore {str start} {
 proc tcl_endOfWord {str start} {
     variable ::tcl::WordBreakRE
     set result {-1 -1}
+    if {$start < 0} {
+	set start 0
+    }
     regexp -indices -start $start -- $WordBreakRE(end) $str result
     return [lindex $result 1]
 }
@@ -130,6 +128,9 @@ proc tcl_endOfWord {str start} {
 proc tcl_startOfNextWord {str start} {
     variable ::tcl::WordBreakRE
     set result {-1 -1}
+    if {$start < 0} {
+	set start 0
+    }
     regexp -indices -start $start -- $WordBreakRE(next) $str result
     return [lindex $result 1]
 }

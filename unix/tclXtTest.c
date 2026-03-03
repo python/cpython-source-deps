@@ -3,7 +3,7 @@
  *
  *	Contains commands for Xt notifier specific tests on Unix.
  *
- * Copyright (c) 1997 by Sun Microsystems, Inc.
+ * Copyright © 1997 Sun Microsystems, Inc.
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -21,7 +21,7 @@ static Tcl_ObjCmdProc TesteventloopCmd;
  * Functions defined in tclXtNotify.c for use by users of the Xt Notifier:
  */
 
-extern void	InitNotifier(void);
+extern void		InitNotifier(void);
 extern XtAppContext	TclSetAppContext(XtAppContext ctx);
 
 /*
@@ -77,7 +77,7 @@ Tclxttest_Init(
 
 static int
 TesteventloopCmd(
-    ClientData clientData,	/* Not used. */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj *const objv[])	/* Argument objects. */
@@ -117,7 +117,7 @@ TesteventloopCmd(
 	framePtr = oldFramePtr;
     } else {
 	Tcl_AppendResult(interp, "bad option \"", Tcl_GetString(objv[1]),
-		"\": must be done or wait", NULL);
+		"\": must be done or wait", (char *)NULL);
 	return TCL_ERROR;
     }
     return TCL_OK;

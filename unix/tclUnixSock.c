@@ -3,13 +3,14 @@
  *
  *	This file contains Unix-specific socket related code.
  *
- * Copyright (c) 1995 Sun Microsystems, Inc.
+ * Copyright © 1995 Sun Microsystems, Inc.
  *
  * See the file "license.terms" for information on usage and redistribution of
  * this file, and for a DISCLAIMER OF ALL WARRANTIES.
  */
 
 #include "tclInt.h"
+#include <netinet/tcp.h>
 
 /*
  * Helper macros to make parts of this file clearer. The macros do exactly
@@ -23,7 +24,7 @@
 
 /* "sock" + a pointer in hex + \0 */
 #define SOCK_CHAN_LENGTH        (4 + sizeof(void *) * 2 + 1)
-#define SOCK_TEMPLATE           "sock%lx"
+#define SOCK_TEMPLATE           "sock%" TCL_Z_MODIFIER "x"
 
 #undef SOCKET   /* Possible conflict with win32 SOCKET */
 
@@ -53,9 +54,9 @@ typedef struct TcpFdList {
 
 struct TcpState {
     Tcl_Channel channel;	/* Channel associated with this file. */
-    TcpFdList fds;		/* The file descriptors of the sockets. */
     int flags;			/* OR'ed combination of the bitfields defined
 				 * below. */
+    TcpFdList fds;		/* The file descriptors of the sockets. */
     int interest;		/* Event types of interest */
 
     /*
@@ -63,7 +64,7 @@ struct TcpState {
      */
 
     Tcl_TcpAcceptProc *acceptProc; /* Proc to call on accept. */
-    void *acceptProcData;  /* The data for the accept proc. */
+    void *acceptProcData;	/* The data for the accept proc. */
 
     /*
      * Only needed for client sockets
@@ -73,10 +74,10 @@ struct TcpState {
     struct addrinfo *addr;	/* Iterator over addrlist. */
     struct addrinfo *myaddrlist;/* Local address. */
     struct addrinfo *myaddr;	/* Iterator over myaddrlist. */
-    int filehandlers;           /* Caches FileHandlers that get set up while
-                                 * an async socket is not yet connected. */
-    int connectError;           /* Cache SO_ERROR of async socket. */
-    int cachedBlocking;         /* Cache blocking mode of async socket. */
+    int filehandlers;		/* Caches FileHandlers that get set up while
+				 * an async socket is not yet connected. */
+    int connectError;		/* Cache SO_ERROR of async socket. */
+    int cachedBlocking;		/* Cache blocking mode of async socket. */
 };
 
 /*
@@ -91,6 +92,10 @@ struct TcpState {
 					 * flag indicates that reentry is
 					 * still pending */
 #define TCP_ASYNC_FAILED	(1<<5)	/* An async connect finally failed */
+
+#define TCP_ASYNC_TEST_MODE	(1<<8)	/* Async testing activated.  Do not
+					 * automatically continue connection
+					 * process. */
 
 /*
  * The following defines the maximum length of the listen queue. This is the
@@ -134,6 +139,9 @@ static int		TcpInputProc(void *instanceData, char *buf,
 			    int toRead, int *errorCode);
 static int		TcpOutputProc(void *instanceData,
 			    const char *buf, int toWrite, int *errorCode);
+static int		TcpSetOptionProc(void *instanceData,
+			    Tcl_Interp *interp, const char *optionName,
+			    const char *value);
 static void		TcpThreadActionProc(void *instanceData, int action);
 static void		TcpWatchProc(void *instanceData, int mask);
 static int		WaitForConnect(TcpState *statePtr, int *errorCodePtr);
@@ -147,11 +155,11 @@ static Tcl_FileProc	WrapNotify;
 static const Tcl_ChannelType tcpChannelType = {
     "tcp",
     TCL_CHANNEL_VERSION_5,
-    TcpCloseProc,
+    NULL,			/* Deprecated. */
     TcpInputProc,
     TcpOutputProc,
-    NULL,			/* Seek proc. */
-    NULL,			/* Set option proc. */
+    NULL,			/* Deprecated. */
+    TcpSetOptionProc,
     TcpGetOptionProc,
     TcpWatchProc,
     TcpGetHandleProc,
@@ -207,7 +215,7 @@ printaddrinfo(
 static void
 InitializeHostName(
     char **valuePtr,
-    int *lengthPtr,
+    size_t *lengthPtr,
     Tcl_Encoding *encodingPtr)
 {
     const char *native = NULL;
@@ -229,12 +237,12 @@ InitializeHostName(
 	    char *dot = strchr(u.nodename, '.');
 
 	    if (dot != NULL) {
-		char *node = (char *)ckalloc(dot - u.nodename + 1);
+		char *node = (char *)Tcl_Alloc(dot - u.nodename + 1);
 
 		memcpy(node, u.nodename, dot - u.nodename);
 		node[dot - u.nodename] = '\0';
 		hp = TclpGetHostByName(node);
-		ckfree(node);
+		Tcl_Free(node);
 	    }
 	}
 	if (hp != NULL) {
@@ -242,9 +250,6 @@ InitializeHostName(
 	} else {
 	    native = u.nodename;
 	}
-    }
-    if (native == NULL) {
-	native = tclEmptyStringRep;
     }
 #else /* !NO_UNAME */
     /*
@@ -274,9 +279,15 @@ InitializeHostName(
 #endif /* NO_UNAME */
 
     *encodingPtr = Tcl_GetEncoding(NULL, NULL);
-    *lengthPtr = strlen(native);
-    *valuePtr = (char *)ckalloc(*lengthPtr + 1);
-    memcpy(*valuePtr, native, *lengthPtr + 1);
+    if (native) {
+	*lengthPtr = strlen(native);
+	*valuePtr = (char *)Tcl_Alloc(*lengthPtr + 1);
+	memcpy(*valuePtr, native, *lengthPtr + 1);
+    } else {
+	*lengthPtr = 0;
+	*valuePtr = (char *)Tcl_Alloc(1);
+	*valuePtr[0] = '\0';
+    }
 }
 
 /*
@@ -300,32 +311,8 @@ InitializeHostName(
 const char *
 Tcl_GetHostName(void)
 {
-    return Tcl_GetString(TclGetProcessGlobalValue(&hostName));
-}
-
-/*
- * ----------------------------------------------------------------------
- *
- * TclpHasSockets --
- *
- *	Detect if sockets are available on this platform.
- *
- * Results:
- *	Returns TCL_OK.
- *
- * Side effects:
- *	None.
- *
- * ----------------------------------------------------------------------
- */
-
-int
-TclpHasSockets(
-    Tcl_Interp *dummy)		/* Not used. */
-{
-    (void)dummy;
-
-    return TCL_OK;
+    Tcl_Obj *tclObj = TclGetProcessGlobalValue(&hostName);
+    return TclGetString(tclObj);
 }
 
 /*
@@ -369,7 +356,7 @@ TclpFinalizeSockets(void)
 
 static int
 TcpBlockModeProc(
-    void *instanceData,	/* Socket state. */
+    void *instanceData,		/* Socket state. */
     int mode)			/* The mode to set. Can be one of
 				 * TCL_MODE_BLOCKING or
 				 * TCL_MODE_NONBLOCKING. */
@@ -447,6 +434,20 @@ WaitForConnect(
 	return 0;
     }
 
+    /*
+     * In socket test mode do not continue with the connect.
+     * Exceptions are:
+     * - Call by recv/send and blocking socket
+     *   (errorCodePtr != NULL && !GOT_BITS(flags, TCP_NONBLOCKING))
+     */
+
+    if (GOT_BITS(statePtr->flags, TCP_ASYNC_TEST_MODE)
+	    && !(errorCodePtr != NULL
+		    && !GOT_BITS(statePtr->flags, TCP_NONBLOCKING))) {
+	*errorCodePtr = EWOULDBLOCK;
+	return -1;
+    }
+
     if (errorCodePtr == NULL || GOT_BITS(statePtr->flags, TCP_NONBLOCKING)) {
 	timeout = 0;
     } else {
@@ -500,14 +501,14 @@ WaitForConnect(
 
 static int
 TcpInputProc(
-    void *instanceData,	/* Socket state. */
+    void *instanceData,		/* Socket state. */
     char *buf,			/* Where to store data read. */
     int bufSize,		/* How much space is available in the
 				 * buffer? */
     int *errorCodePtr)		/* Where to store error code. */
 {
     TcpState *statePtr = (TcpState *)instanceData;
-    int bytesRead;
+    ssize_t bytesRead;
 
     *errorCodePtr = 0;
     if (WaitForConnect(statePtr, errorCodePtr) != 0) {
@@ -515,7 +516,7 @@ TcpInputProc(
     }
     bytesRead = recv(statePtr->fds.fd, buf, bufSize, 0);
     if (bytesRead >= 0) {
-	return bytesRead;
+	return (int)bytesRead;
     }
     if (errno == ECONNRESET) {
 	/*
@@ -551,13 +552,13 @@ TcpInputProc(
 
 static int
 TcpOutputProc(
-    void *instanceData,	/* Socket state. */
+    void *instanceData,		/* Socket state. */
     const char *buf,		/* The data buffer. */
     int toWrite,		/* How many bytes to write? */
     int *errorCodePtr)		/* Where to store error code. */
 {
     TcpState *statePtr = (TcpState *)instanceData;
-    int written;
+    ssize_t written;
 
     *errorCodePtr = 0;
     if (WaitForConnect(statePtr, errorCodePtr) != 0) {
@@ -566,7 +567,7 @@ TcpOutputProc(
     written = send(statePtr->fds.fd, buf, toWrite, 0);
 
     if (written >= 0) {
-	return written;
+	return (int)written;
     }
     *errorCodePtr = errno;
     return -1;
@@ -592,13 +593,12 @@ TcpOutputProc(
 
 static int
 TcpCloseProc(
-    void *instanceData,	/* The socket to close. */
-    Tcl_Interp *dummy)		/* For error reporting - unused. */
+    void *instanceData,		/* The socket to close. */
+    TCL_UNUSED(Tcl_Interp *))
 {
     TcpState *statePtr = (TcpState *)instanceData;
     int errorCode = 0;
     TcpFdList *fds;
-    (void)dummy;
 
     /*
      * Delete a file handler that may be active for this socket if this is a
@@ -622,7 +622,7 @@ TcpCloseProc(
     while (fds != NULL) {
 	TcpFdList *next = fds->next;
 
-	ckfree(fds);
+	Tcl_Free(fds);
 	fds = next;
     }
     if (statePtr->addrlist != NULL) {
@@ -631,7 +631,7 @@ TcpCloseProc(
     if (statePtr->myaddrlist != NULL) {
 	freeaddrinfo(statePtr->myaddrlist);
     }
-    ckfree(statePtr);
+    Tcl_Free(statePtr);
     return errorCode;
 }
 
@@ -654,14 +654,13 @@ TcpCloseProc(
 
 static int
 TcpClose2Proc(
-    void *instanceData,	/* The socket to close. */
-    Tcl_Interp *dummy,		/* For error reporting. */
+    void *instanceData,		/* The socket to close. */
+    TCL_UNUSED(Tcl_Interp *),
     int flags)			/* Flags that indicate which side to close. */
 {
     TcpState *statePtr = (TcpState *)instanceData;
     int readError = 0;
     int writeError = 0;
-    (void)dummy;
 
     /*
      * Shutdown the OS socket handle.
@@ -786,6 +785,87 @@ TcpHostPortList(
 /*
  *----------------------------------------------------------------------
  *
+ * TcpSetOptionProc --
+ *
+ *	Sets TCP channel specific options.
+ *
+ * Results:
+ *	None, unless an error happens.
+ *
+ * Side effects:
+ *	Changes attributes of the socket at the system level.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+TcpSetOptionProc(
+    void *instanceData,		/* Socket state. */
+    Tcl_Interp *interp,		/* For error reporting - can be NULL. */
+    const char *optionName,	/* Name of the option to set. */
+    const char *value)		/* New value for option. */
+{
+    TcpState *statePtr = (TcpState *)instanceData;
+    size_t len = 0;
+
+    if (optionName != NULL) {
+	len = strlen(optionName);
+    }
+
+    if ((len > 1) && (optionName[1] == 'k') &&
+	    (strncmp(optionName, "-keepalive", len) == 0)) {
+	int val = 0, ret;
+
+	if (Tcl_GetBoolean(interp, value, &val) != TCL_OK) {
+	    return TCL_ERROR;
+	}
+#if defined(SO_KEEPALIVE)
+	ret = setsockopt(statePtr->fds.fd, SOL_SOCKET, SO_KEEPALIVE,
+		(const char *) &val, sizeof(int));
+#else
+	ret = -1;
+	Tcl_SetErrno(ENOTSUP);
+#endif
+	if (ret < 0) {
+	    if (interp) {
+		Tcl_SetObjResult(interp, Tcl_ObjPrintf(
+			"couldn't set socket option: %s",
+			Tcl_PosixError(interp)));
+	    }
+	    return TCL_ERROR;
+	}
+	return TCL_OK;
+    }
+    if ((len > 1) && (optionName[1] == 'n') &&
+	    (strncmp(optionName, "-nodelay", len) == 0)) {
+	int val = 0, ret;
+
+	if (Tcl_GetBoolean(interp, value, &val) != TCL_OK) {
+	    return TCL_ERROR;
+	}
+#if defined(SOL_TCP) && defined(TCP_NODELAY)
+	ret = setsockopt(statePtr->fds.fd, SOL_TCP, TCP_NODELAY,
+		(const char *) &val, sizeof(int));
+#else
+	ret = -1;
+	Tcl_SetErrno(ENOTSUP);
+#endif
+	if (ret < 0) {
+	    if (interp) {
+		Tcl_SetObjResult(interp, Tcl_ObjPrintf(
+			"couldn't set socket option: %s",
+			Tcl_PosixError(interp)));
+	    }
+	    return TCL_ERROR;
+	}
+	return TCL_OK;
+    }
+    return Tcl_BadChannelOption(interp, optionName, "keepalive nodelay");
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
  * TcpGetOptionProc --
  *
  *	Computes an option value for a TCP socket based channel, or a list of
@@ -817,8 +897,6 @@ TcpGetOptionProc(
     TcpState *statePtr = (TcpState *)instanceData;
     size_t len = 0;
 
-    WaitForConnect(statePtr, NULL);
-
     if (optionName != NULL) {
 	len = strlen(optionName);
     }
@@ -827,6 +905,7 @@ TcpGetOptionProc(
 	    (strncmp(optionName, "-error", len) == 0)) {
 	socklen_t optlen = sizeof(int);
 
+	WaitForConnect(statePtr, NULL);
 	if (GOT_BITS(statePtr->flags, TCP_ASYNC_CONNECT)) {
 	    /*
 	     * Suppress errors as long as we are not done.
@@ -844,15 +923,16 @@ TcpGetOptionProc(
 	    errno = err;
 	}
 	if (errno != 0) {
-	    Tcl_DStringAppend(dsPtr, Tcl_ErrnoMsg(errno), -1);
+	    Tcl_DStringAppend(dsPtr, Tcl_ErrnoMsg(errno), TCL_INDEX_NONE);
 	}
 	return TCL_OK;
     }
 
     if ((len > 1) && (optionName[1] == 'c') &&
 	    (strncmp(optionName, "-connecting", len) == 0)) {
+	WaitForConnect(statePtr, NULL);
 	Tcl_DStringAppend(dsPtr,
-		GOT_BITS(statePtr->flags, TCP_ASYNC_CONNECT) ? "1" : "0", -1);
+		GOT_BITS(statePtr->flags, TCP_ASYNC_CONNECT) ? "1" : "0", TCL_INDEX_NONE);
 	return TCL_OK;
     }
 
@@ -861,6 +941,7 @@ TcpGetOptionProc(
 	address peername;
 	socklen_t size = sizeof(peername);
 
+	WaitForConnect(statePtr, NULL);
 	if (GOT_BITS(statePtr->flags, TCP_ASYNC_CONNECT)) {
 	    /*
 	     * In async connect output an empty string
@@ -912,6 +993,7 @@ TcpGetOptionProc(
 	socklen_t size;
 	int found = 0;
 
+	WaitForConnect(statePtr, NULL);
 	if (len == 0) {
 	    Tcl_DStringAppendElement(dsPtr, "-sockname");
 	    Tcl_DStringStartSublist(dsPtr);
@@ -945,9 +1027,49 @@ TcpGetOptionProc(
 	}
     }
 
+    if ((len == 0) || ((len > 1) && (optionName[1] == 'k') &&
+	    (strncmp(optionName, "-keepalive", len) == 0))) {
+	int opt = 0;
+#if defined(SO_KEEPALIVE)
+	socklen_t size = sizeof(opt);
+#endif
+
+	if (len == 0) {
+	    Tcl_DStringAppendElement(dsPtr, "-keepalive");
+	}
+#if defined(SO_KEEPALIVE)
+	getsockopt(statePtr->fds.fd, SOL_SOCKET, SO_KEEPALIVE,
+		(char *) &opt, &size);
+#endif
+	Tcl_DStringAppendElement(dsPtr, opt ? "1" : "0");
+	if (len > 0) {
+	    return TCL_OK;
+	}
+    }
+
+    if ((len == 0) || ((len > 1) && (optionName[1] == 'n') &&
+	    (strncmp(optionName, "-nodelay", len) == 0))) {
+	int opt = 0;
+#if defined(SOL_TCP) && defined(TCP_NODELAY)
+	socklen_t size = sizeof(opt);
+#endif
+
+	if (len == 0) {
+	    Tcl_DStringAppendElement(dsPtr, "-nodelay");
+	}
+#if defined(SOL_TCP) && defined(TCP_NODELAY)
+	getsockopt(statePtr->fds.fd, SOL_TCP, TCP_NODELAY,
+		(char *) &opt, &size);
+#endif
+	Tcl_DStringAppendElement(dsPtr, opt ? "1" : "0");
+	if (len > 0) {
+	    return TCL_OK;
+	}
+    }
+
     if (len > 0) {
 	return Tcl_BadChannelOption(interp, optionName,
-		"connecting peername sockname");
+		"connecting keepalive nodelay peername sockname");
     }
 
     return TCL_OK;
@@ -1046,7 +1168,7 @@ WrapNotify(
 
 static void
 TcpWatchProc(
-    void *instanceData,	/* The socket state. */
+    void *instanceData,		/* The socket state. */
     int mask)			/* Events of interest; an OR-ed combination of
 				 * TCL_READABLE, TCL_WRITABLE and
 				 * TCL_EXCEPTION. */
@@ -1119,12 +1241,11 @@ TcpWatchProc(
 
 static int
 TcpGetHandleProc(
-    void *instanceData,	/* The socket state. */
-    int direction,		/* Not used. */
-    void **handlePtr)	/* Where to store the handle. */
+    void *instanceData,		/* The socket state. */
+    TCL_UNUSED(int) /*direction*/,
+    void **handlePtr)		/* Where to store the handle. */
 {
     TcpState *statePtr = (TcpState *)instanceData;
-    (void)direction;
 
     *handlePtr = INT2PTR(statePtr->fds.fd);
     return TCL_OK;
@@ -1144,13 +1265,9 @@ TcpGetHandleProc(
 
 static void
 TcpAsyncCallback(
-    void *clientData,	/* The socket state. */
-    int mask)			/* Events of interest; an OR-ed combination of
-				 * TCL_READABLE, TCL_WRITABLE and
-				 * TCL_EXCEPTION. */
+    void *clientData,		/* The socket state. */
+    TCL_UNUSED(int) /*mask*/)
 {
-    (void)mask;
-
     TcpConnect(NULL, (TcpState *)clientData);
 }
 
@@ -1409,7 +1526,7 @@ Tcl_OpenTcpClient(
      * Allocate a new TcpState for this socket.
      */
 
-    statePtr = (TcpState *)ckalloc(sizeof(TcpState));
+    statePtr = (TcpState *)Tcl_Alloc(sizeof(TcpState));
     memset(statePtr, 0, sizeof(TcpState));
     statePtr->flags = async ? TCP_ASYNC_CONNECT : 0;
     statePtr->cachedBlocking = TCL_MODE_BLOCKING;
@@ -1426,13 +1543,13 @@ Tcl_OpenTcpClient(
 	return NULL;
     }
 
-    snprintf(channelName, sizeof(channelName), SOCK_TEMPLATE, (long)statePtr);
+    snprintf(channelName, sizeof(channelName), SOCK_TEMPLATE, PTR2INT(statePtr));
 
     statePtr->channel = Tcl_CreateChannel(&tcpChannelType, channelName,
 	    statePtr, TCL_READABLE | TCL_WRITABLE);
     if (Tcl_SetChannelOption(interp, statePtr->channel, "-translation",
 	    "auto crlf") == TCL_ERROR) {
-	Tcl_Close(NULL, statePtr->channel);
+	Tcl_CloseEx(NULL, statePtr->channel, 0);
 	return NULL;
     }
     return statePtr->channel;
@@ -1456,7 +1573,7 @@ Tcl_OpenTcpClient(
 
 Tcl_Channel
 Tcl_MakeTcpClientChannel(
-    void *sock)		/* The socket to wrap up into a channel. */
+    void *sock)			/* The socket to wrap up into a channel. */
 {
     return (Tcl_Channel) TclpMakeTcpClientChannelMode(sock,
 	    TCL_READABLE | TCL_WRITABLE);
@@ -1481,25 +1598,25 @@ Tcl_MakeTcpClientChannel(
 
 void *
 TclpMakeTcpClientChannelMode(
-    void *sock,		/* The socket to wrap up into a channel. */
+    void *sock,			/* The socket to wrap up into a channel. */
     int mode)			/* OR'ed combination of TCL_READABLE and
 				 * TCL_WRITABLE to indicate file mode. */
 {
     TcpState *statePtr;
     char channelName[SOCK_CHAN_LENGTH];
 
-    statePtr = (TcpState *)ckalloc(sizeof(TcpState));
+    statePtr = (TcpState *)Tcl_Alloc(sizeof(TcpState));
     memset(statePtr, 0, sizeof(TcpState));
-    statePtr->fds.fd = PTR2INT(sock);
+    statePtr->fds.fd = (int)PTR2INT(sock);
     statePtr->flags = 0;
 
-    snprintf(channelName, sizeof(channelName), SOCK_TEMPLATE, (long)statePtr);
+    snprintf(channelName, sizeof(channelName), SOCK_TEMPLATE, PTR2INT(statePtr));
 
     statePtr->channel = Tcl_CreateChannel(&tcpChannelType, channelName,
 	    statePtr, mode);
     if (Tcl_SetChannelOption(NULL, statePtr->channel, "-translation",
 	    "auto crlf") == TCL_ERROR) {
-	Tcl_Close(NULL, statePtr->channel);
+	Tcl_CloseEx(NULL, statePtr->channel, 0);
 	return NULL;
     }
     return statePtr->channel;
@@ -1508,7 +1625,7 @@ TclpMakeTcpClientChannelMode(
 /*
  *----------------------------------------------------------------------
  *
- * Tcl_OpenTcpServer --
+ * Tcl_OpenTcpServerEx --
  *
  *	Opens a TCP server socket and creates a channel around it.
  *
@@ -1523,16 +1640,18 @@ TclpMakeTcpClientChannelMode(
  */
 
 Tcl_Channel
-Tcl_OpenTcpServer(
+Tcl_OpenTcpServerEx(
     Tcl_Interp *interp,		/* For error reporting - may be NULL. */
-    int port,			/* Port number to open. */
+    const char *service,	/* Port number to open. */
     const char *myHost,		/* Name of local host. */
+    unsigned int flags,		/* Flags. */
+    int backlog,		/* Length of OS listen backlog queue. */
     Tcl_TcpAcceptProc *acceptProc,
 				/* Callback for accepting connections from new
 				 * clients. */
     void *acceptProcData)	/* Data for the callback. */
 {
-    int status = 0, sock = -1, reuseaddr = 1, chosenport = 0;
+    int status = 0, sock = -1, optvalue, port, chosenport;
     struct addrinfo *addrlist = NULL, *addrPtr;	/* socket address */
     TcpState *statePtr = NULL;
     char channelName[SOCK_CHAN_LENGTH];
@@ -1547,7 +1666,45 @@ Tcl_OpenTcpServer(
     enum { LOOKUP, SOCKET, BIND, LISTEN } howfar = LOOKUP;
     int my_errno = 0;
 
-    if (!TclCreateSocketAddress(interp, &addrlist, myHost, port, 1, &errorMsg)) {
+    /*
+     * If we were called with port 0 to listen on a random port number, we
+     * copy the port number from the first member of the addrinfo list to all
+     * subsequent members, so that IPv4 and IPv6 listen on the same port. This
+     * might fail to bind() with EADDRINUSE if a port is free on the first
+     * address family in the list but already used on the other. In this case
+     * we revert everything we've done so far and start from scratch hoping
+     * that next time we'll find a port number that is usable on all address
+     * families. We try this at most MAXRETRY times to avoid an endless loop
+     * if all ports are taken.
+     */
+
+    int retry = 0;
+#define MAXRETRY 10
+
+ repeat:
+    if (retry > 0) {
+	if (statePtr != NULL) {
+	    TcpCloseProc(statePtr, NULL);
+	    statePtr = NULL;
+	}
+	if (addrlist != NULL) {
+	    freeaddrinfo(addrlist);
+	    addrlist = NULL;
+	}
+	if (retry >= MAXRETRY) {
+	    goto error;
+	}
+    }
+    retry++;
+    chosenport = 0;
+
+    if (TclSockGetPort(interp, service, "tcp", &port) != TCL_OK) {
+	errorMsg = "invalid port number";
+	goto error;
+    }
+
+    if (!TclCreateSocketAddress(interp, &addrlist, myHost, port, 1,
+	    &errorMsg)) {
 	my_errno = errno;
 	goto error;
     }
@@ -1580,8 +1737,27 @@ Tcl_OpenTcpServer(
 	 * Set up to reuse server addresses and/or ports if requested.
 	 */
 
-	(void) setsockopt(sock, SOL_SOCKET, SO_REUSEADDR,
-		(char *) &reuseaddr, sizeof(reuseaddr));
+	if (GOT_BITS(flags, TCL_TCPSERVER_REUSEADDR)) {
+	    optvalue = 1;
+	    (void) setsockopt(sock, SOL_SOCKET, SO_REUSEADDR,
+		    (char *) &optvalue, sizeof(optvalue));
+	}
+
+	if (GOT_BITS(flags, TCL_TCPSERVER_REUSEPORT)) {
+#ifndef SO_REUSEPORT
+	    /*
+	     * If the platform doesn't support the SO_REUSEPORT flag we can't
+	     * do much beside erroring out.
+	     */
+
+	    errorMsg = "SO_REUSEPORT isn't supported by this platform";
+	    goto error;
+#else
+	    optvalue = 1;
+	    (void) setsockopt(sock, SOL_SOCKET, SO_REUSEPORT,
+		    (char *) &optvalue, sizeof(optvalue));
+#endif
+	}
 
 	/*
 	 * Make sure we use the same port number when opening two server
@@ -1592,8 +1768,8 @@ Tcl_OpenTcpServer(
 	 */
 
 	if (port == 0 && chosenport != 0) {
-	    ((struct sockaddr_in *) addrPtr->ai_addr)->sin_port =
-		    htons(chosenport);
+	    ((struct sockaddr_in *)addrPtr->ai_addr)->sin_port =
+		    htons((uint16_t)chosenport);
 	}
 
 #ifdef IPV6_V6ONLY
@@ -1617,6 +1793,9 @@ Tcl_OpenTcpServer(
 	    }
 	    close(sock);
 	    sock = -1;
+	    if (port == 0 && errno == EADDRINUSE) {
+		goto repeat;
+	    }
 	    continue;
 	}
 	if (port == 0 && chosenport == 0) {
@@ -1632,7 +1811,10 @@ Tcl_OpenTcpServer(
 		chosenport = ntohs(sockname.sa4.sin_port);
 	    }
 	}
-	status = listen(sock, SOMAXCONN);
+	if (backlog < 0) {
+	    backlog = SOMAXCONN;
+	}
+	status = listen(sock, backlog);
 	if (status < 0) {
 	    if (howfar < LISTEN) {
 		howfar = LISTEN;
@@ -1640,6 +1822,9 @@ Tcl_OpenTcpServer(
 	    }
 	    close(sock);
 	    sock = -1;
+	    if (port == 0 && errno == EADDRINUSE) {
+		goto repeat;
+	    }
 	    continue;
 	}
 	if (statePtr == NULL) {
@@ -1647,14 +1832,14 @@ Tcl_OpenTcpServer(
 	     * Allocate a new TcpState for this socket.
 	     */
 
-	    statePtr = (TcpState *)ckalloc(sizeof(TcpState));
+	    statePtr = (TcpState *)Tcl_Alloc(sizeof(TcpState));
 	    memset(statePtr, 0, sizeof(TcpState));
 	    statePtr->acceptProc = acceptProc;
 	    statePtr->acceptProcData = acceptProcData;
-	    snprintf(channelName, sizeof(channelName), SOCK_TEMPLATE, (long)statePtr);
+	    snprintf(channelName, sizeof(channelName), SOCK_TEMPLATE, PTR2INT(statePtr));
 	    newfds = &statePtr->fds;
 	} else {
-	    newfds = (TcpFdList *)ckalloc(sizeof(TcpFdList));
+	    newfds = (TcpFdList *)Tcl_Alloc(sizeof(TcpFdList));
 	    memset(newfds, (int) 0, sizeof(TcpFdList));
 	    fds->next = newfds;
 	}
@@ -1680,13 +1865,13 @@ Tcl_OpenTcpServer(
 	return statePtr->channel;
     }
     if (interp != NULL) {
-	Tcl_Obj *errorObj = Tcl_NewStringObj("couldn't open socket: ", -1);
+	Tcl_Obj *errorObj = Tcl_NewStringObj("couldn't open socket: ", TCL_INDEX_NONE);
 
 	if (errorMsg == NULL) {
 	    errno = my_errno;
-	    Tcl_AppendToObj(errorObj, Tcl_PosixError(interp), -1);
+	    Tcl_AppendToObj(errorObj, Tcl_PosixError(interp), TCL_INDEX_NONE);
 	} else {
-	    Tcl_AppendToObj(errorObj, errorMsg, -1);
+	    Tcl_AppendToObj(errorObj, errorMsg, TCL_INDEX_NONE);
 	}
 	Tcl_SetObjResult(interp, errorObj);
     }
@@ -1714,8 +1899,8 @@ Tcl_OpenTcpServer(
 
 static void
 TcpAccept(
-    void *data,		/* Callback token. */
-    int mask)			/* Not used. */
+    void *data,			/* Callback token. */
+    TCL_UNUSED(int) /*mask*/)
 {
     TcpFdList *fds = (TcpFdList *)data;	/* Client data of server socket. */
     int newsock;		/* The new client socket */
@@ -1724,7 +1909,6 @@ TcpAccept(
     socklen_t len;		/* For accept interface */
     char channelName[SOCK_CHAN_LENGTH];
     char host[NI_MAXHOST], port[NI_MAXSERV];
-    (void)mask;
 
     len = sizeof(addr);
     newsock = accept(fds->fd, &addr.sa, &len);
@@ -1739,12 +1923,12 @@ TcpAccept(
 
     (void) fcntl(newsock, F_SETFD, FD_CLOEXEC);
 
-    newSockState = (TcpState *)ckalloc(sizeof(TcpState));
+    newSockState = (TcpState *)Tcl_Alloc(sizeof(TcpState));
     memset(newSockState, 0, sizeof(TcpState));
     newSockState->flags = 0;
     newSockState->fds.fd = newsock;
 
-    snprintf(channelName, sizeof(channelName), SOCK_TEMPLATE, (long)newSockState);
+    snprintf(channelName, sizeof(channelName), SOCK_TEMPLATE, PTR2INT(newSockState));
     newSockState->channel = Tcl_CreateChannel(&tcpChannelType, channelName,
 	    newSockState, TCL_READABLE | TCL_WRITABLE);
 

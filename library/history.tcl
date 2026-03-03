@@ -2,7 +2,7 @@
 #
 # Implementation of the history command.
 #
-# Copyright (c) 1997 Sun Microsystems, Inc.
+# Copyright © 1997 Sun Microsystems, Inc.
 #
 # See the file "license.terms" for information on usage and redistribution of
 # this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -89,7 +89,7 @@ trace add command ::history delete [list apply {{oldName newName op} {
 #	exec		(optional) a substring of "exec" causes the command to
 #			be evaled.
 # Results:
-# 	If executing, then the results of the command are returned
+#	If executing, then the results of the command are returned
 #
 # Side Effects:
 #	Adds to the history list

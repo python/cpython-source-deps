@@ -8,8 +8,8 @@
 # Sourcing this file into Tcl runs the tests and generates output for errors.
 # No output means no errors were found.
 #
-# Copyright (c) 1997 Sun Microsystems, Inc.
-# Copyright (c) 1998-1999 by Scriptics Corporation.
+# Copyright © 1997 Sun Microsystems, Inc.
+# Copyright © 1998-1999 Scriptics Corporation.
 #
 # See the file "license.terms" for information on usage and redistribution of
 # this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -20,7 +20,7 @@ if {"::tcltest" ni [namespace children]} {
 }
 
 ::tcltest::loadTestedCommands
-catch [list package require -exact Tcltest [info patchlevel]]
+catch [list package require -exact tcl::test [info patchlevel]]
 
 catch {namespace delete {*}[namespace children :: test_ns_*]}
 catch {rename foo ""}
@@ -34,7 +34,6 @@ testConstraint testobj [expr {
     && [llength [info commands teststringobj]]
 }]
 
-testConstraint longIs32bit [expr {int(0x80000000) < 0}]
 testConstraint testexprlongobj [llength [info commands testexprlongobj]]
 
 
@@ -179,7 +178,7 @@ test execute-3.5 {TclExecuteByteCode, INST_ADD, op1 is string double} {testobj} 
 test execute-3.6 {TclExecuteByteCode, INST_ADD, op1 is non-numeric} {testobj} {
     set x [teststringobj set 0 foo]
     list [catch {expr {$x + 1}} msg] $msg
-} {1 {can't use non-numeric string as operand of "+"}}
+} {1 {cannot use non-numeric string "foo" as left operand of "+"}}
 test execute-3.7 {TclExecuteByteCode, INST_ADD, op2 is int} {testobj} {
     set x [testintobj set 0 1]
     expr {1 + $x}
@@ -204,7 +203,7 @@ test execute-3.11 {TclExecuteByteCode, INST_ADD, op2 is string double} {testobj}
 test execute-3.12 {TclExecuteByteCode, INST_ADD, op2 is non-numeric} {testobj} {
     set x [teststringobj set 0 foo]
     list [catch {expr {1 + $x}} msg] $msg
-} {1 {can't use non-numeric string as operand of "+"}}
+} {1 {cannot use non-numeric string "foo" as right operand of "+"}}
 
 # INST_SUB is partially tested:
 test execute-3.13 {TclExecuteByteCode, INST_SUB, op1 is int} {testobj} {
@@ -231,7 +230,7 @@ test execute-3.17 {TclExecuteByteCode, INST_SUB, op1 is string double} {testobj}
 test execute-3.18 {TclExecuteByteCode, INST_SUB, op1 is non-numeric} {testobj} {
     set x [teststringobj set 0 foo]
     list [catch {expr {$x - 1}} msg] $msg
-} {1 {can't use non-numeric string as operand of "-"}}
+} {1 {cannot use non-numeric string "foo" as left operand of "-"}}
 test execute-3.19 {TclExecuteByteCode, INST_SUB, op2 is int} {testobj} {
     set x [testintobj set 0 1]
     expr {1 - $x}
@@ -256,7 +255,7 @@ test execute-3.23 {TclExecuteByteCode, INST_SUB, op2 is string double} {testobj}
 test execute-3.24 {TclExecuteByteCode, INST_SUB, op2 is non-numeric} {testobj} {
     set x [teststringobj set 0 foo]
     list [catch {expr {1 - $x}} msg] $msg
-} {1 {can't use non-numeric string as operand of "-"}}
+} {1 {cannot use non-numeric string "foo" as right operand of "-"}}
 
 # INST_MULT is partially tested:
 test execute-3.25 {TclExecuteByteCode, INST_MULT, op1 is int} {testobj} {
@@ -283,7 +282,7 @@ test execute-3.29 {TclExecuteByteCode, INST_MULT, op1 is string double} {testobj
 test execute-3.30 {TclExecuteByteCode, INST_MULT, op1 is non-numeric} {testobj} {
     set x [teststringobj set 1 foo]
     list [catch {expr {$x * 1}} msg] $msg
-} {1 {can't use non-numeric string as operand of "*"}}
+} {1 {cannot use non-numeric string "foo" as left operand of "*"}}
 test execute-3.31 {TclExecuteByteCode, INST_MULT, op2 is int} {testobj} {
     set x [testintobj set 1 1]
     expr {1 * $x}
@@ -308,7 +307,7 @@ test execute-3.35 {TclExecuteByteCode, INST_MULT, op2 is string double} {testobj
 test execute-3.36 {TclExecuteByteCode, INST_MULT, op2 is non-numeric} {testobj} {
     set x [teststringobj set 1 foo]
     list [catch {expr {1 * $x}} msg] $msg
-} {1 {can't use non-numeric string as operand of "*"}}
+} {1 {cannot use non-numeric string "foo" as right operand of "*"}}
 
 # INST_DIV is partially tested:
 test execute-3.37 {TclExecuteByteCode, INST_DIV, op1 is int} {testobj} {
@@ -335,7 +334,7 @@ test execute-3.41 {TclExecuteByteCode, INST_DIV, op1 is string double} {testobj}
 test execute-3.42 {TclExecuteByteCode, INST_DIV, op1 is non-numeric} {testobj} {
     set x [teststringobj set 1 foo]
     list [catch {expr {$x / 1}} msg] $msg
-} {1 {can't use non-numeric string as operand of "/"}}
+} {1 {cannot use non-numeric string "foo" as left operand of "/"}}
 test execute-3.43 {TclExecuteByteCode, INST_DIV, op2 is int} {testobj} {
     set x [testintobj set 1 1]
     expr {2 / $x}
@@ -360,7 +359,7 @@ test execute-3.47 {TclExecuteByteCode, INST_DIV, op2 is string double} {testobj}
 test execute-3.48 {TclExecuteByteCode, INST_DIV, op2 is non-numeric} {testobj} {
     set x [teststringobj set 1 foo]
     list [catch {expr {1 / $x}} msg] $msg
-} {1 {can't use non-numeric string as operand of "/"}}
+} {1 {cannot use non-numeric string "foo" as right operand of "/"}}
 
 # INST_UPLUS is partially tested:
 test execute-3.49 {TclExecuteByteCode, INST_UPLUS, op is int} {testobj} {
@@ -387,7 +386,7 @@ test execute-3.53 {TclExecuteByteCode, INST_UPLUS, op is string double} {testobj
 test execute-3.54 {TclExecuteByteCode, INST_UPLUS, op is non-numeric} {testobj} {
     set x [teststringobj set 1 foo]
     list [catch {expr {+ $x}} msg] $msg
-} {1 {can't use non-numeric string as operand of "+"}}
+} {1 {cannot use non-numeric string "foo" as operand of "+"}}
 
 # INST_UMINUS is partially tested:
 test execute-3.55 {TclExecuteByteCode, INST_UMINUS, op is int} {testobj} {
@@ -414,7 +413,7 @@ test execute-3.59 {TclExecuteByteCode, INST_UMINUS, op is string double} {testob
 test execute-3.60 {TclExecuteByteCode, INST_UMINUS, op is non-numeric} {testobj} {
     set x [teststringobj set 1 foo]
     list [catch {expr {- $x}} msg] $msg
-} {1 {can't use non-numeric string as operand of "-"}}
+} {1 {cannot use non-numeric string "foo" as operand of "-"}}
 
 # INST_LNOT is partially tested:
 test execute-3.61 {TclExecuteByteCode, INST_LNOT, op is int} {testobj} {
@@ -462,11 +461,7 @@ test execute-3.70 {TclExecuteByteCode, INST_LNOT, op is string double} {testobj}
 test execute-3.71 {TclExecuteByteCode, INST_LNOT, op is non-numeric} {testobj} {
     set x [teststringobj set 1 foo]
     list [catch {expr {! $x}} msg] $msg
-} {1 {can't use non-numeric string as operand of "!"}}
-
-# INST_BITNOT not tested
-# INST_CALL_BUILTIN_FUNC1 not tested
-# INST_CALL_FUNC1 not tested
+} {1 {cannot use non-numeric string "foo" as operand of "!"}}
 
 # INST_TRY_CVT_TO_NUMERIC is partially tested:
 test execute-3.72 {TclExecuteByteCode, INST_TRY_CVT_TO_NUMERIC, op is int} {testobj} {
@@ -510,18 +505,18 @@ test execute-4.1 {Tcl_GetCommandFromObj, convert to tclCmdNameType} -setup {
     unset -nocomplain y
 } -body {
     namespace eval test_ns_1 {
-        namespace export cmd1
-        proc cmd1 {args} {return "cmd1: $args"}
-        proc cmd2 {args} {return "cmd2: $args"}
+	namespace export cmd1
+	proc cmd1 {args} {return "cmd1: $args"}
+	proc cmd2 {args} {return "cmd2: $args"}
     }
     namespace eval test_ns_1::test_ns_2 {
-        namespace import ::test_ns_1::*
+	namespace import ::test_ns_1::*
     }
     set x "test_ns_1::"
     set y "test_ns_2::"
     list [namespace which -command ${x}${y}cmd1] \
-         [catch {namespace which -command ${x}${y}cmd2} msg] $msg \
-         [catch {namespace which -command ${x}${y}:cmd2} msg] $msg
+	 [catch {namespace which -command ${x}${y}cmd2} msg] $msg \
+	 [catch {namespace which -command ${x}${y}:cmd2} msg] $msg
 } -result {::test_ns_1::test_ns_2::cmd1 0 {} 0 {}}
 test execute-4.2 {Tcl_GetCommandFromObj, check if cached tclCmdNameType is invalid} -setup {
     catch {namespace delete {*}[namespace children :: test_ns_*]}
@@ -529,19 +524,19 @@ test execute-4.2 {Tcl_GetCommandFromObj, check if cached tclCmdNameType is inval
     unset -nocomplain l
 } -body {
     proc foo {} {
-        return "global foo"
+	return "global foo"
     }
     namespace eval test_ns_1 {
-        proc whichFoo {} {
-            return [namespace which -command foo]
-        }
+	proc whichFoo {} {
+	    return [namespace which -command foo]
+	}
     }
     set l ""
     lappend l [test_ns_1::whichFoo]
     namespace eval test_ns_1 {
-        proc foo {} {
-            return "namespace foo"
-        }
+	proc foo {} {
+	    return "namespace foo"
+	}
     }
     lappend l [test_ns_1::whichFoo]
 } -result {::foo ::test_ns_1::foo}
@@ -550,18 +545,18 @@ test execute-4.3 {Tcl_GetCommandFromObj, command never found} -setup {
     catch {rename foo ""}
 } -body {
     namespace eval test_ns_1 {
-        proc foo {} {
-            return "namespace foo"
-        }
+	proc foo {} {
+	    return "namespace foo"
+	}
     }
     namespace eval test_ns_1 {
-        proc foo {} {
-            return "namespace foo"
-        }
+	proc foo {} {
+	    return "namespace foo"
+	}
     }
     list [namespace eval test_ns_1 {namespace which -command foo}] \
-         [rename test_ns_1::foo ""] \
-         [catch {namespace eval test_ns_1 {namespace which -command foo}} msg] $msg
+	 [rename test_ns_1::foo ""] \
+	 [catch {namespace eval test_ns_1 {namespace which -command foo}} msg] $msg
 } -result {::test_ns_1::foo {} 0 {}}
 
 test execute-5.1 {SetCmdNameFromAny, set cmd name to empty heap string if NULL} -setup {
@@ -579,10 +574,10 @@ test execute-6.1 {UpdateStringOfCmdName: called for duplicate of empty cmdName o
     proc {} {} {}
     proc { } {} {}
     proc p {} {
-        set x {}
-        $x
-        append x { }
-        $x
+	set x {}
+	$x
+	append x { }
+	$x
     }
     p
 } {}
@@ -810,9 +805,9 @@ test execute-7.7 {Wide int handling in INST_EQ and [incr]} {
     set y [expr {$x+1}]
     expr {double($x) == double($y)}
 } 1
-test execute-7.8 {Wide int conversions can change sign} longIs32bit {
-    set x 0x80000000
-    expr {int($x) < wide($x)}
+test execute-7.8 {Wide int conversions can change sign} {
+    set x 0x8000000000000000
+    expr {wide($x) < 0}
 } 1
 test execute-7.9 {Wide int handling in INST_MOD} {
     expr {(wide(1)<<60) % ((wide(47)<<45)-1)}
@@ -892,12 +887,12 @@ test execute-7.31 {Wide int handling in abs()} {
     set y 0x123456871234568
     concat [expr {abs($x)}] [expr {abs($y)}]
 } {730503879441204585 81985533099853160}
-test execute-7.32 {Wide int handling} longIs32bit {
+test execute-7.32 {Wide int handling} {
     expr {int(1024 * 1024 * 1024 * 1024)}
-} 0
-test execute-7.33 {Wide int handling} longIs32bit {
+} 1099511627776
+test execute-7.33 {Wide int handling} {
     expr {int(0x1 * 1024 * 1024 * 1024 * 1024)}
-} 0
+} 1099511627776
 test execute-7.34 {Wide int handling} {
     expr {wide(0x1) * 1024 * 1024 * 1024 * 1024}
 } 1099511627776
@@ -985,7 +980,7 @@ test execute-8.6 {Compile epoch bump in global level (bug [fa6bf38d07])} -setup 
     interp create child
     child eval {
 	package require tcltest 2.5
-	catch [list package require -exact Tcltest [info patchlevel]]
+	catch [list package require -exact tcl::test [info patchlevel]]
 	::tcltest::loadTestedCommands
 	if {[namespace which -command testbumpinterpepoch] eq ""} {
 	  proc testbumpinterpepoch {} { rename ::set ::dummy; rename ::dummy ::set }
@@ -1018,7 +1013,7 @@ test execute-8.7 {Compile epoch bump in global level (bug [fa6bf38d07]), excepti
     interp create child
     child eval {
 	package require tcltest 2.5
-	catch [list package require -exact Tcltest [info patchlevel]]
+	catch [list package require -exact tcl::test [info patchlevel]]
 	::tcltest::loadTestedCommands
 	if {[namespace which -command testbumpinterpepoch] eq ""} {
 	  proc testbumpinterpepoch {} { rename ::set ::dummy; rename ::dummy ::set }
@@ -1066,7 +1061,7 @@ test execute-9.1 {Interp result resetting [Bug 1522803]} {
 } SUCCESS
 
 test execute-10.1 {TclExecuteByteCode, INST_CONCAT1, bytearrays} {
-    apply {s {binary scan $s c x; list $x [scan $s$s %c%c]}} \u0130
+    apply {s {binary scan [binary format a $s] c x; list $x [scan $s$s %c%c]}} İ
 } {48 {304 304}}
 test execute-10.2 {Bug 2802881} -setup {
     interp create child

@@ -4,7 +4,7 @@
  *	This file implements the MacOSX specific portion of file manipulation
  *	subcommands of the "file" command.
  *
- * Copyright (c) 2003-2007 Daniel A. Steffen <das@users.sourceforge.net>
+ * Copyright © 2003-2007 Daniel A. Steffen <das@users.sourceforge.net>
  *
  * See the file "license.terms" for information on usage and redistribution of
  * this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -22,26 +22,12 @@
 #ifdef HAVE_COPYFILE
 #ifdef HAVE_COPYFILE_H
 #include <copyfile.h>
-#if defined(HAVE_WEAK_IMPORT) && (MAC_OS_X_VERSION_MIN_REQUIRED < 1040)
-/* Support for weakly importing copyfile. */
-#define WEAK_IMPORT_COPYFILE
-extern int		copyfile(const char *from, const char *to,
-			    copyfile_state_t state, copyfile_flags_t flags)
-			    WEAK_IMPORT_ATTRIBUTE;
-#endif /* HAVE_WEAK_IMPORT */
 #else /* HAVE_COPYFILE_H */
 int			copyfile(const char *from, const char *to,
 			    void *state, uint32_t flags);
 #define COPYFILE_ACL		(1<<0)
 #define COPYFILE_XATTR		(1<<2)
 #define COPYFILE_NOFOLLOW_SRC	(1<<18)
-#if defined(HAVE_WEAK_IMPORT) && (MAC_OS_X_VERSION_MIN_REQUIRED < 1040)
-/* Support for weakly importing copyfile. */
-#define WEAK_IMPORT_COPYFILE
-extern int		copyfile(const char *from, const char *to,
-			    void *state, uint32_t flags)
-			    WEAK_IMPORT_ATTRIBUTE;
-#endif /* HAVE_WEAK_IMPORT */
 #endif /* HAVE_COPYFILE_H */
 #endif /* HAVE_COPYFILE */
 
@@ -88,7 +74,8 @@ static const Tcl_ObjType tclOSTypeType = {
     NULL,				/* freeIntRepProc */
     NULL,				/* dupIntRepProc */
     UpdateStringOfOSType,		/* updateStringProc */
-    SetOSTypeFromAny			/* setFromAnyProc */
+    SetOSTypeFromAny,			/* setFromAnyProc */
+    TCL_OBJTYPE_V0
 };
 
 enum {
@@ -107,6 +94,8 @@ typedef	struct finderinfo {
 } __attribute__ ((__packed__)) finderinfo;
 
 typedef struct {
+    u_int64_t reserved1; /* Make sure data is 8-byte aligned */
+    u_int32_t reserved2; /* See [992f94d847] */
     u_int32_t info_length;
     u_int32_t data[8];
 } fileinfobuf;
@@ -173,7 +162,8 @@ TclMacOSXGetFileAttribute(
 	alist.commonattr = ATTR_CMN_FNDRINFO;
     }
     native = (const char *)Tcl_FSGetNativePath(fileName);
-    result = getattrlist(native, &alist, &finfo, sizeof(fileinfobuf), 0);
+    result = getattrlist(native, &alist, &finfo.info_length,
+	    sizeof(fileinfobuf) - offsetof(fileinfobuf, info_length), 0);
 
     if (result != 0) {
 	Tcl_SetObjResult(interp, Tcl_ObjPrintf(
@@ -192,18 +182,18 @@ TclMacOSXGetFileAttribute(
 		OSSwapBigToHostInt32(finder->type));
 	break;
     case MACOSX_HIDDEN_ATTRIBUTE:
-	*attributePtrPtr = Tcl_NewBooleanObj(
+	TclNewIntObj(*attributePtrPtr,
 		(finder->fdFlags & kFinfoIsInvisible) != 0);
 	break;
     case MACOSX_RSRCLENGTH_ATTRIBUTE:
-	*attributePtrPtr = Tcl_NewWideIntObj(*rsrcForkSize);
+	TclNewIntObj(*attributePtrPtr, *rsrcForkSize);
 	break;
     }
     return TCL_OK;
 #else
     Tcl_SetObjResult(interp, Tcl_NewStringObj(
-	    "Mac OS X file attributes not supported", -1));
-    Tcl_SetErrorCode(interp, "TCL", "UNSUPPORTED", NULL);
+	    "Mac OS X file attributes not supported", TCL_INDEX_NONE));
+    Tcl_SetErrorCode(interp, "TCL", "UNSUPPORTED", (char *)NULL);
     return TCL_ERROR;
 #endif /* HAVE_GETATTRLIST */
 }
@@ -269,7 +259,8 @@ TclMacOSXSetFileAttribute(
 	alist.commonattr = ATTR_CMN_FNDRINFO;
     }
     native = (const char *)Tcl_FSGetNativePath(fileName);
-    result = getattrlist(native, &alist, &finfo, sizeof(fileinfobuf), 0);
+    result = getattrlist(native, &alist, &finfo.info_length,
+	    sizeof(fileinfobuf) - offsetof(fileinfobuf, info_length), 0);
 
     if (result != 0) {
 	Tcl_SetObjResult(interp, Tcl_ObjPrintf(
@@ -334,8 +325,8 @@ TclMacOSXSetFileAttribute(
 
 	    if (newRsrcForkSize != 0) {
 		Tcl_SetObjResult(interp, Tcl_NewStringObj(
-			"setting nonzero rsrclength not supported", -1));
-		Tcl_SetErrorCode(interp, "TCL", "UNSUPPORTED", NULL);
+			"setting nonzero rsrclength not supported", TCL_INDEX_NONE));
+		Tcl_SetErrorCode(interp, "TCL", "UNSUPPORTED", (char *)NULL);
 		return TCL_ERROR;
 	    }
 
@@ -344,8 +335,8 @@ TclMacOSXSetFileAttribute(
 	     */
 
 	    Tcl_DStringInit(&ds);
-	    Tcl_DStringAppend(&ds, native, -1);
-	    Tcl_DStringAppend(&ds, _PATH_RSRCFORKSPEC, -1);
+	    Tcl_DStringAppend(&ds, native, TCL_INDEX_NONE);
+	    Tcl_DStringAppend(&ds, _PATH_RSRCFORKSPEC, TCL_INDEX_NONE);
 
 	    result = truncate(Tcl_DStringValue(&ds), 0);
 	    if (result != 0) {
@@ -375,8 +366,8 @@ TclMacOSXSetFileAttribute(
     return TCL_OK;
 #else
     Tcl_SetObjResult(interp, Tcl_NewStringObj(
-	    "Mac OS X file attributes not supported", -1));
-    Tcl_SetErrorCode(interp, "TCL", "UNSUPPORTED", NULL);
+	    "Mac OS X file attributes not supported", TCL_INDEX_NONE));
+    Tcl_SetErrorCode(interp, "TCL", "UNSUPPORTED", (char *)NULL);
     return TCL_ERROR;
 #endif
 }
@@ -426,7 +417,8 @@ TclMacOSXCopyFileAttributes(
 	alist.bitmapcount = ATTR_BIT_MAP_COUNT;
 	alist.commonattr = ATTR_CMN_FNDRINFO;
 
-	if (getattrlist(src, &alist, &finfo, sizeof(fileinfobuf), 0)) {
+	if (getattrlist(src, &alist, &finfo.info_length,
+		sizeof(fileinfobuf) - offsetof(fileinfobuf, info_length), 0)) {
 	    return TCL_ERROR;
 	}
 	if (setattrlist(dst, &alist, &finfo.data, sizeof(finfo.data), 0)) {
@@ -448,7 +440,8 @@ TclMacOSXCopyFileAttributes(
 
 	alist.commonattr = 0;
 	alist.fileattr = ATTR_FILE_RSRCLENGTH;
-	if (getattrlist(src, &alist, &finfo, sizeof(fileinfobuf), 0)) {
+	if (getattrlist(src, &alist, &finfo.info_length,
+		sizeof(fileinfobuf) - offsetof(fileinfobuf, info_length), 0)) {
 	    return TCL_ERROR;
 	} else if (*rsrcForkSize == 0) {
 	    return TCL_OK;
@@ -459,11 +452,11 @@ TclMacOSXCopyFileAttributes(
 	 */
 
 	Tcl_DStringInit(&srcBuf);
-	Tcl_DStringAppend(&srcBuf, src, -1);
-	Tcl_DStringAppend(&srcBuf, _PATH_RSRCFORKSPEC, -1);
+	Tcl_DStringAppend(&srcBuf, src, TCL_INDEX_NONE);
+	Tcl_DStringAppend(&srcBuf, _PATH_RSRCFORKSPEC, TCL_INDEX_NONE);
 	Tcl_DStringInit(&dstBuf);
-	Tcl_DStringAppend(&dstBuf, dst, -1);
-	Tcl_DStringAppend(&dstBuf, _PATH_RSRCFORKSPEC, -1);
+	Tcl_DStringAppend(&dstBuf, dst, TCL_INDEX_NONE);
+	Tcl_DStringAppend(&dstBuf, _PATH_RSRCFORKSPEC, TCL_INDEX_NONE);
 
 	/*
 	 * Do the copy.
@@ -517,7 +510,8 @@ TclMacOSXMatchType(
     bzero(&alist, sizeof(struct attrlist));
     alist.bitmapcount = ATTR_BIT_MAP_COUNT;
     alist.commonattr = ATTR_CMN_FNDRINFO;
-    if (getattrlist(pathName, &alist, &finfo, sizeof(fileinfobuf), 0) != 0) {
+    if (getattrlist(pathName, &alist, &finfo.info_length,
+	    sizeof(fileinfobuf) - offsetof(fileinfobuf, info_length), 0)) {
 	return 0;
     }
     if ((types->perm & TCL_GLOB_PERM_HIDDEN) &&
@@ -577,10 +571,10 @@ GetOSTypeFromObj(
 {
     int result = TCL_OK;
 
-    if (objPtr->typePtr != &tclOSTypeType) {
+    if (!TclHasInternalRep(objPtr, &tclOSTypeType)) {
 	result = SetOSTypeFromAny(interp, objPtr);
     }
-    *osTypePtr = (OSType) objPtr->internalRep.longValue;
+    *osTypePtr = (OSType) objPtr->internalRep.wideValue;
     return result;
 }
 
@@ -609,7 +603,7 @@ NewOSTypeObj(
 
     TclNewObj(objPtr);
     TclInvalidateStringRep(objPtr);
-    objPtr->internalRep.longValue = (long) osType;
+    objPtr->internalRep.wideValue = (Tcl_WideInt) osType;
     objPtr->typePtr = &tclOSTypeType;
     return objPtr;
 }
@@ -636,18 +630,19 @@ SetOSTypeFromAny(
     Tcl_Obj *objPtr)		/* Pointer to the object to convert */
 {
     const char *string;
-    int length, result = TCL_OK;
+    int result = TCL_OK;
     Tcl_DString ds;
     Tcl_Encoding encoding = Tcl_GetEncoding(NULL, "macRoman");
+    Tcl_Size length;
 
-    string = Tcl_GetStringFromObj(objPtr, &length);
-    Tcl_UtfToExternalDString(encoding, string, length, &ds);
+    string = TclGetStringFromObj(objPtr, &length);
+    Tcl_UtfToExternalDStringEx(NULL, encoding, string, length, TCL_ENCODING_PROFILE_TCL8, &ds, NULL);
 
     if (Tcl_DStringLength(&ds) > 4) {
 	if (interp) {
 	    Tcl_SetObjResult(interp, Tcl_ObjPrintf(
 		    "expected Macintosh OS type but got \"%s\": ", string));
-	    Tcl_SetErrorCode(interp, "TCL", "VALUE", "MAC_OSTYPE", NULL);
+	    Tcl_SetErrorCode(interp, "TCL", "VALUE", "MAC_OSTYPE", (char *)NULL);
 	}
 	result = TCL_ERROR;
     } else {
@@ -659,8 +654,8 @@ SetOSTypeFromAny(
 		 (OSType) bytes[1] << 16 |
 		 (OSType) bytes[2] <<  8 |
 		 (OSType) bytes[3];
-	TclFreeIntRep(objPtr);
-	objPtr->internalRep.longValue = (long) osType;
+	TclFreeInternalRep(objPtr);
+	objPtr->internalRep.wideValue = (Tcl_WideInt) osType;
 	objPtr->typePtr = &tclOSTypeType;
     }
     Tcl_DStringFree(&ds);
@@ -692,24 +687,28 @@ UpdateStringOfOSType(
     Tcl_Obj *objPtr)	/* OSType object whose string rep to
 				 * update. */
 {
-    char string[5];
-    OSType osType = (OSType) objPtr->internalRep.longValue;
-    Tcl_DString ds;
-    Tcl_Encoding encoding = Tcl_GetEncoding(NULL, "macRoman");
-    unsigned len;
+    const size_t size = TCL_UTF_MAX * 4;
+    char *dst = Tcl_InitStringRep(objPtr, NULL, size);
+    OSType osType = (OSType) objPtr->internalRep.wideValue;
+    int written = 0;
+    Tcl_Encoding encoding;
+    char src[5];
 
-    string[0] = (char) (osType >> 24);
-    string[1] = (char) (osType >> 16);
-    string[2] = (char) (osType >>  8);
-    string[3] = (char) (osType);
-    string[4] = '\0';
-    Tcl_ExternalToUtfDString(encoding, string, -1, &ds);
-    len = (unsigned) Tcl_DStringLength(&ds) + 1;
-    objPtr->bytes = ckalloc(len);
-    memcpy(objPtr->bytes, Tcl_DStringValue(&ds), len);
-    objPtr->length = Tcl_DStringLength(&ds);
-    Tcl_DStringFree(&ds);
+    TclOOM(dst, size+1);
+
+    src[0] = (char) (osType >> 24);
+    src[1] = (char) (osType >> 16);
+    src[2] = (char) (osType >>  8);
+    src[3] = (char) (osType);
+    src[4] = '\0';
+
+    encoding = Tcl_GetEncoding(NULL, "macRoman");
+    Tcl_ExternalToUtf(NULL, encoding, src, TCL_INDEX_NONE, /* flags */ 0,
+	    /* statePtr */ NULL, dst, size, /* srcReadPtr */ NULL,
+	    /* dstWrotePtr */ &written, /* dstCharsPtr */ NULL);
     Tcl_FreeEncoding(encoding);
+
+    (void)Tcl_InitStringRep(objPtr, NULL, written);
 }
 
 /*

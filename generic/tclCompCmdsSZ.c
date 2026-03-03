@@ -6,10 +6,10 @@
  *	[upvar] and [variable]) into a sequence of instructions ("bytecodes").
  *	Also includes the operator command compilers.
  *
- * Copyright (c) 1997-1998 Sun Microsystems, Inc.
- * Copyright (c) 2001 Kevin B. Kenny.  All rights reserved.
- * Copyright (c) 2002 ActiveState Corporation.
- * Copyright (c) 2004-2010 Donal K. Fellows.
+ * Copyright © 1997-1998 Sun Microsystems, Inc.
+ * Copyright © 2001 Kevin B. Kenny.  All rights reserved.
+ * Copyright © 2002 ActiveState Corporation.
+ * Copyright © 2004-2010 Donal K. Fellows.
  *
  * See the file "license.terms" for information on usage and redistribution of
  * this file, and for a DISCLAIMER OF ALL WARRANTIES.
@@ -41,12 +41,12 @@ static int		CompileUnaryOpCmd(Tcl_Interp *interp,
 			    CompileEnv *envPtr);
 static void		IssueSwitchChainedTests(Tcl_Interp *interp,
 			    CompileEnv *envPtr, int mode, int noCase,
-			   	int numWords, Tcl_Token **bodyToken,
-			    int *bodyLines, int **bodyNext);
+			    Tcl_Size numWords, Tcl_Token **bodyToken,
+			    Tcl_Size *bodyLines, Tcl_Size **bodyNext);
 static void		IssueSwitchJumpTable(Tcl_Interp *interp,
 			    CompileEnv *envPtr, int numWords,
-			    Tcl_Token **bodyToken, int *bodyLines,
-			    int **bodyContLines);
+			    Tcl_Token **bodyToken, Tcl_Size *bodyLines,
+			    Tcl_Size **bodyContLines);
 static int		IssueTryClausesInstructions(Tcl_Interp *interp,
 			    CompileEnv *envPtr, Tcl_Token *bodyToken,
 			    int numHandlers, int *matchCodes,
@@ -101,7 +101,6 @@ const AuxDataType tclJumptableInfoType = {
     if ((idx)<256) {OP1(STORE_SCALAR1,(idx));} else {OP4(STORE_SCALAR4,(idx));}
 #define INVOKE(name) \
     TclEmitInvoke(envPtr,INST_##name)
-
 
 /*
  *----------------------------------------------------------------------
@@ -126,8 +125,7 @@ TclCompileSetCmd(
     Tcl_Interp *interp,		/* Used for error reporting. */
     Tcl_Parse *parsePtr,	/* Points to a parse structure for the command
 				 * created by Tcl_ParseCommand. */
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)		/* Holds resulting instructions. */
 {
     DefineLineInformation;	/* TIP #280 */
@@ -220,8 +218,7 @@ TclCompileStringCatCmd(
     Tcl_Interp *interp,		/* Used for error reporting. */
     Tcl_Parse *parsePtr,	/* Points to a parse structure for the command
 				 * created by Tcl_ParseCommand. */
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)		/* Holds resulting instructions. */
 {
     DefineLineInformation;	/* TIP #280 */
@@ -237,7 +234,7 @@ TclCompileStringCatCmd(
     }
 
     /* General case: issue CONCAT1's (by chunks of 254 if needed), folding
-       contiguous constants along the way */
+     * contiguous constants along the way */
 
     numArgs = 0;
     folded = NULL;
@@ -254,8 +251,8 @@ TclCompileStringCatCmd(
 	} else {
 	    Tcl_DecrRefCount(obj);
 	    if (folded) {
-		int len;
-		const char *bytes = Tcl_GetStringFromObj(folded, &len);
+		Tcl_Size len;
+		const char *bytes = TclGetStringFromObj(folded, &len);
 
 		PushLiteral(envPtr, bytes, len);
 		Tcl_DecrRefCount(folded);
@@ -272,8 +269,8 @@ TclCompileStringCatCmd(
 	wordTokenPtr = TokenAfter(wordTokenPtr);
     }
     if (folded) {
-	int len;
-	const char *bytes = Tcl_GetStringFromObj(folded, &len);
+	Tcl_Size len;
+	const char *bytes = TclGetStringFromObj(folded, &len);
 
 	PushLiteral(envPtr, bytes, len);
 	Tcl_DecrRefCount(folded);
@@ -292,8 +289,7 @@ TclCompileStringCmpCmd(
     Tcl_Interp *interp,		/* Used for error reporting. */
     Tcl_Parse *parsePtr,	/* Points to a parse structure for the command
 				 * created by Tcl_ParseCommand. */
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)		/* Holds resulting instructions. */
 {
     DefineLineInformation;	/* TIP #280 */
@@ -324,8 +320,7 @@ TclCompileStringEqualCmd(
     Tcl_Interp *interp,		/* Used for error reporting. */
     Tcl_Parse *parsePtr,	/* Points to a parse structure for the command
 				 * created by Tcl_ParseCommand. */
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)		/* Holds resulting instructions. */
 {
     DefineLineInformation;	/* TIP #280 */
@@ -356,8 +351,7 @@ TclCompileStringFirstCmd(
     Tcl_Interp *interp,		/* Used for error reporting. */
     Tcl_Parse *parsePtr,	/* Points to a parse structure for the command
 				 * created by Tcl_ParseCommand. */
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)		/* Holds resulting instructions. */
 {
     DefineLineInformation;	/* TIP #280 */
@@ -388,8 +382,7 @@ TclCompileStringLastCmd(
     Tcl_Interp *interp,		/* Used for error reporting. */
     Tcl_Parse *parsePtr,	/* Points to a parse structure for the command
 				 * created by Tcl_ParseCommand. */
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)		/* Holds resulting instructions. */
 {
     DefineLineInformation;	/* TIP #280 */
@@ -420,8 +413,7 @@ TclCompileStringIndexCmd(
     Tcl_Interp *interp,		/* Used for error reporting. */
     Tcl_Parse *parsePtr,	/* Points to a parse structure for the command
 				 * created by Tcl_ParseCommand. */
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)		/* Holds resulting instructions. */
 {
     DefineLineInformation;	/* TIP #280 */
@@ -444,6 +436,62 @@ TclCompileStringIndexCmd(
 }
 
 int
+TclCompileStringInsertCmd(
+    Tcl_Interp *interp,		/* Used for error reporting. */
+    Tcl_Parse *parsePtr,	/* Points to a parse structure for the command
+				 * created by Tcl_ParseCommand. */
+    TCL_UNUSED(Command *),
+    CompileEnv *envPtr)		/* Holds resulting instructions. */
+{
+    DefineLineInformation;	/* TIP #280 */
+    Tcl_Token *tokenPtr;
+    int idx;
+
+    if (parsePtr->numWords != 4) {
+	return TCL_ERROR;
+    }
+
+    /* Compute and push the string in which to insert */
+    tokenPtr = TokenAfter(parsePtr->tokenPtr);
+    CompileWord(envPtr, tokenPtr, interp, 1);
+
+    /* See what can be discovered about index at compile time */
+    tokenPtr = TokenAfter(tokenPtr);
+    if (TCL_OK != TclGetIndexFromToken(tokenPtr, TCL_INDEX_START,
+	    TCL_INDEX_END, &idx)) {
+
+	/* Nothing useful knowable - cease compile; let it direct eval */
+	return TCL_ERROR;
+    }
+
+    /* Compute and push the string to be inserted */
+    tokenPtr = TokenAfter(tokenPtr);
+    CompileWord(envPtr, tokenPtr, interp, 3);
+
+    if (idx == (int)TCL_INDEX_START) {
+	/* Prepend the insertion string */
+	OP4(	REVERSE, 2);
+	OP1(	STR_CONCAT1, 2);
+    } else  if (idx == (int)TCL_INDEX_END) {
+	/* Append the insertion string */
+	OP1(	STR_CONCAT1, 2);
+    } else {
+	/* Prefix + insertion + suffix */
+	if (idx < (int)TCL_INDEX_END) {
+	    /* See comments in compiler for [linsert]. */
+	    idx++;
+	}
+	OP4(	OVER, 1);
+	OP44(	STR_RANGE_IMM, 0, idx-1);
+	OP4(	REVERSE, 3);
+	OP44(	STR_RANGE_IMM, idx, TCL_INDEX_END);
+	OP1(	STR_CONCAT1, 3);
+    }
+
+    return TCL_OK;
+}
+
+int
 TclCompileStringIsCmd(
     Tcl_Interp *interp,		/* Used for error reporting. */
     Tcl_Parse *parsePtr,	/* Points to a parse structure for the command
@@ -456,21 +504,21 @@ TclCompileStringIsCmd(
     Tcl_Token *tokenPtr = TokenAfter(parsePtr->tokenPtr);
     static const char *const isClasses[] = {
 	"alnum",	"alpha",	"ascii",	"control",
-	"boolean",	"digit",	"double",	"entier",
-	"false",	"graph",	"integer",	"list",
-	"lower",	"print",	"punct",	"space",
-	"true",		"upper",	"wideinteger",	"wordchar",
-	"xdigit",	NULL
+	"boolean",	"dict",		"digit",	"double",
+	"entier",	"false",	"graph",	"integer",
+	"list",		"lower",	"print",	"punct",
+	"space",	"true",		"upper",
+	"wideinteger", "wordchar",	"xdigit",	NULL
     };
     enum isClassesEnum {
 	STR_IS_ALNUM,	STR_IS_ALPHA,	STR_IS_ASCII,	STR_IS_CONTROL,
-	STR_IS_BOOL,	STR_IS_DIGIT,	STR_IS_DOUBLE,	STR_IS_ENTIER,
-	STR_IS_FALSE,	STR_IS_GRAPH,	STR_IS_INT,	STR_IS_LIST,
-	STR_IS_LOWER,	STR_IS_PRINT,	STR_IS_PUNCT,	STR_IS_SPACE,
-	STR_IS_TRUE,	STR_IS_UPPER,	STR_IS_WIDE,	STR_IS_WORD,
-	STR_IS_XDIGIT
-    };
-    int t, range, allowEmpty = 0, end;
+	STR_IS_BOOL,	STR_IS_DICT,	STR_IS_DIGIT,	STR_IS_DOUBLE,
+	STR_IS_ENTIER,	STR_IS_FALSE,	STR_IS_GRAPH,	STR_IS_INT,
+	STR_IS_LIST,	STR_IS_LOWER,	STR_IS_PRINT,	STR_IS_PUNCT,
+	STR_IS_SPACE,	STR_IS_TRUE,	STR_IS_UPPER,
+	STR_IS_WIDE,	STR_IS_WORD,	STR_IS_XDIGIT
+    } t;
+    int range, allowEmpty = 0, end;
     InstStringClassType strClassType;
     Tcl_Obj *isClass;
 
@@ -524,9 +572,9 @@ TclCompileStringIsCmd(
      *	5. Lists
      */
 
-    CompileWord(envPtr, tokenPtr, interp, parsePtr->numWords-1);
+    CompileWord(envPtr, tokenPtr, interp, (int)parsePtr->numWords-1);
 
-    switch ((enum isClassesEnum) t) {
+    switch (t) {
     case STR_IS_ALNUM:
 	strClassType = STR_CLASS_ALNUM;
 	goto compileStrClass;
@@ -631,6 +679,8 @@ TclCompileStringIsCmd(
 	    FIXJUMP1(	over);
 	    OP(		LNOT);
 	    return TCL_OK;
+	default:
+	    break;
 	}
     break;
 
@@ -692,17 +742,28 @@ TclCompileStringIsCmd(
 	    OP(		LE);
 	    break;
 	case STR_IS_INT:
-	    PUSH(	"1");
-	    OP(		EQ);
-	    break;
 	case STR_IS_ENTIER:
 	    PUSH(	"3");
 	    OP(		LE);
 	    break;
+	default:
+	    break;
 	}
 	FIXJUMP1(	end);
 	return TCL_OK;
-
+    case STR_IS_DICT:
+	range = TclCreateExceptRange(CATCH_EXCEPTION_RANGE, envPtr);
+	OP4(		BEGIN_CATCH4, range);
+	ExceptionRangeStarts(envPtr, range);
+	OP(		DUP);
+	OP(		DICT_VERIFY);
+	ExceptionRangeEnds(envPtr, range);
+	ExceptionRangeTarget(envPtr, range, catchOffset);
+	OP(		POP);
+	OP(		PUSH_RETURN_CODE);
+	OP(		END_CATCH);
+	OP(		LNOT);
+	return TCL_OK;
     case STR_IS_LIST:
 	range = TclCreateExceptRange(CATCH_EXCEPTION_RANGE, envPtr);
 	OP4(		BEGIN_CATCH4, range);
@@ -733,7 +794,8 @@ TclCompileStringMatchCmd(
 {
     DefineLineInformation;	/* TIP #280 */
     Tcl_Token *tokenPtr;
-    int i, length, exactMatch = 0, nocase = 0;
+	size_t length;
+    int i, exactMatch = 0, nocase = 0;
     const char *str;
 
     if (parsePtr->numWords < 3 || parsePtr->numWords > 4) {
@@ -808,8 +870,7 @@ TclCompileStringLenCmd(
     Tcl_Interp *interp,		/* Used for error reporting. */
     Tcl_Parse *parsePtr,	/* Points to a parse structure for the command
 				 * created by Tcl_ParseCommand. */
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)		/* Holds resulting instructions. */
 {
     DefineLineInformation;	/* TIP #280 */
@@ -830,9 +891,9 @@ TclCompileStringLenCmd(
 	 */
 
 	char buf[TCL_INTEGER_SPACE];
-	int len = Tcl_GetCharLength(objPtr);
+	size_t len = Tcl_GetCharLength(objPtr);
 
-	len = snprintf(buf, sizeof(buf), "%d", len);
+	len = snprintf(buf, sizeof(buf), "%" TCL_Z_MODIFIER "u", len);
 	PushLiteral(envPtr, buf, len);
     } else {
 	SetLineInformation(1);
@@ -856,7 +917,7 @@ TclCompileStringMapCmd(
     Tcl_Token *mapTokenPtr, *stringTokenPtr;
     Tcl_Obj *mapObj, **objv;
     const char *bytes;
-    int len;
+    Tcl_Size len, slen;
 
     /*
      * We only handle the case:
@@ -892,13 +953,13 @@ TclCompileStringMapCmd(
      * correct semantics for mapping.
      */
 
-    bytes = Tcl_GetStringFromObj(objv[0], &len);
-    if (len == 0) {
+    bytes = TclGetStringFromObj(objv[0], &slen);
+    if (slen == 0) {
 	CompileWord(envPtr, stringTokenPtr, interp, 2);
     } else {
-	PushLiteral(envPtr, bytes, len);
-	bytes = Tcl_GetStringFromObj(objv[1], &len);
-	PushLiteral(envPtr, bytes, len);
+	PushLiteral(envPtr, bytes, slen);
+	bytes = TclGetStringFromObj(objv[1], &slen);
+	PushLiteral(envPtr, bytes, slen);
 	CompileWord(envPtr, stringTokenPtr, interp, 2);
 	OP(STR_MAP);
     }
@@ -911,8 +972,7 @@ TclCompileStringRangeCmd(
     Tcl_Interp *interp,		/* Used for error reporting. */
     Tcl_Parse *parsePtr,	/* Points to a parse structure for the command
 				 * created by Tcl_ParseCommand. */
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)		/* Holds resulting instructions. */
 {
     DefineLineInformation;	/* TIP #280 */
@@ -933,7 +993,7 @@ TclCompileStringRangeCmd(
      * Parse the two indices.
      */
 
-    if (TclGetIndexFromToken(fromTokenPtr, TCL_INDEX_START, TCL_INDEX_AFTER,
+    if (TclGetIndexFromToken(fromTokenPtr, TCL_INDEX_START, TCL_INDEX_NONE,
 	    &idx1) != TCL_OK) {
 	goto nonConstantIndices;
     }
@@ -942,14 +1002,14 @@ TclCompileStringRangeCmd(
      * the string the same as the start of the string.
      */
 
-    if (idx1 == TCL_INDEX_AFTER) {
+    if (idx1 == (int)TCL_INDEX_NONE) {
 	/* [string range $s end+1 $last] must be empty string */
 	OP(		POP);
 	PUSH(		"");
 	return TCL_OK;
     }
 
-    if (TclGetIndexFromToken(toTokenPtr, TCL_INDEX_BEFORE, TCL_INDEX_END,
+    if (TclGetIndexFromToken(toTokenPtr, TCL_INDEX_NONE, TCL_INDEX_END,
 	    &idx2) != TCL_OK) {
 	goto nonConstantIndices;
     }
@@ -957,7 +1017,7 @@ TclCompileStringRangeCmd(
      * Token parsed as an index expression. We treat all indices after
      * the string the same as the end of the string.
      */
-    if (idx2 == TCL_INDEX_BEFORE) {
+    if (idx2 == (int)TCL_INDEX_NONE) {
 	/* [string range $s $first -1] must be empty string */
 	OP(		POP);
 	PUSH(		"");
@@ -987,15 +1047,14 @@ TclCompileStringReplaceCmd(
     Tcl_Interp *interp,		/* Tcl interpreter for context. */
     Tcl_Parse *parsePtr,	/* Points to a parse structure for the
 				 * command. */
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)		/* Holds the resulting instructions. */
 {
     DefineLineInformation;	/* TIP #280 */
     Tcl_Token *tokenPtr, *valueTokenPtr;
     int first, last;
 
-    if (parsePtr->numWords < 4 || parsePtr->numWords > 5) {
+    if ((int)parsePtr->numWords < 4 || (int)parsePtr->numWords > 5) {
 	return TCL_ERROR;
     }
 
@@ -1007,7 +1066,7 @@ TclCompileStringReplaceCmd(
      * Check for first index known and useful at compile time.
      */
     tokenPtr = TokenAfter(valueTokenPtr);
-    if (TclGetIndexFromToken(tokenPtr, TCL_INDEX_BEFORE, TCL_INDEX_AFTER,
+    if (TclGetIndexFromToken(tokenPtr, TCL_INDEX_START, TCL_INDEX_NONE,
 	    &first) != TCL_OK) {
 	goto genericReplace;
     }
@@ -1016,7 +1075,7 @@ TclCompileStringReplaceCmd(
      * Check for last index known and useful at compile time.
      */
     tokenPtr = TokenAfter(tokenPtr);
-    if (TclGetIndexFromToken(tokenPtr, TCL_INDEX_BEFORE, TCL_INDEX_AFTER,
+    if (TclGetIndexFromToken(tokenPtr, TCL_INDEX_NONE, TCL_INDEX_END,
 	    &last) != TCL_OK) {
 	goto genericReplace;
     }
@@ -1035,8 +1094,8 @@ TclCompileStringReplaceCmd(
      * compile direct to bytecode implementing the no-op.
      */
 
-    if ((last == TCL_INDEX_BEFORE)		/* Know (last < 0) */
-	    || (first == TCL_INDEX_AFTER)	/* Know (first > end) */
+    if ((last == (int)TCL_INDEX_NONE)		/* Know (last < 0) */
+	    || (first == (int)TCL_INDEX_NONE)	/* Know (first > end) */
 
 	/*
 	 * Tricky to determine when runtime (last < first) can be
@@ -1044,24 +1103,21 @@ TclCompileStringReplaceCmd(
 	 * cases...
 	 *
 	 * (first <= TCL_INDEX_END) &&
-	 *	(last == TCL_INDEX_AFTER) => cannot tell REJECT
 	 *	(last <= TCL_INDEX END) && (last < first) => ACCEPT
 	 *	else => cannot tell REJECT
 	 */
-	    || ((first <= TCL_INDEX_END) && (last <= TCL_INDEX_END)
+	    || ((first <= (int)TCL_INDEX_END) && (last <= (int)TCL_INDEX_END)
 		&& (last < first))		/* Know (last < first) */
 	/*
-	 * (first == TCL_INDEX_BEFORE) &&
-	 *	(last == TCL_INDEX_AFTER) => (first < last) REJECT
+	 * (first == TCL_INDEX_NONE) &&
 	 *	(last <= TCL_INDEX_END) => cannot tell REJECT
 	 *	else		=> (first < last) REJECT
 	 *
 	 * else [[first >= TCL_INDEX_START]] &&
-	 *	(last == TCL_INDEX_AFTER) => cannot tell REJECT
 	 *	(last <= TCL_INDEX_END) => cannot tell REJECT
 	 *	else [[last >= TCL_INDEX START]] && (last < first) => ACCEPT
 	 */
-	    || ((first >= TCL_INDEX_START) && (last >= TCL_INDEX_START)
+	    || ((first >= (int)TCL_INDEX_START) && (last >= (int)TCL_INDEX_START)
 		&& (last < first))) {		/* Know (last < first) */
 	if (parsePtr->numWords == 5) {
 	    tokenPtr = TokenAfter(tokenPtr);
@@ -1090,43 +1146,43 @@ TclCompileStringReplaceCmd(
      *		(first <= end)
      *
      * The encoded indices (first <= TCL_INDEX END) and
-     * (first == TCL_INDEX_BEFORE) always meets this condition, but
+     * (first == TCL_INDEX_NONE) always meets this condition, but
      * any other encoded first index has some list for which it fails.
      *
      * We also need, second:
      *
      *		(last >= 0)
      *
-     * The encoded indices (last >= TCL_INDEX_START) and
-     * (last == TCL_INDEX_AFTER) always meet this condition but any
-     * other encoded last index has some list for which it fails.
+     * The encoded index (last >= TCL_INDEX_START) always meet this
+     * condition but any other encoded last index has some list for
+     * which it fails.
      *
      * Finally we need, third:
      *
      *		(first <= last)
      *
      * Considered in combination with the constraints we already have,
-     * we see that we can proceed when (first == TCL_INDEX_BEFORE)
-     * or (last == TCL_INDEX_AFTER). These also permit simplification
-     * of the prefix|replace|suffix construction. The other constraints,
-     * though, interfere with getting a guarantee that first <= last.
+     * we see that we can proceed when (first == TCL_INDEX_NONE).
+     * These also permit simplification of the prefix|replace|suffix
+     * construction. The other constraints, though, interfere with
+     * getting a guarantee that first <= last.
      */
 
-    if ((first == TCL_INDEX_BEFORE) && (last >= TCL_INDEX_START)) {
+    if ((first == (int)TCL_INDEX_START) && (last >= (int)TCL_INDEX_START)) {
 	/* empty prefix */
 	tokenPtr = TokenAfter(tokenPtr);
 	CompileWord(envPtr, tokenPtr, interp, 4);
 	OP4(		REVERSE, 2);
-	if (last == TCL_INDEX_AFTER) {
+	if (last == INT_MAX) {
 	    OP(		POP);		/* Pop  original */
 	} else {
-	    OP44(	STR_RANGE_IMM, last + 1, TCL_INDEX_END);
+	    OP44(	STR_RANGE_IMM, last + 1, (int)TCL_INDEX_END);
 	    OP1(	STR_CONCAT1, 2);
 	}
 	return TCL_OK;
     }
 
-    if ((last == TCL_INDEX_AFTER) && (first <= TCL_INDEX_END)) {
+    if ((last == (int)TCL_INDEX_NONE) && (first <= (int)TCL_INDEX_END)) {
 	OP44(		STR_RANGE_IMM, 0, first-1);
 	tokenPtr = TokenAfter(tokenPtr);
 	CompileWord(envPtr, tokenPtr, interp, 4);
@@ -1143,19 +1199,19 @@ TclCompileStringReplaceCmd(
 	 * are harmless when they are replaced by another empty string.
 	 */
 
-	if ((first == TCL_INDEX_BEFORE) || (first == TCL_INDEX_START)) {
+	if (first == (int)TCL_INDEX_START) {
 	    /* empty prefix - build suffix only */
 
-	    if ((last == TCL_INDEX_END) || (last == TCL_INDEX_AFTER)) {
+	    if (last == (int)TCL_INDEX_END) {
 		/* empty suffix too => empty result */
 		OP(	POP);		/* Pop  original */
 		PUSH	(	"");
 		return TCL_OK;
 	    }
-	    OP44(	STR_RANGE_IMM, last + 1, TCL_INDEX_END);
+	    OP44(	STR_RANGE_IMM, last + 1, (int)TCL_INDEX_END);
 	    return TCL_OK;
 	} else {
-	    if ((last == TCL_INDEX_END) || (last == TCL_INDEX_AFTER)) {
+	    if (last == (int)TCL_INDEX_END) {
 		/* empty suffix - build prefix only */
 		OP44(	STR_RANGE_IMM, 0, first-1);
 		return TCL_OK;
@@ -1163,7 +1219,7 @@ TclCompileStringReplaceCmd(
 	    OP(		DUP);
 	    OP44(	STR_RANGE_IMM, 0, first-1);
 	    OP4(	REVERSE, 2);
-	    OP44(	STR_RANGE_IMM, last + 1, TCL_INDEX_END);
+	    OP44(	STR_RANGE_IMM, last + 1, (int)TCL_INDEX_END);
 	    OP1(	STR_CONCAT1, 2);
 	    return TCL_OK;
 	}
@@ -1189,8 +1245,7 @@ TclCompileStringTrimLCmd(
     Tcl_Interp *interp,		/* Used for error reporting. */
     Tcl_Parse *parsePtr,	/* Points to a parse structure for the command
 				 * created by Tcl_ParseCommand. */
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)		/* Holds resulting instructions. */
 {
     DefineLineInformation;	/* TIP #280 */
@@ -1217,8 +1272,7 @@ TclCompileStringTrimRCmd(
     Tcl_Interp *interp,		/* Used for error reporting. */
     Tcl_Parse *parsePtr,	/* Points to a parse structure for the command
 				 * created by Tcl_ParseCommand. */
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)		/* Holds resulting instructions. */
 {
     DefineLineInformation;	/* TIP #280 */
@@ -1245,8 +1299,7 @@ TclCompileStringTrimCmd(
     Tcl_Interp *interp,		/* Used for error reporting. */
     Tcl_Parse *parsePtr,	/* Points to a parse structure for the command
 				 * created by Tcl_ParseCommand. */
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)		/* Holds resulting instructions. */
 {
     DefineLineInformation;	/* TIP #280 */
@@ -1366,7 +1419,7 @@ StringClassDesc const tclStringClassTable[] = {
     {"upper",	Tcl_UniCharIsUpper},
     {"word",	Tcl_UniCharIsWordChar},
     {"xdigit",	UniCharIsHexDigit},
-    {NULL,	NULL}
+    {"",	NULL}
 };
 
 /*
@@ -1394,8 +1447,7 @@ TclCompileSubstCmd(
     Tcl_Interp *interp,		/* Used for error reporting. */
     Tcl_Parse *parsePtr,	/* Points to a parse structure for the command
 				 * created by Tcl_ParseCommand. */
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)		/* Holds resulting instructions. */
 {
     DefineLineInformation;	/* TIP #280 */
@@ -1460,13 +1512,14 @@ void
 TclSubstCompile(
     Tcl_Interp *interp,
     const char *bytes,
-    int numBytes,
+    Tcl_Size numBytes,
     int flags,
-    int line,
+    Tcl_Size line,
     CompileEnv *envPtr)
 {
     Tcl_Token *endTokenPtr, *tokenPtr;
-    int breakOffset = 0, count = 0, bline = line;
+    int breakOffset = 0, count = 0;
+    Tcl_Size bline = line;
     Tcl_Parse parse;
     Tcl_InterpState state = NULL;
 
@@ -1491,15 +1544,16 @@ TclSubstCompile(
 
     for (endTokenPtr = tokenPtr + parse.numTokens;
 	    tokenPtr < endTokenPtr; tokenPtr = TokenAfter(tokenPtr)) {
-	int length, literal, catchRange, breakJump;
-	char buf[TCL_UTF_MAX] = "";
+	Tcl_Size length;
+	int literal, catchRange, breakJump;
+	char buf[4] = "";
 	JumpFixup startFixup, okFixup, returnFixup, breakFixup;
 	JumpFixup continueFixup, otherFixup, endFixup;
 
 	switch (tokenPtr->type) {
 	case TCL_TOKEN_TEXT:
-	    literal = TclRegisterNewLiteral(envPtr,
-		    tokenPtr->start, tokenPtr->size);
+	    literal = TclRegisterLiteral(envPtr,
+		    tokenPtr->start, tokenPtr->size, 0);
 	    TclEmitPush(literal, envPtr);
 	    TclAdvanceLines(&bline, tokenPtr->start,
 		    tokenPtr->start + tokenPtr->size);
@@ -1508,7 +1562,7 @@ TclSubstCompile(
 	case TCL_TOKEN_BS:
 	    length = TclParseBackslash(tokenPtr->start, tokenPtr->size,
 		    NULL, buf);
-	    literal = TclRegisterNewLiteral(envPtr, buf, length);
+	    literal = TclRegisterLiteral(envPtr, buf, length, 0);
 	    TclEmitPush(literal, envPtr);
 	    count++;
 	    continue;
@@ -1522,7 +1576,8 @@ TclSubstCompile(
 	     */
 
 	    if (tokenPtr->numComponents > 1) {
-		int i, foundCommand = 0;
+		Tcl_Size i;
+		int foundCommand = 0;
 
 		for (i=2 ; i<=tokenPtr->numComponents ; i++) {
 		    if (tokenPtr[i].type == TCL_TOKEN_COMMAND) {
@@ -1561,8 +1616,8 @@ TclSubstCompile(
 
 	    /* Start */
 	    if (TclFixupForwardJumpToHere(envPtr, &startFixup, 127)) {
-		Tcl_Panic("TclCompileSubstCmd: bad start jump distance %d",
-			(int) (CurrentOffset(envPtr) - startFixup.codeOffset));
+		Tcl_Panic("TclCompileSubstCmd: bad start jump distance %" TCL_Z_MODIFIER "d",
+			CurrentOffset(envPtr) - startFixup.codeOffset);
 	    }
 	}
 
@@ -1620,8 +1675,8 @@ TclSubstCompile(
 	TclAdjustStackDepth(1, envPtr);
 	/* BREAK destination */
 	if (TclFixupForwardJumpToHere(envPtr, &breakFixup, 127)) {
-	    Tcl_Panic("TclCompileSubstCmd: bad break jump distance %d",
-		    (int) (CurrentOffset(envPtr) - breakFixup.codeOffset));
+	    Tcl_Panic("TclCompileSubstCmd: bad break jump distance %" TCL_Z_MODIFIER "d",
+		    CurrentOffset(envPtr) - breakFixup.codeOffset);
 	}
 	OP(	POP);
 	OP(	POP);
@@ -1636,8 +1691,8 @@ TclSubstCompile(
 	TclAdjustStackDepth(2, envPtr);
 	/* CONTINUE destination */
 	if (TclFixupForwardJumpToHere(envPtr, &continueFixup, 127)) {
-	    Tcl_Panic("TclCompileSubstCmd: bad continue jump distance %d",
-		    (int) (CurrentOffset(envPtr) - continueFixup.codeOffset));
+	    Tcl_Panic("TclCompileSubstCmd: bad continue jump distance %" TCL_Z_MODIFIER "d",
+		    CurrentOffset(envPtr) - continueFixup.codeOffset);
 	}
 	OP(	POP);
 	OP(	POP);
@@ -1646,12 +1701,12 @@ TclSubstCompile(
 	TclAdjustStackDepth(2, envPtr);
 	/* RETURN + other destination */
 	if (TclFixupForwardJumpToHere(envPtr, &returnFixup, 127)) {
-	    Tcl_Panic("TclCompileSubstCmd: bad return jump distance %d",
-		    (int) (CurrentOffset(envPtr) - returnFixup.codeOffset));
+	    Tcl_Panic("TclCompileSubstCmd: bad return jump distance %" TCL_Z_MODIFIER "d",
+		    CurrentOffset(envPtr) - returnFixup.codeOffset);
 	}
 	if (TclFixupForwardJumpToHere(envPtr, &otherFixup, 127)) {
-	    Tcl_Panic("TclCompileSubstCmd: bad other jump distance %d",
-		    (int) (CurrentOffset(envPtr) - otherFixup.codeOffset));
+	    Tcl_Panic("TclCompileSubstCmd: bad other jump distance %" TCL_Z_MODIFIER "d",
+		    CurrentOffset(envPtr) - otherFixup.codeOffset);
 	}
 
 	/*
@@ -1663,8 +1718,8 @@ TclSubstCompile(
 
 	/* OK destination */
 	if (TclFixupForwardJumpToHere(envPtr, &okFixup, 127)) {
-	    Tcl_Panic("TclCompileSubstCmd: bad ok jump distance %d",
-		    (int) (CurrentOffset(envPtr) - okFixup.codeOffset));
+	    Tcl_Panic("TclCompileSubstCmd: bad ok jump distance %" TCL_Z_MODIFIER "d",
+		    CurrentOffset(envPtr) - okFixup.codeOffset);
 	}
 	if (count > 1) {
 	    OP1(STR_CONCAT1, count);
@@ -1673,8 +1728,8 @@ TclSubstCompile(
 
 	/* CONTINUE jump to here */
 	if (TclFixupForwardJumpToHere(envPtr, &endFixup, 127)) {
-	    Tcl_Panic("TclCompileSubstCmd: bad end jump distance %d",
-		    (int) (CurrentOffset(envPtr) - endFixup.codeOffset));
+	    Tcl_Panic("TclCompileSubstCmd: bad end jump distance %" TCL_Z_MODIFIER "d",
+		    CurrentOffset(envPtr) - endFixup.codeOffset);
 	}
 	bline = envPtr->line;
     }
@@ -1727,8 +1782,7 @@ TclCompileSwitchCmd(
     Tcl_Interp *interp,		/* Used for error reporting. */
     Tcl_Parse *parsePtr,	/* Points to a parse structure for the command
 				 * created by Tcl_ParseCommand. */
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)		/* Holds resulting instructions. */
 {
     DefineLineInformation;	/* TIP #280 */
@@ -1741,14 +1795,14 @@ TclCompileSwitchCmd(
 
     Tcl_Token *bodyTokenArray;	/* Array of real pattern list items. */
     Tcl_Token **bodyToken;	/* Array of pointers to pattern list items. */
-    int *bodyLines;		/* Array of line numbers for body list
+    Tcl_Size *bodyLines;	/* Array of line numbers for body list
 				 * items. */
-    int **bodyContLines;	/* Array of continuation line info. */
+    Tcl_Size **bodyContLines;	/* Array of continuation line info. */
     int noCase;			/* Has the -nocase flag been given? */
     int foundMode = 0;		/* Have we seen a mode flag yet? */
     int i, valueIndex;
     int result = TCL_ERROR;
-    int *clNext = envPtr->clNext;
+    Tcl_Size *clNext = envPtr->clNext;
 
     /*
      * Only handle the following versions:
@@ -1795,7 +1849,7 @@ TclCompileSwitchCmd(
      */
 
     for (; numWords>=3 ; tokenPtr=TokenAfter(tokenPtr),numWords--) {
-	unsigned size = tokenPtr[1].size;
+	size_t size = tokenPtr[1].size;
 	const char *chrs = tokenPtr[1].start;
 
 	/*
@@ -1886,8 +1940,8 @@ TclCompileSwitchCmd(
 
     if (numWords == 1) {
 	const char *bytes;
-	int maxLen, numBytes;
-	int bline;		/* TIP #280: line of the pattern/action list,
+	Tcl_Size maxLen, numBytes;
+	Tcl_Size bline;		/* TIP #280: line of the pattern/action list,
 				 * and start of list for when tracking the
 				 * location. This list comes immediately after
 				 * the value we switch on. */
@@ -1903,10 +1957,10 @@ TclCompileSwitchCmd(
 	if (maxLen < 2)  {
 	    return TCL_ERROR;
 	}
-	bodyTokenArray = (Tcl_Token *)ckalloc(sizeof(Tcl_Token) * maxLen);
-	bodyToken = (Tcl_Token **)ckalloc(sizeof(Tcl_Token *) * maxLen);
-	bodyLines = (int *)ckalloc(sizeof(int) * maxLen);
-	bodyContLines = (int **)ckalloc(sizeof(int*) * maxLen);
+	bodyTokenArray = (Tcl_Token *)Tcl_Alloc(sizeof(Tcl_Token) * maxLen);
+	bodyToken = (Tcl_Token **)Tcl_Alloc(sizeof(Tcl_Token *) * maxLen);
+	bodyLines = (Tcl_Size *)Tcl_Alloc(sizeof(Tcl_Size) * maxLen);
+	bodyContLines = (Tcl_Size **)Tcl_Alloc(sizeof(Tcl_Size*) * maxLen);
 
 	bline = mapPtr->loc[eclIndex].line[valueIndex+1];
 	numWords = 0;
@@ -1944,10 +1998,10 @@ TclCompileSwitchCmd(
 	}
 	if (numWords % 2) {
 	abort:
-	    ckfree((char *) bodyToken);
-	    ckfree((char *) bodyTokenArray);
-	    ckfree((char *) bodyLines);
-	    ckfree((char *) bodyContLines);
+	    Tcl_Free(bodyToken);
+	    Tcl_Free(bodyTokenArray);
+	    Tcl_Free(bodyLines);
+	    Tcl_Free(bodyContLines);
 	    return TCL_ERROR;
 	}
     } else if (numWords % 2 || numWords == 0) {
@@ -1965,9 +2019,9 @@ TclCompileSwitchCmd(
 	 * Multi-word definition of patterns & actions.
 	 */
 
-	bodyToken = (Tcl_Token **)ckalloc(sizeof(Tcl_Token *) * numWords);
-	bodyLines = (int *)ckalloc(sizeof(int) * numWords);
-	bodyContLines = (int **)ckalloc(sizeof(int*) * numWords);
+	bodyToken = (Tcl_Token **)Tcl_Alloc(sizeof(Tcl_Token *) * numWords);
+	bodyLines = (Tcl_Size *)Tcl_Alloc(sizeof(Tcl_Size) * numWords);
+	bodyContLines = (Tcl_Size **)Tcl_Alloc(sizeof(Tcl_Size*) * numWords);
 	bodyTokenArray = NULL;
 	for (i=0 ; i<numWords ; i++) {
 	    /*
@@ -2026,11 +2080,11 @@ TclCompileSwitchCmd(
      */
 
   freeTemporaries:
-    ckfree(bodyToken);
-    ckfree(bodyLines);
-    ckfree(bodyContLines);
+    Tcl_Free(bodyToken);
+    Tcl_Free(bodyLines);
+    Tcl_Free(bodyContLines);
     if (bodyTokenArray != NULL) {
-	ckfree(bodyTokenArray);
+	Tcl_Free(bodyTokenArray);
     }
     return result;
 }
@@ -2057,13 +2111,13 @@ IssueSwitchChainedTests(
     CompileEnv *envPtr,		/* Holds resulting instructions. */
     int mode,			/* Exact, Glob or Regexp */
     int noCase,			/* Case-insensitivity flag. */
-    int numBodyTokens,		/* Number of tokens describing things the
+    Tcl_Size numBodyTokens,	/* Number of tokens describing things the
 				 * switch can match against and bodies to
 				 * execute when the match succeeds. */
     Tcl_Token **bodyToken,	/* Array of pointers to pattern list items. */
-    int *bodyLines,		/* Array of line numbers for body list
+    Tcl_Size *bodyLines,		/* Array of line numbers for body list
 				 * items. */
-    int **bodyContLines)	/* Array of continuation line info. */
+    Tcl_Size **bodyContLines)	/* Array of continuation line info. */
 {
     enum {Switch_Exact, Switch_Glob, Switch_Regexp};
     int foundDefault;		/* Flag to indicate whether a "default" clause
@@ -2167,7 +2221,7 @@ IssueSwitchChainedTests(
 		}
 		break;
 	    default:
-		Tcl_Panic("unknown switch mode: %d", mode);
+		TCL_UNREACHABLE();
 	    }
 
 	    /*
@@ -2309,9 +2363,9 @@ IssueSwitchJumpTable(
 				 * switch can match against and bodies to
 				 * execute when the match succeeds. */
     Tcl_Token **bodyToken,	/* Array of pointers to pattern list items. */
-    int *bodyLines,		/* Array of line numbers for body list
+    Tcl_Size *bodyLines,		/* Array of line numbers for body list
 				 * items. */
-    int **bodyContLines)	/* Array of continuation line info. */
+    Tcl_Size **bodyContLines)	/* Array of continuation line info. */
 {
     JumptableInfo *jtPtr;
     int infoIndex, isNew, *finalFixups, numRealBodies = 0, jumpLocation;
@@ -2329,7 +2383,7 @@ IssueSwitchJumpTable(
      * Start by allocating the jump table itself, plus some workspace.
      */
 
-    jtPtr = (JumptableInfo *)ckalloc(sizeof(JumptableInfo));
+    jtPtr = (JumptableInfo *)Tcl_Alloc(sizeof(JumptableInfo));
     Tcl_InitHashTable(&jtPtr->hashTable, TCL_STRING_KEYS);
     infoIndex = TclCreateAuxData(jtPtr, &tclJumptableInfoType, envPtr);
     finalFixups = (int *)TclStackAlloc(interp, sizeof(int) * (numBodyTokens/2));
@@ -2496,19 +2550,19 @@ IssueSwitchJumpTable(
  *----------------------------------------------------------------------
  */
 
-static ClientData
+static void *
 DupJumptableInfo(
-    ClientData clientData)
+    void *clientData)
 {
     JumptableInfo *jtPtr = (JumptableInfo *)clientData;
-    JumptableInfo *newJtPtr = (JumptableInfo *)ckalloc(sizeof(JumptableInfo));
+    JumptableInfo *newJtPtr = (JumptableInfo *)Tcl_Alloc(sizeof(JumptableInfo));
     Tcl_HashEntry *hPtr, *newHPtr;
     Tcl_HashSearch search;
     int isNew;
 
     Tcl_InitHashTable(&newJtPtr->hashTable, TCL_STRING_KEYS);
     hPtr = Tcl_FirstHashEntry(&jtPtr->hashTable, &search);
-    while (hPtr != NULL) {
+    for (; hPtr ; hPtr = Tcl_NextHashEntry(&search)) {
 	newHPtr = Tcl_CreateHashEntry(&newJtPtr->hashTable,
 		Tcl_GetHashKey(&jtPtr->hashTable, hPtr), &isNew);
 	Tcl_SetHashValue(newHPtr, Tcl_GetHashValue(hPtr));
@@ -2518,26 +2572,26 @@ DupJumptableInfo(
 
 static void
 FreeJumptableInfo(
-    ClientData clientData)
+    void *clientData)
 {
     JumptableInfo *jtPtr = (JumptableInfo *)clientData;
 
     Tcl_DeleteHashTable(&jtPtr->hashTable);
-    ckfree(jtPtr);
+    Tcl_Free(jtPtr);
 }
 
 static void
 PrintJumptableInfo(
-    ClientData clientData,
+    void *clientData,
     Tcl_Obj *appendObj,
-    ByteCode *codePtr,
-    unsigned int pcOffset)
+    TCL_UNUSED(ByteCode *),
+    size_t pcOffset)
 {
     JumptableInfo *jtPtr = (JumptableInfo *)clientData;
     Tcl_HashEntry *hPtr;
     Tcl_HashSearch search;
     const char *keyPtr;
-    int offset, i = 0;
+    size_t offset, i = 0;
 
     hPtr = Tcl_FirstHashEntry(&jtPtr->hashTable, &search);
     for (; hPtr ; hPtr = Tcl_NextHashEntry(&search)) {
@@ -2550,31 +2604,31 @@ PrintJumptableInfo(
 		Tcl_AppendToObj(appendObj, "\n\t\t", -1);
 	    }
 	}
-	Tcl_AppendPrintfToObj(appendObj, "\"%s\"->pc %d",
+	Tcl_AppendPrintfToObj(appendObj, "\"%s\"->pc %" TCL_Z_MODIFIER "u",
 		keyPtr, pcOffset + offset);
     }
 }
 
 static void
 DisassembleJumptableInfo(
-    ClientData clientData,
+    void *clientData,
     Tcl_Obj *dictObj,
-    ByteCode *codePtr,
-    unsigned int pcOffset)
+    TCL_UNUSED(ByteCode *),
+    TCL_UNUSED(size_t))
 {
     JumptableInfo *jtPtr = (JumptableInfo *)clientData;
     Tcl_Obj *mapping;
     Tcl_HashEntry *hPtr;
     Tcl_HashSearch search;
     const char *keyPtr;
-    int offset;
+    size_t offset;
 
     TclNewObj(mapping);
     hPtr = Tcl_FirstHashEntry(&jtPtr->hashTable, &search);
     for (; hPtr ; hPtr = Tcl_NextHashEntry(&search)) {
 	keyPtr = (const char *)Tcl_GetHashKey(&jtPtr->hashTable, hPtr);
 	offset = PTR2INT(Tcl_GetHashValue(hPtr));
-	TclDictPut(NULL, mapping, keyPtr, Tcl_NewIntObj(offset));
+	TclDictPut(NULL, mapping, keyPtr, Tcl_NewWideIntObj(offset));
     }
     TclDictPut(NULL, dictObj, "mapping", mapping);
 }
@@ -2602,8 +2656,7 @@ TclCompileTailcallCmd(
     Tcl_Interp *interp,		/* Used for error reporting. */
     Tcl_Parse *parsePtr,	/* Points to a parse structure for the command
 				 * created by Tcl_ParseCommand. */
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)		/* Holds resulting instructions. */
 {
     DefineLineInformation;	/* TIP #280 */
@@ -2618,11 +2671,11 @@ TclCompileTailcallCmd(
     /* make room for the nsObjPtr */
     /* TODO: Doesn't this have to be a known value? */
     CompileWord(envPtr, tokenPtr, interp, 0);
-    for (i=1 ; i<parsePtr->numWords ; i++) {
+    for (i=1 ; i<(int)parsePtr->numWords ; i++) {
 	tokenPtr = TokenAfter(tokenPtr);
 	CompileWord(envPtr, tokenPtr, interp, i);
     }
-    TclEmitInstInt1(	INST_TAILCALL, parsePtr->numWords,	envPtr);
+    TclEmitInstInt1(	INST_TAILCALL, (int)parsePtr->numWords,	envPtr);
     return TCL_OK;
 }
 
@@ -2649,15 +2702,15 @@ TclCompileThrowCmd(
     Tcl_Interp *interp,		/* Used for error reporting. */
     Tcl_Parse *parsePtr,	/* Points to a parse structure for the command
 				 * created by Tcl_ParseCommand. */
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)		/* Holds resulting instructions. */
 {
     DefineLineInformation;	/* TIP #280 */
     int numWords = parsePtr->numWords;
     Tcl_Token *codeToken, *msgToken;
     Tcl_Obj *objPtr;
-    int codeKnown, codeIsList, codeIsValid, len;
+    int codeKnown, codeIsList, codeIsValid;
+    Tcl_Size len;
 
     if (numWords != 3) {
 	return TCL_ERROR;
@@ -2685,11 +2738,10 @@ TclCompileThrowCmd(
     codeIsValid = codeIsList && (len != 0);
 
     if (codeIsValid) {
-	Tcl_Obj *errPtr, *dictPtr;
+	Tcl_Obj *dictPtr;
 
-	TclNewLiteralStringObj(errPtr, "-errorcode");
 	TclNewObj(dictPtr);
-	Tcl_DictObjPut(NULL, dictPtr, errPtr, objPtr);
+	TclDictPut(NULL, dictPtr, "-errorcode", objPtr);
 	TclEmitPush(TclAddLiteralObj(envPtr, dictPtr, NULL), envPtr);
     }
     TclDecrRefCount(objPtr);
@@ -2753,8 +2805,7 @@ TclCompileTryCmd(
     Tcl_Interp *interp,		/* Used for error reporting. */
     Tcl_Parse *parsePtr,	/* Points to a parse structure for the command
 				 * created by Tcl_ParseCommand. */
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)		/* Holds resulting instructions. */
 {
     int numWords = parsePtr->numWords, numHandlers, result = TCL_ERROR;
@@ -2799,7 +2850,7 @@ TclCompileTryCmd(
 
 	for (i=0 ; i<numHandlers ; i++) {
 	    Tcl_Obj *tmpObj, **objv;
-	    int objc;
+	    Tcl_Size objc;
 
 	    if (tokenPtr->type != TCL_TOKEN_SIMPLE_WORD) {
 		goto failedToCompile;
@@ -2864,8 +2915,8 @@ TclCompileTryCmd(
 		goto failedToCompile;
 	    }
 	    if (objc > 0) {
-		int len;
-		const char *varname = Tcl_GetStringFromObj(objv[0], &len);
+		Tcl_Size len;
+		const char *varname = TclGetStringFromObj(objv[0], &len);
 
 		resultVarIndices[i] = LocalScalar(varname, len, envPtr);
 		if (resultVarIndices[i] < 0) {
@@ -2876,8 +2927,8 @@ TclCompileTryCmd(
 		resultVarIndices[i] = -1;
 	    }
 	    if (objc == 2) {
-		int len;
-		const char *varname = Tcl_GetStringFromObj(objv[1], &len);
+		Tcl_Size len;
+		const char *varname = TclGetStringFromObj(objv[1], &len);
 
 		optionVarIndices[i] = LocalScalar(varname, len, envPtr);
 		if (optionVarIndices[i] < 0) {
@@ -2997,7 +3048,8 @@ IssueTryClausesInstructions(
 {
     DefineLineInformation;	/* TIP #280 */
     int range, resultVar, optionsVar;
-    int i, j, len, forwardsNeedFixing = 0, trapZero = 0, afterBody = 0;
+    int i, j, forwardsNeedFixing = 0, trapZero = 0, afterBody = 0;
+    Tcl_Size slen, len;
     int *addrsToFix, *forwardsToFix, notCodeJumpSource, notECJumpSource;
     int *noError;
     char buf[TCL_INTEGER_SPACE];
@@ -3083,8 +3135,8 @@ IssueTryClausesInstructions(
 	    OP4(			DICT_GET, 1);
 	    TclAdjustStackDepth(-1, envPtr);
 	    OP44(			LIST_RANGE_IMM, 0, len-1);
-	    p = Tcl_GetStringFromObj(matchClauses[i], &len);
-	    PushLiteral(envPtr, p, len);
+	    p = TclGetStringFromObj(matchClauses[i], &slen);
+	    PushLiteral(envPtr, p, slen);
 	    OP(				STR_EQ);
 	    JUMP4(			JUMP_FALSE, notECJumpSource);
 	} else {
@@ -3207,10 +3259,11 @@ IssueTryClausesFinallyInstructions(
     Tcl_Token *finallyToken)	/* Not NULL */
 {
     DefineLineInformation;	/* TIP #280 */
-    int range, resultVar, optionsVar, i, j, len, forwardsNeedFixing = 0;
+    int range, resultVar, optionsVar, i, j, forwardsNeedFixing = 0;
     int trapZero = 0, afterBody = 0, finalOK, finalError, noFinalError;
     int *addrsToFix, *forwardsToFix, notCodeJumpSource, notECJumpSource;
     char buf[TCL_INTEGER_SPACE];
+    Tcl_Size slen, len;
 
     resultVar = AnonymousLocal(envPtr);
     optionsVar = AnonymousLocal(envPtr);
@@ -3294,8 +3347,8 @@ IssueTryClausesFinallyInstructions(
 	    OP4(			DICT_GET, 1);
 	    TclAdjustStackDepth(-1, envPtr);
 	    OP44(			LIST_RANGE_IMM, 0, len-1);
-	    p = Tcl_GetStringFromObj(matchClauses[i], &len);
-	    PushLiteral(envPtr, p, len);
+	    p = TclGetStringFromObj(matchClauses[i], &slen);
+	    PushLiteral(envPtr, p, slen);
 	    OP(				STR_EQ);
 	    JUMP4(			JUMP_FALSE, notECJumpSource);
 	} else {
@@ -3566,8 +3619,7 @@ TclCompileUnsetCmd(
     Tcl_Interp *interp,		/* Used for error reporting. */
     Tcl_Parse *parsePtr,	/* Points to a parse structure for the command
 				 * created by Tcl_ParseCommand. */
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)		/* Holds resulting instructions. */
 {
     DefineLineInformation;	/* TIP #280 */
@@ -3582,7 +3634,7 @@ TclCompileUnsetCmd(
      * push/rotate. [Bug 3970f54c4e]
      */
 
-    for (i=1,varTokenPtr=parsePtr->tokenPtr ; i<parsePtr->numWords ; i++) {
+    for (i=1,varTokenPtr=parsePtr->tokenPtr ; i<(int)parsePtr->numWords ; i++) {
 	Tcl_Obj *leadingWord;
 
 	TclNewObj(leadingWord);
@@ -3621,9 +3673,9 @@ TclCompileUnsetCmd(
 	}
 	if (varCount == 0) {
 	    const char *bytes;
-	    int len;
+	    Tcl_Size len;
 
-	    bytes = Tcl_GetStringFromObj(leadingWord, &len);
+	    bytes = TclGetStringFromObj(leadingWord, &len);
 	    if (i == 1 && len == 11 && !strncmp("-nocomplain", bytes, 11)) {
 		flags = 0;
 		haveFlags++;
@@ -3646,7 +3698,7 @@ TclCompileUnsetCmd(
     for (i=0; i<haveFlags;i++) {
 	varTokenPtr = TokenAfter(varTokenPtr);
     }
-    for (i=1+haveFlags ; i<parsePtr->numWords ; i++) {
+    for (i=1+haveFlags ; i<(int)parsePtr->numWords ; i++) {
 	/*
 	 * Decide if we can use a frame slot for the var/array name or if we
 	 * need to emit code to compute and push the name at runtime. We use a
@@ -3705,8 +3757,7 @@ TclCompileWhileCmd(
     Tcl_Interp *interp,		/* Used for error reporting. */
     Tcl_Parse *parsePtr,	/* Points to a parse structure for the command
 				 * created by Tcl_ParseCommand. */
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)		/* Holds resulting instructions. */
 {
     DefineLineInformation;	/* TIP #280 */
@@ -3883,8 +3934,7 @@ TclCompileYieldCmd(
     Tcl_Interp *interp,		/* Used for error reporting. */
     Tcl_Parse *parsePtr,	/* Points to a parse structure for the command
 				 * created by Tcl_ParseCommand. */
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)		/* Holds resulting instructions. */
 {
     if (parsePtr->numWords < 1 || parsePtr->numWords > 2) {
@@ -3926,20 +3976,19 @@ TclCompileYieldToCmd(
     Tcl_Interp *interp,		/* Used for error reporting. */
     Tcl_Parse *parsePtr,	/* Points to a parse structure for the command
 				 * created by Tcl_ParseCommand. */
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)		/* Holds resulting instructions. */
 {
     DefineLineInformation;	/* TIP #280 */
     Tcl_Token *tokenPtr = TokenAfter(parsePtr->tokenPtr);
     int i;
 
-    if (parsePtr->numWords < 2) {
+    if ((int)parsePtr->numWords < 2) {
 	return TCL_ERROR;
     }
 
     OP(		NS_CURRENT);
-    for (i = 1 ; i < parsePtr->numWords ; i++) {
+    for (i = 1 ; i < (int)parsePtr->numWords ; i++) {
 	CompileWord(envPtr, tokenPtr, interp, i);
 	tokenPtr = TokenAfter(tokenPtr);
     }
@@ -4017,7 +4066,7 @@ CompileAssociativeBinaryOpCmd(
 {
     DefineLineInformation;	/* TIP #280 */
     Tcl_Token *tokenPtr = parsePtr->tokenPtr;
-    int words;
+    Tcl_Size words;
 
     /* TODO: Consider support for compiling expanded args. */
     for (words=1 ; words<parsePtr->numWords ; words++) {
@@ -4104,7 +4153,7 @@ CompileComparisonOpCmd(
     Tcl_Token *tokenPtr;
 
     /* TODO: Consider support for compiling expanded args. */
-    if (parsePtr->numWords < 3) {
+    if ((int)parsePtr->numWords < 3) {
 	PUSH("1");
     } else if (parsePtr->numWords == 3) {
 	tokenPtr = TokenAfter(parsePtr->tokenPtr);
@@ -4120,7 +4169,7 @@ CompileComparisonOpCmd(
 	return TCL_ERROR;
     } else {
 	int tmpIndex = AnonymousLocal(envPtr);
-	int words;
+	Tcl_Size words;
 
 	tokenPtr = TokenAfter(parsePtr->tokenPtr);
 	CompileWord(envPtr, tokenPtr, interp, 1);
@@ -4176,8 +4225,7 @@ int
 TclCompileInvertOpCmd(
     Tcl_Interp *interp,
     Tcl_Parse *parsePtr,
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)
 {
     return CompileUnaryOpCmd(interp, parsePtr, INST_BITNOT, envPtr);
@@ -4187,8 +4235,7 @@ int
 TclCompileNotOpCmd(
     Tcl_Interp *interp,
     Tcl_Parse *parsePtr,
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)
 {
     return CompileUnaryOpCmd(interp, parsePtr, INST_LNOT, envPtr);
@@ -4198,8 +4245,7 @@ int
 TclCompileAddOpCmd(
     Tcl_Interp *interp,
     Tcl_Parse *parsePtr,
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)
 {
     return CompileAssociativeBinaryOpCmd(interp, parsePtr, "0", INST_ADD,
@@ -4210,8 +4256,7 @@ int
 TclCompileMulOpCmd(
     Tcl_Interp *interp,
     Tcl_Parse *parsePtr,
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)
 {
     return CompileAssociativeBinaryOpCmd(interp, parsePtr, "1", INST_MULT,
@@ -4222,8 +4267,7 @@ int
 TclCompileAndOpCmd(
     Tcl_Interp *interp,
     Tcl_Parse *parsePtr,
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)
 {
     return CompileAssociativeBinaryOpCmd(interp, parsePtr, "-1", INST_BITAND,
@@ -4234,8 +4278,7 @@ int
 TclCompileOrOpCmd(
     Tcl_Interp *interp,
     Tcl_Parse *parsePtr,
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)
 {
     return CompileAssociativeBinaryOpCmd(interp, parsePtr, "0", INST_BITOR,
@@ -4246,8 +4289,7 @@ int
 TclCompileXorOpCmd(
     Tcl_Interp *interp,
     Tcl_Parse *parsePtr,
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)
 {
     return CompileAssociativeBinaryOpCmd(interp, parsePtr, "0", INST_BITXOR,
@@ -4258,13 +4300,12 @@ int
 TclCompilePowOpCmd(
     Tcl_Interp *interp,
     Tcl_Parse *parsePtr,
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)
 {
     DefineLineInformation;	/* TIP #280 */
     Tcl_Token *tokenPtr = parsePtr->tokenPtr;
-    int words;
+    Tcl_Size words;
 
     /*
      * This one has its own implementation because the ** operator is the only
@@ -4289,8 +4330,7 @@ int
 TclCompileLshiftOpCmd(
     Tcl_Interp *interp,
     Tcl_Parse *parsePtr,
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)
 {
     return CompileStrictlyBinaryOpCmd(interp, parsePtr, INST_LSHIFT, envPtr);
@@ -4300,8 +4340,7 @@ int
 TclCompileRshiftOpCmd(
     Tcl_Interp *interp,
     Tcl_Parse *parsePtr,
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)
 {
     return CompileStrictlyBinaryOpCmd(interp, parsePtr, INST_RSHIFT, envPtr);
@@ -4311,8 +4350,7 @@ int
 TclCompileModOpCmd(
     Tcl_Interp *interp,
     Tcl_Parse *parsePtr,
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)
 {
     return CompileStrictlyBinaryOpCmd(interp, parsePtr, INST_MOD, envPtr);
@@ -4322,8 +4360,7 @@ int
 TclCompileNeqOpCmd(
     Tcl_Interp *interp,
     Tcl_Parse *parsePtr,
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)
 {
     return CompileStrictlyBinaryOpCmd(interp, parsePtr, INST_NEQ, envPtr);
@@ -4333,8 +4370,7 @@ int
 TclCompileStrneqOpCmd(
     Tcl_Interp *interp,
     Tcl_Parse *parsePtr,
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)
 {
     return CompileStrictlyBinaryOpCmd(interp, parsePtr, INST_STR_NEQ, envPtr);
@@ -4344,8 +4380,7 @@ int
 TclCompileInOpCmd(
     Tcl_Interp *interp,
     Tcl_Parse *parsePtr,
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)
 {
     return CompileStrictlyBinaryOpCmd(interp, parsePtr, INST_LIST_IN, envPtr);
@@ -4355,8 +4390,7 @@ int
 TclCompileNiOpCmd(
     Tcl_Interp *interp,
     Tcl_Parse *parsePtr,
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)
 {
     return CompileStrictlyBinaryOpCmd(interp, parsePtr, INST_LIST_NOT_IN,
@@ -4367,8 +4401,7 @@ int
 TclCompileLessOpCmd(
     Tcl_Interp *interp,
     Tcl_Parse *parsePtr,
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)
 {
     return CompileComparisonOpCmd(interp, parsePtr, INST_LT, envPtr);
@@ -4378,8 +4411,7 @@ int
 TclCompileLeqOpCmd(
     Tcl_Interp *interp,
     Tcl_Parse *parsePtr,
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)
 {
     return CompileComparisonOpCmd(interp, parsePtr, INST_LE, envPtr);
@@ -4389,8 +4421,7 @@ int
 TclCompileGreaterOpCmd(
     Tcl_Interp *interp,
     Tcl_Parse *parsePtr,
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)
 {
     return CompileComparisonOpCmd(interp, parsePtr, INST_GT, envPtr);
@@ -4400,8 +4431,7 @@ int
 TclCompileGeqOpCmd(
     Tcl_Interp *interp,
     Tcl_Parse *parsePtr,
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)
 {
     return CompileComparisonOpCmd(interp, parsePtr, INST_GE, envPtr);
@@ -4411,8 +4441,7 @@ int
 TclCompileEqOpCmd(
     Tcl_Interp *interp,
     Tcl_Parse *parsePtr,
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)
 {
     return CompileComparisonOpCmd(interp, parsePtr, INST_EQ, envPtr);
@@ -4422,24 +4451,62 @@ int
 TclCompileStreqOpCmd(
     Tcl_Interp *interp,
     Tcl_Parse *parsePtr,
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)
 {
     return CompileComparisonOpCmd(interp, parsePtr, INST_STR_EQ, envPtr);
+}
+
+int
+TclCompileStrLtOpCmd(
+    Tcl_Interp *interp,
+    Tcl_Parse *parsePtr,
+    TCL_UNUSED(Command *),
+    CompileEnv *envPtr)
+{
+    return CompileComparisonOpCmd(interp, parsePtr, INST_STR_LT, envPtr);
+}
+
+int
+TclCompileStrLeOpCmd(
+    Tcl_Interp *interp,
+    Tcl_Parse *parsePtr,
+    TCL_UNUSED(Command *),
+    CompileEnv *envPtr)
+{
+    return CompileComparisonOpCmd(interp, parsePtr, INST_STR_LE, envPtr);
+}
+
+int
+TclCompileStrGtOpCmd(
+    Tcl_Interp *interp,
+    Tcl_Parse *parsePtr,
+    TCL_UNUSED(Command *),
+    CompileEnv *envPtr)
+{
+    return CompileComparisonOpCmd(interp, parsePtr, INST_STR_GT, envPtr);
+}
+
+int
+TclCompileStrGeOpCmd(
+    Tcl_Interp *interp,
+    Tcl_Parse *parsePtr,
+    TCL_UNUSED(Command *),
+    CompileEnv *envPtr)
+{
+    return CompileComparisonOpCmd(interp, parsePtr, INST_STR_GE, envPtr);
 }
 
 int
 TclCompileMinusOpCmd(
     Tcl_Interp *interp,
     Tcl_Parse *parsePtr,
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)
 {
     DefineLineInformation;	/* TIP #280 */
     Tcl_Token *tokenPtr = parsePtr->tokenPtr;
-    int words;
+    Tcl_Size words;
 
     /* TODO: Consider support for compiling expanded args. */
     if (parsePtr->numWords == 1) {
@@ -4479,13 +4546,12 @@ int
 TclCompileDivOpCmd(
     Tcl_Interp *interp,
     Tcl_Parse *parsePtr,
-    Command *cmdPtr,		/* Points to definition of command being
-				 * compiled. */
+    TCL_UNUSED(Command *),
     CompileEnv *envPtr)
 {
     DefineLineInformation;	/* TIP #280 */
     Tcl_Token *tokenPtr = parsePtr->tokenPtr;
-    int words;
+    Tcl_Size words;
 
     /* TODO: Consider support for compiling expanded args. */
     if (parsePtr->numWords == 1) {

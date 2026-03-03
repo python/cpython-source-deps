@@ -6,14 +6,14 @@
  *	This file contains procedures that are used as a 'glue' layer between
  *	Tcl and libtommath.
  *
- * Copyright (c) 2005 by Kevin B. Kenny.  All rights reserved.
+ * Copyright © 2005 Kevin B. Kenny.  All rights reserved.
  *
  * See the file "license.terms" for information on usage and redistribution of
  * this file, and for a DISCLAIMER OF ALL WARRANTIES.
  */
 
 #include "tclInt.h"
-#include "tommath.h"
+#include "tclTomMath.h"
 
 MODULE_SCOPE const TclTomMathStubs tclTomMathStubs;
 
@@ -88,138 +88,6 @@ int
 TclBN_revision(void)
 {
     return TCLTOMMATH_REVISION;
-}
-
-/*
- *----------------------------------------------------------------------
- *
- * TclBNInitBignumFromLong --
- *
- *	Allocate and initialize a 'bignum' from a native 'long'.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	The 'bignum' is constructed.
- *
- *----------------------------------------------------------------------
- */
-
-int
-TclBNInitBignumFromLong(
-    mp_int *a,
-    long initVal)
-{
-    unsigned long v;
-    mp_digit *p;
-
-    /*
-     * Allocate enough memory to hold the largest possible long
-     */
-
-    if (mp_init(a) != MP_OKAY) {
-	Tcl_Panic("initialization failure in TclBNInitBignumFromLong");
-    }
-
-    /*
-     * Convert arg to sign and magnitude.
-     */
-
-    if (initVal < 0) {
-	a->sign = MP_NEG;
-	v = -(unsigned long)initVal;
-    } else {
-	a->sign = MP_ZPOS;
-	v = initVal;
-    }
-
-    /*
-     * Store the magnitude in the bignum.
-     */
-
-    p = a->dp;
-    while (v) {
-	*p++ = (mp_digit) (v & MP_MASK);
-	v >>= MP_DIGIT_BIT;
-    }
-    a->used = p - a->dp;
-    return MP_OKAY;
-}
-
-/*
- *----------------------------------------------------------------------
- *
- * TclBNInitBignumFromWideInt --
- *
- *	Allocate and initialize a 'bignum' from a Tcl_WideInt
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	The 'bignum' is constructed.
- *
- *----------------------------------------------------------------------
- */
-
-int
-TclBNInitBignumFromWideInt(
-    mp_int *a,			/* Bignum to initialize */
-    Tcl_WideInt v)		/* Initial value */
-{
-    if (v < 0) {
-	(void)TclBNInitBignumFromWideUInt(a, -(Tcl_WideUInt)v);
-	return mp_neg(a, a);
-    }
-    (void)TclBNInitBignumFromWideUInt(a, (Tcl_WideUInt)v);
-    return MP_OKAY;
-}
-
-/*
- *----------------------------------------------------------------------
- *
- * TclBNInitBignumFromWideUInt --
- *
- *	Allocate and initialize a 'bignum' from a Tcl_WideUInt
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	The 'bignum' is constructed.
- *
- *----------------------------------------------------------------------
- */
-
-int
-TclBNInitBignumFromWideUInt(
-    mp_int *a,			/* Bignum to initialize */
-    Tcl_WideUInt v)		/* Initial value */
-{
-    mp_digit *p;
-
-    /*
-     * Allocate enough memory to hold the largest possible Tcl_WideUInt.
-     */
-
-    if (mp_init(a) != MP_OKAY) {
-	Tcl_Panic("initialization failure in TclBNInitBignumFromWideUInt");
-    }
-
-    a->sign = 0;
-
-    /*
-     * Store the magnitude in the bignum.
-     */
-
-    p = a->dp;
-    while (v) {
-	*p++ = (mp_digit) (v & MP_MASK);
-	v >>= MP_DIGIT_BIT;
-    }
-    a->used = p - a->dp;
-    return MP_OKAY;
 }
 
 /*

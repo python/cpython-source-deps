@@ -3,25 +3,27 @@
  *
  *	This file contains the implementation of the "scan" command.
  *
- * Copyright (c) 1998 Scriptics Corporation.
+ * Copyright © 1998 Scriptics Corporation.
  *
  * See the file "license.terms" for information on usage and redistribution of
  * this file, and for a DISCLAIMER OF ALL WARRANTIES.
  */
 
 #include "tclInt.h"
+#include "tclTomMath.h"
 
 /*
  * Flag values used by Tcl_ScanObjCmd.
  */
+enum ScanFlags {
+    SCAN_NOSKIP = 0x1,		/* Don't skip blanks. */
+    SCAN_SUPPRESS = 0x2,	/* Suppress assignment. */
+    SCAN_UNSIGNED = 0x4,	/* Read an unsigned value. */
+    SCAN_WIDTH = 0x8,		/* A width value was supplied. */
 
-#define SCAN_NOSKIP	0x1		/* Don't skip blanks. */
-#define SCAN_SUPPRESS	0x2		/* Suppress assignment. */
-#define SCAN_UNSIGNED	0x4		/* Read an unsigned value. */
-#define SCAN_WIDTH	0x8		/* A width value was supplied. */
-
-#define SCAN_LONGER	0x400		/* Asked for a wide value. */
-#define SCAN_BIG	0x800		/* Asked for a bignum value. */
+    SCAN_LONGER = 0x400,	/* Asked for a wide value. */
+    SCAN_BIG = 0x800		/* Asked for a bignum value. */
+};
 
 /*
  * The following structure contains the information associated with a
@@ -103,9 +105,9 @@ BuildCharSet(
 	end += TclUtfToUniChar(end, &ch);
     }
 
-    cset->chars = (Tcl_UniChar *)ckalloc(sizeof(Tcl_UniChar) * (end - format - 1));
+    cset->chars = (Tcl_UniChar *)Tcl_Alloc(sizeof(Tcl_UniChar) * (end - format - 1));
     if (nranges > 0) {
-	cset->ranges = (Range *)ckalloc(sizeof(Range) * nranges);
+	cset->ranges = (Range *)Tcl_Alloc(sizeof(Range) * nranges);
     } else {
 	cset->ranges = NULL;
     }
@@ -225,9 +227,9 @@ static void
 ReleaseCharSet(
     CharSet *cset)
 {
-    ckfree(cset->chars);
+    Tcl_Free(cset->chars);
     if (cset->ranges) {
-	ckfree(cset->ranges);
+	Tcl_Free(cset->ranges);
     }
 }
 
@@ -257,7 +259,7 @@ ValidateFormat(
     int *totalSubs)		/* The number of variables that will be
 				 * required. */
 {
-    int gotXpg, gotSequential, value, i, flags;
+    int gotXpg, gotSequential, i, flags;
     char *end;
     Tcl_UniChar ch = 0;
     int objIndex, xpgSize, nspace = numVars;
@@ -266,7 +268,7 @@ ValidateFormat(
 				 * these are messy operations because we do
 				 * not want to use the formatting engine;
 				 * we're inside there! */
-    char buf[TCL_UTF_MAX+1] = "";
+    char buf[5] = "";
 
     /*
      * Initialize an array that records the number of times a variable is
@@ -305,7 +307,8 @@ ValidateFormat(
 	     * format string.
 	     */
 
-	    unsigned long ul = strtoul(format-1, &end, 10);	/* INTL: "C" locale. */
+	    /* assert(value is >= 0) because of the isdigit() check above */
+	    unsigned long long ull = strtoull(format-1, &end, 10);	/* INTL: "C" locale. */
 	    if (*end != '$') {
 		goto notXpg;
 	    }
@@ -315,20 +318,21 @@ ValidateFormat(
 	    if (gotSequential) {
 		goto mixedXPG;
 	    }
-	    if (ul == 0 || ul >= INT_MAX) {
+	    /* >=INT_MAX because 9.0 does not support more than INT_MAX-1 args */
+	    if (ull == 0 || ull >= INT_MAX) {
 		goto badIndex;
 	    }
-	    objIndex = (int) ul - 1;
+	    objIndex = (int) ull - 1;
 	    if (numVars && (objIndex >= numVars)) {
 		goto badIndex;
 	    } else if (numVars == 0) {
 		/*
 		 * In the case where no vars are specified, the user can
 		 * specify %9999$ legally, so we have to consider special
-		 * rules for growing the assign array. 'ul' is guaranteed
+		 * rules for growing the assign array. 'ull' is guaranteed
 		 * to be > 0 and < INT_MAX as per checks above.
 		 */
-		xpgSize = (xpgSize > (int)ul) ? xpgSize : (int)ul;
+		xpgSize = (xpgSize > (int)ull) ? xpgSize : (int)ull;
 	    }
 	    goto xpgCheckDone;
 	}
@@ -350,7 +354,20 @@ ValidateFormat(
 	 */
 
 	if ((ch < 0x80) && isdigit(UCHAR(ch))) {	/* INTL: "C" locale. */
-	    value = strtoul(format-1, (char **) &format, 10);	/* INTL: "C" locale. */
+	    /* Note ull >= 0 because of isdigit check above */
+	    unsigned long long ull;
+	    ull = strtoull(
+		    format - 1, (char **)&format, 10);	/* INTL: "C" locale. */
+	    /* Note >=, not >, to leave room for a nul */
+	    if (ull >= TCL_SIZE_MAX) {
+		Tcl_SetObjResult(interp, Tcl_ObjPrintf(
+			"specified field width %" TCL_LL_MODIFIER
+			"u exceeds limit %" TCL_SIZE_MODIFIER "d.",
+			ull, (Tcl_Size)TCL_SIZE_MAX-1));
+		Tcl_SetErrorCode(
+			interp, "TCL", "FORMAT", "WIDTHLIMIT", (char *)NULL);
+		goto error;
+	    }
 	    flags |= SCAN_WIDTH;
 	    format += TclUtfToUniChar(format, &ch);
 	}
@@ -360,6 +377,17 @@ ValidateFormat(
 	 */
 
 	switch (ch) {
+	case 'z':
+	case 't':
+	    if (sizeof(void *) > sizeof(int)) {
+		flags |= SCAN_LONGER;
+	    }
+	    format += TclUtfToUniChar(format, &ch);
+	    break;
+	case 'L':
+	    flags |= SCAN_BIG;
+	    format += TclUtfToUniChar(format, &ch);
+	    break;
 	case 'l':
 	    if (*format == 'l') {
 		flags |= SCAN_BIG;
@@ -367,10 +395,11 @@ ValidateFormat(
 		format += TclUtfToUniChar(format, &ch);
 		break;
 	    }
-	    /* FALLTHRU */
-	case 'L':
+	    TCL_FALLTHROUGH();
+	case 'j':
+	case 'q':
 	    flags |= SCAN_LONGER;
-	    /* FALLTHRU */
+	    TCL_FALLTHROUGH();
 	case 'h':
 	    format += TclUtfToUniChar(format, &ch);
 	}
@@ -392,7 +421,7 @@ ValidateFormat(
 		Tcl_SetErrorCode(interp, "TCL", "FORMAT", "BADWIDTH", (char *)NULL);
 		goto error;
 	    }
-	    /* FALLTHRU */
+	    TCL_FALLTHROUGH();
 	case 'n':
 	case 's':
 	    if (flags & (SCAN_LONGER|SCAN_BIG)) {
@@ -406,9 +435,7 @@ ValidateFormat(
 		Tcl_SetErrorCode(interp, "TCL", "FORMAT", "BADSIZE", (char *)NULL);
 		goto error;
 	    }
-	    /*
-	     * Fall through!
-	     */
+	    TCL_FALLTHROUGH();
 	case 'd':
 	case 'e':
 	case 'E':
@@ -420,14 +447,7 @@ ValidateFormat(
 	case 'x':
 	case 'X':
 	case 'b':
-	    break;
 	case 'u':
-	    if (flags & SCAN_BIG) {
-		Tcl_SetObjResult(interp, Tcl_NewStringObj(
-			"unsigned bignum scans are invalid", -1));
-		Tcl_SetErrorCode(interp, "TCL", "FORMAT", "BADUNSIGNED", (char *)NULL);
-		goto error;
-	    }
 	    break;
 	    /*
 	     * Bracket terms need special checking
@@ -482,7 +502,7 @@ ValidateFormat(
 		 * guaranteed to be at least one larger than objIndex.
 		 */
 
-		value = nspace;
+		int nspaceOrig = nspace;
 		if (xpgSize) {
 		    nspace = xpgSize;
 		} else {
@@ -490,7 +510,7 @@ ValidateFormat(
 		}
 		nassign = (int *)TclStackRealloc(interp, nassign,
 			nspace * sizeof(int));
-		for (i = value; i < nspace; i++) {
+		for (i = nspaceOrig; i < nspace; i++) {
 		    nassign[i] = 0;
 		}
 	    }
@@ -573,7 +593,7 @@ ValidateFormat(
 
 int
 Tcl_ScanObjCmd(
-    ClientData dummy,		/* Not used. */
+    TCL_UNUSED(void *),
     Tcl_Interp *interp,		/* Current interpreter. */
     int objc,			/* Number of arguments. */
     Tcl_Obj *const objv[])	/* Argument objects. */
@@ -581,15 +601,15 @@ Tcl_ScanObjCmd(
     const char *format;
     int numVars, nconversions, totalVars = -1;
     int objIndex, offset, i, result, code;
-    long value;
+    int value;
     const char *string, *end, *baseString;
     char op = 0;
-    int width, underflow = 0;
+    int underflow = 0;
+    Tcl_Size width;
     Tcl_WideInt wideValue;
     Tcl_UniChar ch = 0, sch = 0;
     Tcl_Obj **objs = NULL, *objPtr = NULL;
     int flags;
-    (void)dummy;
 
     if (objc < 3) {
 	Tcl_WrongNumArgs(interp, 1, objv,
@@ -613,7 +633,7 @@ Tcl_ScanObjCmd(
      */
 
     if (totalVars > 0) {
-	objs = (Tcl_Obj **)ckalloc(sizeof(Tcl_Obj *) * totalVars);
+	objs = (Tcl_Obj **)Tcl_Alloc(sizeof(Tcl_Obj *) * totalVars);
 	for (i = 0; i < totalVars; i++) {
 	    objs[i] = NULL;
 	}
@@ -680,11 +700,12 @@ Tcl_ScanObjCmd(
 	    format += TclUtfToUniChar(format, &ch);
 	} else if ((ch < 0x80) && isdigit(UCHAR(ch))) {	/* INTL: "C" locale. */
 	    char *formatEnd;
+	    /* Note currently XPG3 range limited to INT_MAX to match type of objc */
 	    value = strtoul(format-1, &formatEnd, 10);/* INTL: "C" locale. */
 	    if (*formatEnd == '$') {
 		format = formatEnd+1;
 		format += TclUtfToUniChar(format, &ch);
-		objIndex = (int) value - 1;
+		objIndex = (int)value - 1;
 	    }
 	}
 
@@ -693,7 +714,10 @@ Tcl_ScanObjCmd(
 	 */
 
 	if ((ch < 0x80) && isdigit(UCHAR(ch))) {	/* INTL: "C" locale. */
-	    width = (int) strtoul(format-1, (char **) &format, 10);/* INTL: "C" locale. */
+	    unsigned long long ull;
+	    ull  = strtoull(format-1, (char **)&format, 10); /* INTL: "C" locale. */
+	    assert(ull <= TCL_SIZE_MAX); /* Else ValidateFormat should've error'ed */
+	    width = (Tcl_Size)ull;
 	    format += TclUtfToUniChar(format, &ch);
 	} else {
 	    width = 0;
@@ -704,6 +728,17 @@ Tcl_ScanObjCmd(
 	 */
 
 	switch (ch) {
+	case 'z':
+	case 't':
+	    if (sizeof(void *) > sizeof(int)) {
+		flags |= SCAN_LONGER;
+	    }
+	    format += TclUtfToUniChar(format, &ch);
+	    break;
+	case 'L':
+	    flags |= SCAN_BIG;
+	    format += TclUtfToUniChar(format, &ch);
+	    break;
 	case 'l':
 	    if (*format == 'l') {
 		flags |= SCAN_BIG;
@@ -711,10 +746,11 @@ Tcl_ScanObjCmd(
 		format += TclUtfToUniChar(format, &ch);
 		break;
 	    }
-	    /* FALLTHRU */
-	case 'L':
+	    TCL_FALLTHROUGH();
+	case 'j':
+	case 'q':
 	    flags |= SCAN_LONGER;
-	    /* FALLTHRU */
+	    TCL_FALLTHROUGH();
 	case 'h':
 	    format += TclUtfToUniChar(format, &ch);
 	}
@@ -886,7 +922,7 @@ Tcl_ScanObjCmd(
 	     * Scan a single Unicode character.
 	     */
 
-	    offset = TclUtfToUCS4(string, &i);
+	    offset = TclUtfToUniChar(string, &i);
 	    string += offset;
 	    if (!(flags & SCAN_SUPPRESS)) {
 		TclNewIntObj(objPtr, i);
@@ -906,7 +942,7 @@ Tcl_ScanObjCmd(
 		width = ~0;
 	    }
 	    if (TCL_OK != TclParseNumber(NULL, objPtr, NULL, string, width,
-		    &end, TCL_PARSE_INTEGER_ONLY | parseFlag)) {
+		    &end, TCL_PARSE_INTEGER_ONLY | TCL_PARSE_NO_UNDERSCORE | parseFlag)) {
 		Tcl_DecrRefCount(objPtr);
 		if (width < 0) {
 		    if (*end == '\0') {
@@ -925,7 +961,7 @@ Tcl_ScanObjCmd(
 		break;
 	    }
 	    if (flags & SCAN_LONGER) {
-		if (Tcl_GetWideIntFromObj(NULL, objPtr, &wideValue) != TCL_OK) {
+		if (TclGetWideIntFromObj(NULL, objPtr, &wideValue) != TCL_OK) {
 		    if (TclGetString(objPtr)[0] == '-') {
 			wideValue = WIDE_MIN;
 		    } else {
@@ -934,29 +970,65 @@ Tcl_ScanObjCmd(
 		}
 		if ((flags & SCAN_UNSIGNED) && (wideValue < 0)) {
 		    mp_int big;
-		    TclBNInitBignumFromWideUInt(&big, (Tcl_WideUInt)wideValue);
-		    Tcl_SetBignumObj(objPtr, &big);
-		} else {
-		    Tcl_SetWideIntObj(objPtr, wideValue);
-		}
-	    } else if (!(flags & SCAN_BIG)) {
-		if (TclGetLongFromObj(NULL, objPtr, &value) != TCL_OK) {
-		    if (TclGetString(objPtr)[0] == '-') {
-			value = LONG_MIN;
+		    if (mp_init_u64(&big, (Tcl_WideUInt)wideValue) != MP_OKAY) {
+			Tcl_SetObjResult(interp, Tcl_NewStringObj(
+				"insufficient memory to create bignum", -1));
+			Tcl_SetErrorCode(interp, "TCL", "MEMORY", (char *)NULL);
+			return TCL_ERROR;
 		    } else {
-			value = LONG_MAX;
+			Tcl_SetBignumObj(objPtr, &big);
+		    }
+		} else {
+		    TclSetIntObj(objPtr, wideValue);
+		}
+	    } else if (flags & SCAN_BIG) {
+		if (flags & SCAN_UNSIGNED) {
+		    mp_int big;
+		    int res = Tcl_GetBignumFromObj(interp, objPtr, &big);
+
+		    if (res == TCL_OK) {
+			if (mp_isneg(&big)) {
+			    res = TCL_ERROR;
+			}
+			mp_clear(&big);
+		    }
+
+		    if (res == TCL_ERROR) {
+			if (objs != NULL) {
+			    Tcl_Free(objs);
+			}
+			Tcl_DecrRefCount(objPtr);
+			Tcl_SetObjResult(interp, Tcl_NewStringObj(
+				"unsigned bignum scans are invalid", -1));
+			Tcl_SetErrorCode(interp, "TCL", "FORMAT",
+				"BADUNSIGNED", (char *)NULL);
+			return TCL_ERROR;
+		    }
+		}
+	    } else {
+		if (TclGetIntFromObj(NULL, objPtr, &value) != TCL_OK) {
+		    if (TclGetString(objPtr)[0] == '-') {
+			value = INT_MIN;
+		    } else {
+			value = INT_MAX;
 		    }
 		}
 		if ((flags & SCAN_UNSIGNED) && (value < 0)) {
 #ifdef TCL_WIDE_INT_IS_LONG
 		    mp_int big;
-		    TclBNInitBignumFromWideUInt(&big, (unsigned long)value);
-		    Tcl_SetBignumObj(objPtr, &big);
+		    if (mp_init_u64(&big, (unsigned long)value) != MP_OKAY) {
+			Tcl_SetObjResult(interp, Tcl_NewStringObj(
+				"insufficient memory to create bignum", -1));
+			Tcl_SetErrorCode(interp, "TCL", "MEMORY", (char *)NULL);
+			return TCL_ERROR;
+		    } else {
+			Tcl_SetBignumObj(objPtr, &big);
+		    }
 #else
 		    Tcl_SetWideIntObj(objPtr, (unsigned long)value);
 #endif
 		} else {
-		    TclSetLongObj(objPtr, value);
+		    TclSetIntObj(objPtr, value);
 		}
 	    }
 	    objs[objIndex++] = objPtr;
@@ -973,7 +1045,7 @@ Tcl_ScanObjCmd(
 		width = ~0;
 	    }
 	    if (TCL_OK != TclParseNumber(NULL, objPtr, NULL, string, width,
-		    &end, TCL_PARSE_DECIMAL_ONLY | TCL_PARSE_NO_WHITESPACE)) {
+		    &end, TCL_PARSE_DECIMAL_ONLY | TCL_PARSE_NO_WHITESPACE | TCL_PARSE_NO_UNDERSCORE)) {
 		Tcl_DecrRefCount(objPtr);
 		if (width < 0) {
 		    if (*end == '\0') {
@@ -992,8 +1064,10 @@ Tcl_ScanObjCmd(
 		double dvalue;
 		if (Tcl_GetDoubleFromObj(NULL, objPtr, &dvalue) != TCL_OK) {
 #ifdef ACCEPT_NAN
-		    if (objPtr->typePtr == &tclDoubleType) {
-			dvalue = objPtr->internalRep.doubleValue;
+		    const Tcl_ObjInternalRep *irPtr
+			    = TclFetchInternalRep(objPtr, &tclDoubleType);
+		    if (irPtr) {
+			dvalue = irPtr->doubleValue;
 		    } else
 #endif
 		    {
@@ -1039,27 +1113,39 @@ Tcl_ScanObjCmd(
     } else {
 	/*
 	 * Here no vars were specified, we want a list returned (inline scan)
+	 * We create an empty Tcl_Obj to fill missing values rather than
+	 * allocating a new Tcl_Obj every time. See test scan-bigdata-XX.
 	 */
-
+	Tcl_Obj *emptyObj = NULL;
 	TclNewObj(objPtr);
-	for (i = 0; i < totalVars; i++) {
+	for (i = 0; code == TCL_OK && i < totalVars; i++) {
 	    if (objs[i] != NULL) {
-		Tcl_ListObjAppendElement(NULL, objPtr, objs[i]);
+		code = Tcl_ListObjAppendElement(interp, objPtr, objs[i]);
 		Tcl_DecrRefCount(objs[i]);
 	    } else {
-		Tcl_Obj *obj;
 		/*
 		 * More %-specifiers than matching chars, so we just spit out
 		 * empty strings for these.
 		 */
-
-		TclNewObj(obj);
-		Tcl_ListObjAppendElement(NULL, objPtr, obj);
+		if (!emptyObj) {
+		    TclNewObj(emptyObj);
+		}
+		code = Tcl_ListObjAppendElement(interp, objPtr, emptyObj);
 	    }
+	}
+	if (code != TCL_OK) {
+	    /* If error'ed out, free up remaining. i contains last index freed */
+	    while (++i < totalVars) {
+		if (objs[i] != NULL) {
+		    Tcl_DecrRefCount(objs[i]);
+		}
+	    }
+	    Tcl_DecrRefCount(objPtr);
+	    objPtr = NULL;
 	}
     }
     if (objs != NULL) {
-	ckfree(objs);
+	Tcl_Free(objs);
     }
     if (code == TCL_OK) {
 	if (underflow && (nconversions == 0)) {

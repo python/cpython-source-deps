@@ -267,7 +267,7 @@ proc ::tcl::tm::UnknownHandler {original name args} {
 		    # of the package file is the last element in the list.
 
 		    package ifneeded $pkgname $pkgversion \
-			"[::list package provide $pkgname $pkgversion];[::list source -encoding utf-8 $file]"
+			"[::list package provide $pkgname $pkgversion];[::list source $file]"
 
 		    # We abort in this unknown handler only if we got a
 		    # satisfying candidate for the requested package.
@@ -316,7 +316,7 @@ proc ::tcl::tm::UnknownHandler {original name args} {
 proc ::tcl::tm::Defaults {} {
     global env tcl_platform
 
-    regexp {^(\d+)\.(\d+)} [package provide Tcl] - major minor
+    regexp {^(\d+)\.(\d+)} [package provide tcl] - major minor
     set exe [file normalize [info nameofexecutable]]
 
     # Note that we're using [::list], not [list] because [list] means
@@ -326,19 +326,17 @@ proc ::tcl::tm::Defaults {} {
 	    [file join [file dirname [file dirname $exe]] lib] \
 	    ]
 
-    if {$tcl_platform(platform) eq "windows"} {
-	set sep ";"
-    } else {
-	set sep ":"
-    }
     for {set n $minor} {$n >= 0} {incr n -1} {
 	foreach ev [::list \
 			TCL${major}.${n}_TM_PATH \
 			TCL${major}_${n}_TM_PATH \
 	] {
 	    if {![info exists env($ev)]} continue
-	    foreach p [split $env($ev) $sep] {
-		path add $p
+	    foreach p [split $env($ev) $::tcl_platform(pathSeparator)] {
+		# Paths relative to unresolvable home dirs are ignored
+		if {![catch {file tildeexpand $p} expanded_path]} {
+		    path add $expanded_path
+		}
 	    }
 	}
     }
@@ -359,7 +357,7 @@ proc ::tcl::tm::Defaults {} {
 #	Calls 'path add' to paths to the list of module search paths.
 
 proc ::tcl::tm::roots {paths} {
-    regexp {^(\d+)\.(\d+)} [package provide Tcl] - major minor
+    regexp {^(\d+)\.(\d+)} [package provide tcl] - major minor
     foreach pa $paths {
 	set p [file join $pa tcl$major]
 	for {set n $minor} {$n >= 0} {incr n -1} {
