@@ -505,7 +505,7 @@ $(TKSCRIPTZIP): .PHONY
 	@if not exist "$(LIBTKVFS)" $(MKDIR) "$(LIBTKVFS)"
 	@if exist "$(LIBTKVFS)\$(TKSCRIPTZIPTOP)" $(RMDIR) "$(LIBTKVFS)\$(TKSCRIPTZIPTOP)"
 	@$(CPYDIR) $(LIBDIR) "$(LIBTKVFS)\$(TKSCRIPTZIPTOP)"
-	@$(TCLSH) <<
+	@$(TCLSH_NATIVE) <<
 cd {$(OUT_DIR)}
 file delete -force {$@}
 zipfs mkzip {$@} {$(LIBTKVFS)} {$(LIBTKVFS)}
@@ -515,7 +515,7 @@ zipfs mkzip {$@} {$(LIBTKVFS)} {$(LIBTKVFS)}
 $(WISHSCRIPTZIP): $(TKSCRIPTZIP)
 	@echo Building Wish Tcl+Tk library zip file
 	@if exist "$(LIBTKVFS)\tcl_library" $(RMDIR) "$(LIBTKVFS)\tcl_library"
-	@$(TCLSH) <<
+	@$(TCLSH_NATIVE) <<
 cd {$(OUT_DIR)}
 file delete -force {$@}
 zipfs mount "$(TCLSCRIPTZIP:\=/)" mnt
