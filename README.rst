@@ -35,7 +35,7 @@ Once the PR has been merged, tag the commit as
 ``sqlite-<full version to be used in CPython's PCbuild/get_externals.bat>``.
 
 For updating each project to be updated, follow the above instructions with
-appropriate substitutions.  For ``sqlite``, ``bzip2``, ``xz``, ``zlib``, and
+appropriate substitutions.  For ``sqlite``, ``bzip2``, ``xz``, ``zlib-ng``, and
 ``zstd``, that's it!
 
 For ``openssl``, ``tcl``/``tk``, and ``libffi``, builds of each should also be
@@ -57,7 +57,7 @@ Download links
 - ``sqlite``: https://www.sqlite.org/download.html
 - ``tcl``/``tk``: https://tcl.tk/software/tcltk/download.html
 - ``xz``: https://github.com/tukaani-project/xz
-- ``zlib``: https://zlib.net/
+- ``zlib-ng``: https://github.com/zlib-ng/zlib-ng
 - ``zstd``: https://github.com/facebook/zstd
 
 Tagging the commit
